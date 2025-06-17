@@ -50,9 +50,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: isAuthLoading, logout } = useAuth(); 
 
+  const [activeTab, setActiveTab] = useState('orders');
   const [trackOrderId, setTrackOrderId] = useState('');
   const [trackedOrderStatus, setTrackedOrderStatus] = useState<string | null>(null);
-  const [orders, setOrders] = useState<Order[]>(initialMockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<AddressType[]>(mockAddresses);
   const [isClientRendered, setIsClientRendered] = useState(false);
 
@@ -60,39 +61,26 @@ export default function ProfilePage() {
     setIsClientRendered(true); 
     if (typeof window !== 'undefined') {
       const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
+      let loadedOrders: Order[] = initialMockOrders; // Default to mock if nothing in LS or parsing fails
       if (storedOrdersString) {
         try {
-          const storedOrders = JSON.parse(storedOrdersString) as Order[];
-          // Add data-ai-hint to stored orders if not present (for older data or if missed)
-          const ordersWithHints = storedOrders.map(order => ({
-            ...order,
-            items: order.items.map(item => ({
-              ...item,
-              imageUrl: item.imageUrl.includes('data-ai-hint') ? item.imageUrl : `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
-            }))
-          }));
-          setOrders(ordersWithHints);
+          loadedOrders = JSON.parse(storedOrdersString) as Order[];
         } catch (e) {
           console.error("Failed to parse orders from localStorage", e);
-          // Fallback to initialMockOrders with hints if parsing fails
-            setOrders(initialMockOrders.map(order => ({
-            ...order,
-            items: order.items.map(item => ({
-              ...item,
-              imageUrl: `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
-            }))
-          })));
+          // Keep loadedOrders as initialMockOrders
         }
-      } else {
-         // If no orders in localStorage, use initialMockOrders with hints
-         setOrders(initialMockOrders.map(order => ({
-            ...order,
-            items: order.items.map(item => ({
-              ...item,
-              imageUrl: `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
-            }))
-          })));
       }
+      
+      const ordersWithHints = loadedOrders.map(order => ({
+        ...order,
+        items: order.items.map(item => ({
+          ...item,
+          imageUrl: item.imageUrl.includes('data-ai-hint') 
+            ? item.imageUrl 
+            : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
+        }))
+      }));
+      setOrders(ordersWithHints);
     }
   }, []);
 
@@ -102,21 +90,32 @@ export default function ProfilePage() {
     }
   }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
 
-  const handleTrackOrder = (e: FormEvent) => {
-    e.preventDefault();
-    if (!trackOrderId) {
+  const findAndDisplayOrderStatus = (idToTrack: string) => {
+    if (!idToTrack) {
       setTrackedOrderStatus('Please enter an order ID.');
       return;
     }
-    setTrackedOrderStatus(`Searching for order ${trackOrderId}...`);
+    setTrackedOrderStatus(`Searching for order ${idToTrack}...`);
+    // Simulate API call for status
     setTimeout(() => {
-      const foundOrder = orders.find(o => o.id === trackOrderId);
+      const foundOrder = orders.find(o => o.id === idToTrack);
       if (foundOrder) {
-        setTrackedOrderStatus(`Order ${trackOrderId} is currently ${foundOrder.status}.`);
+        setTrackedOrderStatus(`Order ${idToTrack} is currently ${foundOrder.status}.`);
       } else {
-        setTrackedOrderStatus(`Order ${trackOrderId} not found.`);
+        setTrackedOrderStatus(`Order ${idToTrack} not found.`);
       }
     }, 1500);
+  };
+
+  const handleTrackOrderSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    findAndDisplayOrderStatus(trackOrderId);
+  };
+
+  const handleTrackOrderFromList = (orderIdToList: string) => {
+    setActiveTab('track');
+    setTrackOrderId(orderIdToList);
+    findAndDisplayOrderStatus(orderIdToList);
   };
 
   if (!isClientRendered || isAuthLoading || (!isAuthenticated && isClientRendered)) {
@@ -141,7 +140,7 @@ export default function ProfilePage() {
         </p>
       </section>
 
-      <Tabs defaultValue="orders" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
           <TabsTrigger value="orders"><ListOrdered className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Orders</TabsTrigger>
           <TabsTrigger value="addresses"><MapPin className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Addresses</TabsTrigger>
@@ -189,6 +188,15 @@ export default function ProfilePage() {
                         ))}
                       </ul>
                        <p className="text-sm text-muted-foreground pt-1">Shipped to: {order.shippingAddress}</p>
+                       <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 w-full sm:w-auto"
+                          onClick={() => handleTrackOrderFromList(order.id)}
+                        >
+                          <PackageSearch className="mr-2 h-4 w-4" />
+                          Track this Order
+                        </Button>
                     </CardContent>
                   </Card>
                 ))
@@ -236,7 +244,7 @@ export default function ProfilePage() {
               <CardTitle className="text-2xl font-headline">Track Your Order</CardTitle>
               <CardDescription>Enter your order ID to see its current status.</CardDescription>
             </CardHeader>
-            <form onSubmit={handleTrackOrder}>
+            <form onSubmit={handleTrackOrderSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="orderId">Order ID</Label>
@@ -309,3 +317,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
