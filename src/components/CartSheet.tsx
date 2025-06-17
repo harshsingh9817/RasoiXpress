@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -16,7 +17,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import CartItemCard from './CartItemCard';
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Trash2, Tag } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 const CartSheet = () => {
   const {
@@ -29,6 +31,7 @@ const CartSheet = () => {
     setIsCartOpen,
   } = useCart();
   const [couponCode, setCouponCode] = useState('');
+  const router = useRouter(); // Initialize router
 
   const handleApplyCoupon = (e: FormEvent) => {
     e.preventDefault();
@@ -36,6 +39,11 @@ const CartSheet = () => {
       applyCoupon(couponCode);
       setCouponCode('');
     }
+  };
+
+  const handleProceedToCheckout = () => {
+    setIsCartOpen(false); // Close the sheet
+    router.push('/checkout'); // Navigate to checkout page
   };
 
   const total = getCartTotal();
@@ -104,12 +112,12 @@ const CartSheet = () => {
                 >
                   <Trash2 className="mr-2 h-4 w-4" /> Clear Cart
                 </Button>
-                <Button 
+                <Button
                   className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                   aria-label="Proceed to checkout"
-                  // onClick={() => { /* Navigate to checkout page */ }}
+                  onClick={handleProceedToCheckout} // Updated onClick handler
                 >
-                  Proceed to Checkout
+                  Proceed to Checkout <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </SheetFooter>
@@ -121,3 +129,4 @@ const CartSheet = () => {
 };
 
 export default CartSheet;
+
