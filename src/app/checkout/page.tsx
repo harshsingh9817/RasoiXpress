@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 
+const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
+
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
   const router = useRouter();
@@ -31,7 +33,7 @@ export default function CheckoutPage() {
     phone: '',
   });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<string>(''); // Empty string for "Enter manually" or placeholder
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(ADD_NEW_ADDRESS_VALUE);
 
   useEffect(() => {
     setIsClient(true);
@@ -56,16 +58,16 @@ export default function CheckoutPage() {
               postalCode: defaultAddress.postalCode,
             }));
           } else {
-             setSelectedAddressId(''); // No default, ensure placeholder is shown
+             setSelectedAddressId(ADD_NEW_ADDRESS_VALUE); 
           }
         } catch (e) {
           console.error("Failed to parse addresses from localStorage for checkout", e);
           setSavedAddresses([]);
-          setSelectedAddressId('');
+          setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
         }
       } else {
         setSavedAddresses([]);
-        setSelectedAddressId('');
+        setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
       }
     }
   }, [getCartItemCount, router]);
@@ -78,7 +80,7 @@ export default function CheckoutPage() {
 
   const handleAddressSelectChange = (value: string) => {
     setSelectedAddressId(value);
-    if (value) { // An actual address ID is selected
+    if (value && value !== ADD_NEW_ADDRESS_VALUE) { 
       const selectedAddr = savedAddresses.find(addr => addr.id === value);
       if (selectedAddr) {
         setFormData(prev => ({
@@ -88,7 +90,7 @@ export default function CheckoutPage() {
           postalCode: selectedAddr.postalCode,
         }));
       }
-    } else { // "Enter manually" or placeholder is re-selected
+    } else { 
       setFormData(prev => ({
         ...prev,
         address: '',
@@ -196,7 +198,7 @@ export default function CheckoutPage() {
                       <SelectValue placeholder="Select a saved address or enter manually" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Enter new address manually</SelectItem>
+                      <SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address manually</SelectItem>
                       {savedAddresses.map(addr => (
                         <SelectItem key={addr.id} value={addr.id}>
                           {`${addr.type}: ${addr.street}, ${addr.city}${addr.isDefault ? " (Default)" : ""}`}
