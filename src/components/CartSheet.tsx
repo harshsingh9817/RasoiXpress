@@ -94,12 +94,12 @@ const CartSheet = () => {
               </form>
               <div className="flex justify-between text-lg font-semibold">
                 <span>Subtotal:</span>
-                <span>₹{total.toFixed(2)}</span>
+                <span>Rs.{total.toFixed(2)}</span>
               </div>
               {/* Add more details like tax, delivery fee if needed */}
               <div className="flex justify-between text-xl font-bold text-primary">
                 <span>Total:</span>
-                <span>₹{total.toFixed(2)}</span>
+                <span>Rs.{total.toFixed(2)}</span>
               </div>
             </div>
             <SheetFooter className="px-6 py-4 mt-auto border-t">

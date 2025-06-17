@@ -6,7 +6,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm1',
     name: 'Margherita Pizza',
     description: 'Classic delight with 100% real mozzarella cheese',
-    price: 349.00, // Example Price in Rupees
+    price: 349.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isVegetarian: true,
@@ -16,7 +16,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm2',
     name: 'Pepperoni Pizza',
     description: 'A classic American favorite with spicy pepperoni',
-    price: 429.00, // Example Price in Rupees
+    price: 429.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isPopular: true,
@@ -25,7 +25,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm3',
     name: 'Chicken Burger',
     description: 'Juicy chicken patty with fresh lettuce and secret sauce',
-    price: 249.00, // Example Price in Rupees
+    price: 249.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
   },
@@ -33,7 +33,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm4',
     name: 'Veggie Burger',
     description: 'Delicious veggie patty with all the fixings',
-    price: 220.00, // Example Price in Rupees
+    price: 220.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
     isVegetarian: true,
@@ -42,7 +42,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm5',
     name: 'Caesar Salad',
     description: 'Crisp romaine lettuce, parmesan cheese, and croutons',
-    price: 275.00, // Example Price in Rupees
+    price: 275.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Salads',
     isVegetarian: true,
@@ -51,7 +51,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm6',
     name: 'Spaghetti Carbonara',
     description: 'Creamy pasta with bacon and parmesan',
-    price: 399.00, // Example Price in Rupees
+    price: 399.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pasta',
   },
@@ -59,7 +59,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm7',
     name: 'Chocolate Lava Cake',
     description: 'Warm chocolate cake with a gooey center',
-    price: 180.00, // Example Price in Rupees
+    price: 180.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Desserts',
     isVegetarian: true,
@@ -68,7 +68,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm8',
     name: 'Butter Chicken',
     description: 'Tender chicken in a creamy tomato sauce',
-    price: 450.00, // Example Price in Rupees
+    price: 450.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
   },
@@ -76,7 +76,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm9',
     name: 'Paneer Tikka Masala',
     description: 'Grilled paneer in a spiced curry sauce',
-    price: 420.00, // Example Price in Rupees
+    price: 420.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
     isVegetarian: true,
@@ -86,7 +86,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm10',
     name: 'French Fries',
     description: 'Crispy golden french fries',
-    price: 120.00, // Example Price in Rupees
+    price: 120.00, 
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Sides',
     isVegetarian: true,
@@ -104,7 +104,7 @@ export const mockRestaurants: Restaurant[] = [
     categories: ['Pizza', 'Italian', 'Fast Food'],
     menu: [mockMenuItems[0], mockMenuItems[1], mockMenuItems[4], mockMenuItems[6]],
     address: '123 Pizza St, Flavor Town',
-    promotions: ['20% off on orders above ₹1000'], // Example in Rupees
+    promotions: ['20% off on orders above Rs.1000'], 
   },
   {
     id: 'r2',

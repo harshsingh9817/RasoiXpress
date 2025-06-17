@@ -31,7 +31,7 @@ const CartItemCard: FC<CartItemCardProps> = ({ item }) => {
       </div>
       <div className="flex-1">
         <h4 className="font-semibold text-sm">{item.name}</h4>
-        <p className="text-xs text-muted-foreground">₹{item.price.toFixed(2)} each</p>
+        <p className="text-xs text-muted-foreground">Rs.{item.price.toFixed(2)} each</p>
         <div className="flex items-center mt-1">
           <Button
             variant="outline"
@@ -65,7 +65,7 @@ const CartItemCard: FC<CartItemCardProps> = ({ item }) => {
         </div>
       </div>
       <div className="text-right">
-        <p className="font-semibold text-sm">₹{(item.price * item.quantity).toFixed(2)}</p>
+        <p className="font-semibold text-sm">Rs.{(item.price * item.quantity).toFixed(2)}</p>
         <Button
           variant="ghost"
           size="icon"

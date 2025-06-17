@@ -265,7 +265,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (₹{grandTotal.toFixed(2)})
+                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (Rs.{grandTotal.toFixed(2)})
                   </>
                 )}
               </Button>
@@ -292,20 +292,20 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-lg">
               <div className="flex justify-between font-medium">
                 <span>Subtotal:</span>
-                <span>₹{subTotal.toFixed(2)}</span>
+                <span>Rs.{subTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Delivery Fee:</span>
-                <span>₹{deliveryFee.toFixed(2)}</span>
+                <span>Rs.{deliveryFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Taxes (Estimated):</span>
-                <span>₹{estimatedTax.toFixed(2)}</span>
+                <span>Rs.{estimatedTax.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-primary text-xl">
                 <span>Total:</span>
-                <span>₹{grandTotal.toFixed(2)}</span>
+                <span>Rs.{grandTotal.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>

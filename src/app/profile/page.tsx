@@ -350,7 +350,7 @@ export default function ProfilePage() {
                             Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
                           </CardDescription>
                         </div>
-                        <p className="text-lg font-semibold text-primary">₹{order.total.toFixed(2)}</p>
+                        <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
@@ -369,7 +369,7 @@ export default function ProfilePage() {
                               />
                               <span>{item.name} (x{item.quantity})</span>
                             </div>
-                            <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                            <span>Rs.{(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>

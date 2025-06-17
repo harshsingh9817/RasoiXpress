@@ -34,7 +34,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground mb-2 min-h-[40px]">{menuItem.description}</CardDescription>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-lg font-semibold text-primary">₹{menuItem.price.toFixed(2)}</p>
+            <p className="text-lg font-semibold text-primary">Rs.{menuItem.price.toFixed(2)}</p>
             {menuItem.isPopular && <Badge variant="outline" className="text-accent border-accent">Popular</Badge>}
           </div>
         </div>
