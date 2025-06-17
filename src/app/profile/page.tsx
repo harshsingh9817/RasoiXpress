@@ -13,42 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
 import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle, Loader2, LogOut } from 'lucide-react';
 import Image from 'next/image';
+import type { Order, OrderItem, Address as AddressType } from '@/lib/types';
 
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  imageUrl: string;
-}
-
-interface Order {
-  id: string;
-  date: string;
-  status: 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  total: number;
-  items: OrderItem[];
-  shippingAddress: string;
-}
-
-interface Address {
-  id: string;
-  type: 'Home' | 'Work' | 'Other';
-  street: string;
-  city: string;
-  postalCode: string;
-  isDefault: boolean;
-}
-
-const mockOrders: Order[] = [
+const initialMockOrders: Order[] = [
   {
     id: 'ORD12345',
     date: '2024-07-15',
     status: 'Delivered',
     total: 45.99,
     items: [
-      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 12.99, imageUrl: 'https://placehold.co/100x100.png' },
-      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 8.75, imageUrl: 'https://placehold.co/100x100.png' },
+      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 12.99, imageUrl: 'https://placehold.co/100x100.png', category: 'Pizza', description: 'Classic pizza' },
+      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 8.75, imageUrl: 'https://placehold.co/100x100.png', category: 'Burgers', description: 'Juicy burger' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
   },
@@ -58,14 +33,14 @@ const mockOrders: Order[] = [
     status: 'Processing',
     total: 22.50,
     items: [
-      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 16.00, imageUrl: 'https://placehold.co/100x100.png' },
-      { id: 'm10', name: 'French Fries', quantity: 1, price: 4.00, imageUrl: 'https://placehold.co/100x100.png' },
+      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 16.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
+      { id: 'm10', name: 'French Fries', quantity: 1, price: 4.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Sides', description: 'Crispy fries' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
   },
 ];
 
-const mockAddresses: Address[] = [
+const mockAddresses: AddressType[] = [
   { id: 'addr1', type: 'Home', street: '123 Main St', city: 'Foodville', postalCode: '12345', isDefault: true },
   { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', postalCode: '67890', isDefault: false },
 ];
@@ -77,12 +52,48 @@ export default function ProfilePage() {
 
   const [trackOrderId, setTrackOrderId] = useState('');
   const [trackedOrderStatus, setTrackedOrderStatus] = useState<string | null>(null);
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
+  const [orders, setOrders] = useState<Order[]>(initialMockOrders);
+  const [addresses, setAddresses] = useState<AddressType[]>(mockAddresses);
   const [isClientRendered, setIsClientRendered] = useState(false);
 
   useEffect(() => {
     setIsClientRendered(true); 
+    if (typeof window !== 'undefined') {
+      const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
+      if (storedOrdersString) {
+        try {
+          const storedOrders = JSON.parse(storedOrdersString) as Order[];
+          // Add data-ai-hint to stored orders if not present (for older data or if missed)
+          const ordersWithHints = storedOrders.map(order => ({
+            ...order,
+            items: order.items.map(item => ({
+              ...item,
+              imageUrl: item.imageUrl.includes('data-ai-hint') ? item.imageUrl : `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
+            }))
+          }));
+          setOrders(ordersWithHints);
+        } catch (e) {
+          console.error("Failed to parse orders from localStorage", e);
+          // Fallback to initialMockOrders with hints if parsing fails
+            setOrders(initialMockOrders.map(order => ({
+            ...order,
+            items: order.items.map(item => ({
+              ...item,
+              imageUrl: `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
+            }))
+          })));
+        }
+      } else {
+         // If no orders in localStorage, use initialMockOrders with hints
+         setOrders(initialMockOrders.map(order => ({
+            ...order,
+            items: order.items.map(item => ({
+              ...item,
+              imageUrl: `${item.imageUrl}${item.imageUrl.includes('?') ? '&' : '?'}data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
+            }))
+          })));
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -161,9 +172,16 @@ export default function ProfilePage() {
                       <p className="text-sm font-medium">Items:</p>
                       <ul className="space-y-1">
                         {order.items.map(item => (
-                          <li key={item.id} className="flex items-center justify-between text-sm text-muted-foreground">
+                          <li key={item.id + item.name} className="flex items-center justify-between text-sm text-muted-foreground">
                             <div className="flex items-center">
-                              <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="rounded mr-2" data-ai-hint="food item" />
+                              <Image 
+                                src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
+                                alt={item.name} 
+                                width={40} 
+                                height={40} 
+                                className="rounded mr-2" 
+                                data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
+                              />
                               <span>{item.name} (x{item.quantity})</span>
                             </div>
                             <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -230,7 +248,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 {trackedOrderStatus && (
-                  <p className={`text-sm ${trackedOrderStatus.includes('not found') ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm ${trackedOrderStatus.includes('not found') || trackedOrderStatus.includes('Please enter') ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {trackedOrderStatus}
                   </p>
                 )}

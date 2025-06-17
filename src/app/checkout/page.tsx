@@ -13,6 +13,7 @@ import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
+import type { Order, OrderItem } from '@/lib/types'; // Assuming types are in lib/types
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
@@ -32,8 +33,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     setIsClient(true);
     if (getCartItemCount() === 0) {
-      // Redirect to home if cart is empty, but do it after client-side check
-      // to avoid issues during SSR or if cart loads slightly later.
       router.replace('/');
     }
   }, [getCartItemCount, router]);
@@ -51,6 +50,40 @@ export default function CheckoutPage() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
+    // Create the order object
+    const newOrder: Order = {
+      id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+      status: 'Processing',
+      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), // Including fees and tax as displayed
+      items: cartItems.map(item => ({
+        id: item.id, // This is the menu item id
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        imageUrl: item.imageUrl, // imageUrl from CartItem
+        category: item.category, // Added category from MenuItem
+        description: item.description, // Added description from MenuItem
+      })),
+      shippingAddress: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
+    };
+
+    // Save order to localStorage
+    if (typeof window !== 'undefined') {
+      const existingOrdersString = localStorage.getItem('nibbleNowUserOrders');
+      let orders: Order[] = [];
+      if (existingOrdersString) {
+        try {
+          orders = JSON.parse(existingOrdersString);
+        } catch (e) {
+          console.error("Failed to parse orders from localStorage", e);
+          orders = []; // Reset if parsing fails
+        }
+      }
+      orders.unshift(newOrder); // Add new order to the beginning
+      localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
+    }
+
     toast({
       title: 'Order Placed Successfully!',
       description: 'Thank you for your order. We will process it shortly.',
@@ -58,12 +91,11 @@ export default function CheckoutPage() {
       duration: 5000,
     });
     clearCart();
-    router.push('/');
+    router.push('/profile'); // Redirect to profile to see the new order
     setIsLoading(false);
   };
 
   if (!isClient || getCartItemCount() === 0) {
-    // Show loading or redirecting state, or null if redirecting immediately
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
@@ -74,7 +106,10 @@ export default function CheckoutPage() {
     );
   }
 
-  const total = getCartTotal();
+  const subTotal = getCartTotal();
+  const deliveryFee = 2.99;
+  const estimatedTax = subTotal * 0.08;
+  const grandTotal = subTotal + deliveryFee + estimatedTax;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -133,7 +168,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (${total.toFixed(2)})
+                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (${grandTotal.toFixed(2)})
                   </>
                 )}
               </Button>
@@ -160,20 +195,20 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-lg">
               <div className="flex justify-between font-medium">
                 <span>Subtotal:</span>
-                <span>${total.toFixed(2)}</span>
+                <span>${subTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Delivery Fee:</span>
-                <span>$2.99</span>
+                <span>${deliveryFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Taxes (Estimated):</span>
-                <span>${(total * 0.08).toFixed(2)}</span>
+                <span>${estimatedTax.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-primary text-xl">
                 <span>Total:</span>
-                <span>${(total + 2.99 + total * 0.08).toFixed(2)}</span>
+                <span>${grandTotal.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
@@ -188,4 +223,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
