@@ -47,6 +47,7 @@ export interface Order {
   total: number;
   items: OrderItem[];
   shippingAddress: string;
+  paymentMethod: 'UPI' | 'Cash on Delivery';
 }
 
 export interface Address {

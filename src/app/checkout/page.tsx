@@ -13,7 +13,8 @@ import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { CreditCard, DollarSign, Home, Loader2, PackageCheck } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
@@ -29,11 +30,12 @@ export default function CheckoutPage() {
     fullName: '',
     address: '',
     city: '',
-    pinCode: '', // Changed from postalCode
-    phone: '', // This is the order contact phone, distinct from address phone
+    pinCode: '',
+    phone: '',
   });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(ADD_NEW_ADDRESS_VALUE);
+  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery'>('UPI');
 
   useEffect(() => {
     setIsClient(true);
@@ -56,7 +58,6 @@ export default function CheckoutPage() {
               address: defaultAddress.street,
               city: defaultAddress.city,
               pinCode: defaultAddress.pinCode,
-              // formData.phone is for the order, not necessarily from the saved address's phone
             }));
           } else {
              setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
@@ -89,7 +90,6 @@ export default function CheckoutPage() {
           address: selectedAddr.street,
           city: selectedAddr.city,
           pinCode: selectedAddr.pinCode,
-           // formData.phone is for the order, not necessarily from the saved address's phone
         }));
       }
     } else {
@@ -122,7 +122,8 @@ export default function CheckoutPage() {
         category: item.category,
         description: item.description,
       })),
-      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`, // Use pinCode
+      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`,
+      paymentMethod: paymentMethod,
     };
 
     if (typeof window !== 'undefined') {
@@ -231,12 +232,29 @@ export default function CheckoutPage() {
               </div>
               <Separator />
               <div className="space-y-2">
-                <Label className="text-lg font-medium">Payment Details</Label>
-                <div className="p-4 border rounded-md bg-muted/50 text-muted-foreground text-center">
-                  <CreditCard className="mx-auto h-8 w-8 mb-2 text-primary" />
-                  <p>Secure payment processing coming soon!</p>
-                  <p className="text-xs">(For now, click "Place Order" to simulate)</p>
-                </div>
+                <Label className="text-lg font-medium">Payment Method</Label>
+                <RadioGroup
+                  value={paymentMethod}
+                  onValueChange={(value: string) => setPaymentMethod(value as 'UPI' | 'Cash on Delivery')}
+                  className="space-y-2"
+                >
+                  <Label
+                    htmlFor="payment-upi"
+                    className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                  >
+                    <RadioGroupItem value="UPI" id="payment-upi" />
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <span>UPI</span>
+                  </Label>
+                  <Label
+                    htmlFor="payment-cod"
+                    className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                  >
+                    <RadioGroupItem value="COD" id="payment-cod" />
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    <span>Cash on Delivery</span>
+                  </Label>
+                </RadioGroup>
               </div>
             </CardContent>
             <CardFooter>
