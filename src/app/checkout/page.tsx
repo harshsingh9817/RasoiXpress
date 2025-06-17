@@ -13,7 +13,7 @@ import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
-import type { Order, OrderItem } from '@/lib/types';
+import type { Order, OrderItem, Address as AddressType } from '@/lib/types';
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
@@ -35,6 +35,27 @@ export default function CheckoutPage() {
     if (getCartItemCount() === 0) {
       router.replace('/');
     }
+
+    if (typeof window !== 'undefined') {
+      const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
+      if (storedAddressesString) {
+        try {
+          const addresses = JSON.parse(storedAddressesString) as AddressType[];
+          const defaultAddress = addresses.find(addr => addr.isDefault);
+          if (defaultAddress) {
+            setFormData(prev => ({
+              ...prev,
+              address: defaultAddress.street,
+              city: defaultAddress.city,
+              postalCode: defaultAddress.postalCode,
+              // You might want to pre-fill fullName and phone if stored in address object
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to parse addresses from localStorage for checkout", e);
+        }
+      }
+    }
   }, [getCartItemCount, router]);
 
 
@@ -47,13 +68,14 @@ export default function CheckoutPage() {
     event.preventDefault();
     setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate API call or order processing
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
 
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
       date: new Date().toISOString().split('T')[0],
       status: 'Order Placed', // Initial status for new orders
-      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08),
+      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), // Example fee and tax
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -74,10 +96,10 @@ export default function CheckoutPage() {
           orders = JSON.parse(existingOrdersString);
         } catch (e) {
           console.error("Failed to parse orders from localStorage", e);
-          orders = [];
+          orders = []; 
         }
       }
-      orders.unshift(newOrder);
+      orders.unshift(newOrder); // Add new order to the beginning
       localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
     }
 
@@ -88,7 +110,7 @@ export default function CheckoutPage() {
       duration: 5000,
     });
     clearCart();
-    router.push('/profile');
+    router.push('/profile'); // Redirect to profile page to see the new order
     setIsLoading(false);
   };
 

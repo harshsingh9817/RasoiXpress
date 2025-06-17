@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
@@ -54,7 +54,7 @@ const initialMockOrders: Order[] = [
   {
     id: 'ORD67890',
     date: '2024-07-20',
-    status: 'Preparing', // Changed from 'Processing'
+    status: 'Preparing',
     total: 22.50,
     items: [
       { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 16.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
@@ -80,7 +80,7 @@ const initialMockOrders: Order[] = [
   }
 ];
 
-const mockAddresses: AddressType[] = [
+const initialMockAddresses: AddressType[] = [
   { id: 'addr1', type: 'Home', street: '123 Main St', city: 'Foodville', postalCode: '12345', isDefault: true },
   { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', postalCode: '67890', isDefault: false },
 ];
@@ -95,12 +95,13 @@ export default function ProfilePage() {
   const [trackedOrderDetails, setTrackedOrderDetails] = useState<Order | null>(null);
   const [trackOrderError, setTrackOrderError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [addresses, setAddresses] = useState<AddressType[]>(mockAddresses);
+  const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [isClientRendered, setIsClientRendered] = useState(false);
 
   useEffect(() => {
     setIsClientRendered(true);
     if (typeof window !== 'undefined') {
+      // Load Orders
       const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
       let loadedOrders: Order[] = initialMockOrders;
       if (storedOrdersString) {
@@ -113,7 +114,6 @@ export default function ProfilePage() {
           console.error("Failed to parse orders from localStorage", e);
         }
       }
-
       const ordersWithHints = loadedOrders.map(order => ({
         ...order,
         items: order.items.map(item => ({
@@ -124,6 +124,24 @@ export default function ProfilePage() {
         }))
       }));
       setOrders(ordersWithHints);
+
+      // Load Addresses
+      const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
+      if (storedAddressesString) {
+        try {
+          const parsedAddresses = JSON.parse(storedAddressesString) as AddressType[];
+          if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
+            setAddresses(parsedAddresses);
+          } else {
+             setAddresses(initialMockAddresses); // Fallback if parsed is empty array
+          }
+        } catch (e) {
+          console.error("Failed to parse addresses from localStorage", e);
+          setAddresses(initialMockAddresses); // Fallback on error
+        }
+      } else {
+        setAddresses(initialMockAddresses); // Initialize if not in localStorage
+      }
     }
   }, []);
 
@@ -133,6 +151,13 @@ export default function ProfilePage() {
     }
   }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
 
+  useEffect(() => {
+    if (isClientRendered && typeof window !== 'undefined' && addresses.length > 0) {
+      localStorage.setItem('nibbleNowUserAddresses', JSON.stringify(addresses));
+    }
+  }, [addresses, isClientRendered]);
+
+
   const findAndDisplayOrderStatus = (idToTrack: string) => {
     setTrackedOrderDetails(null);
     setTrackOrderError(null);
@@ -141,16 +166,12 @@ export default function ProfilePage() {
       setTrackOrderError('Please enter an order ID.');
       return;
     }
-
-    // Simulate API call for status
-    setTimeout(() => {
-      const foundOrder = orders.find(o => o.id.toLowerCase() === idToTrack.toLowerCase());
-      if (foundOrder) {
-        setTrackedOrderDetails(foundOrder);
-      } else {
-        setTrackOrderError(`Order ${idToTrack} not found.`);
-      }
-    }, 1000);
+    const foundOrder = orders.find(o => o.id.toLowerCase() === idToTrack.toLowerCase());
+    if (foundOrder) {
+      setTrackedOrderDetails(foundOrder);
+    } else {
+      setTrackOrderError(`Order ${idToTrack} not found.`);
+    }
   };
 
   const handleTrackOrderSubmit = (e: FormEvent) => {
@@ -173,8 +194,33 @@ export default function ProfilePage() {
       case 'Confirmed': return 'text-yellow-600';
       case 'Order Placed': return 'text-sky-600';
       case 'Cancelled': return 'text-red-600';
-      default: return 'text-orange-600'; // Default for Processing or others
+      default: return 'text-orange-600';
     }
+  };
+
+  const handleSetDefaultAddress = (addressId: string) => {
+    setAddresses(prevAddresses =>
+      prevAddresses.map(addr => ({
+        ...addr,
+        isDefault: addr.id === addressId,
+      }))
+    );
+  };
+
+  const handleDeleteAddress = (addressId: string) => {
+    setAddresses(prevAddresses => prevAddresses.filter(addr => addr.id !== addressId));
+  };
+
+  const handleAddNewAddress = () => {
+    const newAddress: AddressType = {
+      id: `addr${Date.now()}`,
+      type: 'Other',
+      street: '789 New Road',
+      city: 'Addressville',
+      postalCode: '98765',
+      isDefault: false,
+    };
+    setAddresses(prevAddresses => [...prevAddresses, newAddress]);
   };
 
 
@@ -275,23 +321,28 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {addresses.map(address => (
-                <Card key={address.id} className={`p-4 ${address.isDefault ? 'border-primary' : ''}`}>
+                <Card key={address.id} className={cn("p-4", address.isDefault ? "border-primary ring-1 ring-primary" : "")}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-semibold">{address.type} Address {address.isDefault && <span className="text-xs text-primary font-bold">(Default)</span>}</h4>
+                      <h4 className="font-semibold flex items-center">
+                        {address.type === 'Home' && <HomeIcon className="mr-2 h-4 w-4 text-primary" />}
+                        {address.type === 'Work' && <User className="mr-2 h-4 w-4 text-primary" />}
+                        {address.type !== 'Home' && address.type !== 'Work' && <MapPin className="mr-2 h-4 w-4 text-primary" />}
+                        {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
+                      </h4>
                       <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.postalCode}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="icon" aria-label="Edit address"><Edit3 className="h-4 w-4" /></Button>
-                      {!address.isDefault && <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete address"><Trash2 className="h-4 w-4" /></Button>}
+                      <Button variant="outline" size="icon" aria-label="Edit address" disabled><Edit3 className="h-4 w-4" /></Button>
+                      {!address.isDefault && <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete address" onClick={() => handleDeleteAddress(address.id)}><Trash2 className="h-4 w-4" /></Button>}
                     </div>
                   </div>
                   {!address.isDefault && (
-                    <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-primary">Set as default</Button>
+                    <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-primary" onClick={() => handleSetDefaultAddress(address.id)}>Set as default</Button>
                   )}
                 </Card>
               ))}
-              <Button variant="outline" className="w-full mt-4">
+              <Button variant="outline" className="w-full mt-4" onClick={handleAddNewAddress}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Address
               </Button>
             </CardContent>
@@ -314,7 +365,7 @@ export default function ProfilePage() {
                     value={trackOrderId}
                     onChange={(e) => {
                       setTrackOrderId(e.target.value);
-                      setTrackedOrderDetails(null); // Clear previous details when ID changes
+                      setTrackedOrderDetails(null); 
                       setTrackOrderError(null);
                     }}
                   />
@@ -346,7 +397,6 @@ export default function ProfilePage() {
                      <p className="text-sm text-muted-foreground">Current Status: <span className={cn("font-bold", getStatusColor(trackedOrderDetails.status))}>{trackedOrderDetails.status}</span></p>
                   </div>
                   <div className="relative pt-2">
-                    {/* Progress line */}
                     <div className="absolute left-5 top-2 bottom-0 w-0.5 bg-border -z-10" />
 
                     {orderProgressSteps.map((step, index) => {
