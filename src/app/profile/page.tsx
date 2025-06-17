@@ -12,6 +12,23 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
   PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon
 } from 'lucide-react';
@@ -85,6 +102,12 @@ const initialMockAddresses: AddressType[] = [
   { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', postalCode: '67890', isDefault: false },
 ];
 
+const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
+  type: 'Home',
+  street: '',
+  city: '',
+  postalCode: '',
+};
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -97,6 +120,10 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [isClientRendered, setIsClientRendered] = useState(false);
+
+  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
+  const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
+  const [currentAddressFormData, setCurrentAddressFormData] = useState<Omit<AddressType, 'id' | 'isDefault'>>(defaultAddressFormData);
 
   useEffect(() => {
     setIsClientRendered(true);
@@ -133,14 +160,14 @@ export default function ProfilePage() {
           if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
             setAddresses(parsedAddresses);
           } else {
-             setAddresses(initialMockAddresses); // Fallback if parsed is empty array
+             setAddresses(initialMockAddresses); 
           }
         } catch (e) {
           console.error("Failed to parse addresses from localStorage", e);
-          setAddresses(initialMockAddresses); // Fallback on error
+          setAddresses(initialMockAddresses); 
         }
       } else {
-        setAddresses(initialMockAddresses); // Initialize if not in localStorage
+        setAddresses(initialMockAddresses); 
       }
     }
   }, []);
@@ -210,17 +237,52 @@ export default function ProfilePage() {
   const handleDeleteAddress = (addressId: string) => {
     setAddresses(prevAddresses => prevAddresses.filter(addr => addr.id !== addressId));
   };
+  
+  const handleOpenAddAddressDialog = () => {
+    setAddressToEdit(null);
+    setCurrentAddressFormData(defaultAddressFormData);
+    setIsAddressDialogOpen(true);
+  };
 
-  const handleAddNewAddress = () => {
-    const newAddress: AddressType = {
-      id: `addr${Date.now()}`,
-      type: 'Other',
-      street: '789 New Road',
-      city: 'Addressville',
-      postalCode: '98765',
-      isDefault: false,
-    };
-    setAddresses(prevAddresses => [...prevAddresses, newAddress]);
+  const handleOpenEditAddressDialog = (address: AddressType) => {
+    setAddressToEdit(address);
+    setCurrentAddressFormData({
+      type: address.type,
+      street: address.street,
+      city: address.city,
+      postalCode: address.postalCode,
+    });
+    setIsAddressDialogOpen(true);
+  };
+
+  const handleAddressFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentAddressFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleAddressTypeChange = (value: AddressType['type']) => {
+    setCurrentAddressFormData(prev => ({ ...prev, type: value }));
+  };
+
+  const handleAddressFormSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (addressToEdit) {
+      // Editing existing address
+      setAddresses(prev => 
+        prev.map(addr => 
+          addr.id === addressToEdit.id ? { ...addr, ...currentAddressFormData } : addr
+        )
+      );
+    } else {
+      // Adding new address
+      const newAddress: AddressType = {
+        id: `addr${Date.now()}`,
+        ...currentAddressFormData,
+        isDefault: addresses.length === 0, // Make first address default
+      };
+      setAddresses(prev => [...prev, newAddress]);
+    }
+    setIsAddressDialogOpen(false);
   };
 
 
@@ -333,7 +395,7 @@ export default function ProfilePage() {
                       <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.postalCode}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="icon" aria-label="Edit address" disabled><Edit3 className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" aria-label="Edit address" onClick={() => handleOpenEditAddressDialog(address)}><Edit3 className="h-4 w-4" /></Button>
                       {!address.isDefault && <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete address" onClick={() => handleDeleteAddress(address.id)}><Trash2 className="h-4 w-4" /></Button>}
                     </div>
                   </div>
@@ -342,7 +404,7 @@ export default function ProfilePage() {
                   )}
                 </Card>
               ))}
-              <Button variant="outline" className="w-full mt-4" onClick={handleAddNewAddress}>
+              <Button variant="outline" className="w-full mt-4" onClick={handleOpenAddAddressDialog}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Address
               </Button>
             </CardContent>
@@ -480,6 +542,79 @@ export default function ProfilePage() {
         </TabsContent>
       </Tabs>
       <CartSheet />
+
+      {/* Address Add/Edit Dialog */}
+      <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{addressToEdit ? 'Edit Address' : 'Add New Address'}</DialogTitle>
+            <DialogDescription>
+              {addressToEdit ? 'Update your address details.' : 'Enter the details for your new address.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddressFormSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="type" className="text-right">Type</Label>
+                <Select
+                  name="type"
+                  value={currentAddressFormData.type}
+                  onValueChange={(value: AddressType['type']) => handleAddressTypeChange(value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Home">Home</SelectItem>
+                    <SelectItem value="Work">Work</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="street" className="text-right">Street</Label>
+                <Input
+                  id="street"
+                  name="street"
+                  value={currentAddressFormData.street}
+                  onChange={handleAddressFormChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="city" className="text-right">City</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={currentAddressFormData.city}
+                  onChange={handleAddressFormChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="postalCode" className="text-right">Postal Code</Label>
+                <Input
+                  id="postalCode"
+                  name="postalCode"
+                  value={currentAddressFormData.postalCode}
+                  onChange={handleAddressFormChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit">{addressToEdit ? 'Save Changes' : 'Add Address'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
