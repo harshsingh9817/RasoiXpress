@@ -54,6 +54,8 @@ export interface Address {
   type: 'Home' | 'Work' | 'Other';
   street: string;
   city: string;
-  postalCode: string;
+  pinCode: string; // Changed from postalCode
+  phone: string; // Added
+  alternatePhone?: string; // Added
   isDefault: boolean;
 }

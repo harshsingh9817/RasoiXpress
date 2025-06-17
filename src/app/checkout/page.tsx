@@ -29,8 +29,8 @@ export default function CheckoutPage() {
     fullName: '',
     address: '',
     city: '',
-    postalCode: '',
-    phone: '',
+    pinCode: '', // Changed from postalCode
+    phone: '', // This is the order contact phone, distinct from address phone
   });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(ADD_NEW_ADDRESS_VALUE);
@@ -47,7 +47,7 @@ export default function CheckoutPage() {
         try {
           const addresses = JSON.parse(storedAddressesString) as AddressType[];
           setSavedAddresses(addresses);
-          
+
           const defaultAddress = addresses.find(addr => addr.isDefault);
           if (defaultAddress) {
             setSelectedAddressId(defaultAddress.id);
@@ -55,10 +55,11 @@ export default function CheckoutPage() {
               ...prev,
               address: defaultAddress.street,
               city: defaultAddress.city,
-              postalCode: defaultAddress.postalCode,
+              pinCode: defaultAddress.pinCode,
+              // formData.phone is for the order, not necessarily from the saved address's phone
             }));
           } else {
-             setSelectedAddressId(ADD_NEW_ADDRESS_VALUE); 
+             setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
           }
         } catch (e) {
           console.error("Failed to parse addresses from localStorage for checkout", e);
@@ -80,22 +81,23 @@ export default function CheckoutPage() {
 
   const handleAddressSelectChange = (value: string) => {
     setSelectedAddressId(value);
-    if (value && value !== ADD_NEW_ADDRESS_VALUE) { 
+    if (value && value !== ADD_NEW_ADDRESS_VALUE) {
       const selectedAddr = savedAddresses.find(addr => addr.id === value);
       if (selectedAddr) {
         setFormData(prev => ({
           ...prev,
           address: selectedAddr.street,
           city: selectedAddr.city,
-          postalCode: selectedAddr.postalCode,
+          pinCode: selectedAddr.pinCode,
+           // formData.phone is for the order, not necessarily from the saved address's phone
         }));
       }
-    } else { 
+    } else {
       setFormData(prev => ({
         ...prev,
         address: '',
         city: '',
-        postalCode: '',
+        pinCode: '',
       }));
     }
   };
@@ -104,13 +106,13 @@ export default function CheckoutPage() {
     event.preventDefault();
     setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
       date: new Date().toISOString().split('T')[0],
       status: 'Order Placed',
-      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), 
+      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08),
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -120,7 +122,7 @@ export default function CheckoutPage() {
         category: item.category,
         description: item.description,
       })),
-      shippingAddress: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
+      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`, // Use pinCode
     };
 
     if (typeof window !== 'undefined') {
@@ -131,10 +133,10 @@ export default function CheckoutPage() {
           orders = JSON.parse(existingOrdersString);
         } catch (e) {
           console.error("Failed to parse orders from localStorage", e);
-          orders = []; 
+          orders = [];
         }
       }
-      orders.unshift(newOrder); 
+      orders.unshift(newOrder);
       localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
     }
 
@@ -145,7 +147,7 @@ export default function CheckoutPage() {
       duration: 5000,
     });
     clearCart();
-    router.push('/profile'); 
+    router.push('/profile');
     setIsLoading(false);
   };
 
@@ -201,7 +203,7 @@ export default function CheckoutPage() {
                       <SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address manually</SelectItem>
                       {savedAddresses.map(addr => (
                         <SelectItem key={addr.id} value={addr.id}>
-                          {`${addr.type}: ${addr.street}, ${addr.city}${addr.isDefault ? " (Default)" : ""}`}
+                          {`${addr.type}: ${addr.street}, ${addr.city}, ${addr.pinCode}${addr.isDefault ? " (Default)" : ""}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -219,12 +221,12 @@ export default function CheckoutPage() {
                   <Input id="city" name="city" value={formData.city} onChange={handleInputChange} placeholder="Foodville" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="postalCode">Postal Code</Label>
-                  <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} placeholder="12345" required />
+                  <Label htmlFor="pinCode">Pin Code</Label>
+                  <Input id="pinCode" name="pinCode" value={formData.pinCode} onChange={handleInputChange} placeholder="12345" required />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Contact Phone Number (for this order)</Label>
                 <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(555) 123-4567" required />
               </div>
               <Separator />

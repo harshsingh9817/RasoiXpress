@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
@@ -98,15 +98,17 @@ const initialMockOrders: Order[] = [
 ];
 
 const initialMockAddresses: AddressType[] = [
-  { id: 'addr1', type: 'Home', street: '123 Main St', city: 'Foodville', postalCode: '12345', isDefault: true },
-  { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', postalCode: '67890', isDefault: false },
+  { id: 'addr1', type: 'Home', street: '123 Main St', city: 'Foodville', pinCode: '12345', phone: '555-0101', alternatePhone: '555-0102', isDefault: true },
+  { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', pinCode: '67890', phone: '555-0201', isDefault: false },
 ];
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
   type: 'Home',
   street: '',
   city: '',
-  postalCode: '',
+  pinCode: '',
+  phone: '',
+  alternatePhone: '',
 };
 
 export default function ProfilePage() {
@@ -160,14 +162,14 @@ export default function ProfilePage() {
           if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
             setAddresses(parsedAddresses);
           } else {
-             setAddresses(initialMockAddresses); 
+             setAddresses(initialMockAddresses);
           }
         } catch (e) {
           console.error("Failed to parse addresses from localStorage", e);
-          setAddresses(initialMockAddresses); 
+          setAddresses(initialMockAddresses);
         }
       } else {
-        setAddresses(initialMockAddresses); 
+        setAddresses(initialMockAddresses);
       }
     }
   }, []);
@@ -211,7 +213,7 @@ export default function ProfilePage() {
     setTrackOrderId(orderIdToList);
     findAndDisplayOrderStatus(orderIdToList);
   };
-  
+
   const getStatusColor = (status: OrderStatus): string => {
     switch (status) {
       case 'Delivered': return 'text-green-600';
@@ -237,7 +239,7 @@ export default function ProfilePage() {
   const handleDeleteAddress = (addressId: string) => {
     setAddresses(prevAddresses => prevAddresses.filter(addr => addr.id !== addressId));
   };
-  
+
   const handleOpenAddAddressDialog = () => {
     setAddressToEdit(null);
     setCurrentAddressFormData(defaultAddressFormData);
@@ -250,7 +252,9 @@ export default function ProfilePage() {
       type: address.type,
       street: address.street,
       city: address.city,
-      postalCode: address.postalCode,
+      pinCode: address.pinCode,
+      phone: address.phone,
+      alternatePhone: address.alternatePhone || '',
     });
     setIsAddressDialogOpen(true);
   };
@@ -259,7 +263,7 @@ export default function ProfilePage() {
     const { name, value } = e.target;
     setCurrentAddressFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleAddressTypeChange = (value: AddressType['type']) => {
     setCurrentAddressFormData(prev => ({ ...prev, type: value }));
   };
@@ -268,9 +272,9 @@ export default function ProfilePage() {
     e.preventDefault();
     if (addressToEdit) {
       // Editing existing address
-      setAddresses(prev => 
-        prev.map(addr => 
-          addr.id === addressToEdit.id ? { ...addr, ...currentAddressFormData } : addr
+      setAddresses(prev =>
+        prev.map(addr =>
+          addr.id === addressToEdit.id ? { ...addressToEdit, ...currentAddressFormData } : addr
         )
       );
     } else {
@@ -392,7 +396,10 @@ export default function ProfilePage() {
                         {address.type !== 'Home' && address.type !== 'Work' && <MapPin className="mr-2 h-4 w-4 text-primary" />}
                         {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
                       </h4>
-                      <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.postalCode}</p>
+                      <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.pinCode}</p>
+                      <p className="text-sm text-muted-foreground"><Phone className="inline mr-1 h-3 w-3" />{address.phone}
+                        {address.alternatePhone && <span className="ml-2"><Smartphone className="inline mr-1 h-3 w-3" />{address.alternatePhone}</span>}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" aria-label="Edit address" onClick={() => handleOpenEditAddressDialog(address)}><Edit3 className="h-4 w-4" /></Button>
@@ -427,7 +434,7 @@ export default function ProfilePage() {
                     value={trackOrderId}
                     onChange={(e) => {
                       setTrackOrderId(e.target.value);
-                      setTrackedOrderDetails(null); 
+                      setTrackedOrderDetails(null);
                       setTrackOrderError(null);
                     }}
                   />
@@ -545,7 +552,7 @@ export default function ProfilePage() {
 
       {/* Address Add/Edit Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{addressToEdit ? 'Edit Address' : 'Add New Address'}</DialogTitle>
             <DialogDescription>
@@ -554,14 +561,14 @@ export default function ProfilePage() {
           </DialogHeader>
           <form onSubmit={handleAddressFormSubmit}>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="type" className="text-right">Type</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="type">Type</Label>
                 <Select
                   name="type"
                   value={currentAddressFormData.type}
                   onValueChange={(value: AddressType['type']) => handleAddressTypeChange(value)}
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger id="type">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -571,37 +578,57 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="street" className="text-right">Street</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="street">Street</Label>
                 <Input
                   id="street"
                   name="street"
                   value={currentAddressFormData.street}
                   onChange={handleAddressFormChange}
-                  className="col-span-3"
                   required
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="city" className="text-right">City</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={currentAddressFormData.city}
+                    onChange={handleAddressFormChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pinCode">Pin Code</Label>
+                  <Input
+                    id="pinCode"
+                    name="pinCode"
+                    value={currentAddressFormData.pinCode}
+                    onChange={handleAddressFormChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Phone Number</Label>
                 <Input
-                  id="city"
-                  name="city"
-                  value={currentAddressFormData.city}
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={currentAddressFormData.phone}
                   onChange={handleAddressFormChange}
-                  className="col-span-3"
                   required
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="postalCode" className="text-right">Postal Code</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="alternatePhone">Alternate Phone Number (Optional)</Label>
                 <Input
-                  id="postalCode"
-                  name="postalCode"
-                  value={currentAddressFormData.postalCode}
+                  id="alternatePhone"
+                  name="alternatePhone"
+                  type="tel"
+                  value={currentAddressFormData.alternatePhone}
                   onChange={handleAddressFormChange}
-                  className="col-span-3"
-                  required
                 />
               </div>
             </div>
@@ -617,4 +644,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
