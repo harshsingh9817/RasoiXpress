@@ -14,7 +14,7 @@ import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, DollarSign, Home, Loader2, PackageCheck } from 'lucide-react';
+import { CreditCard, Home, Loader2, PackageCheck, Wallet } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
       date: new Date().toISOString().split('T')[0],
       status: 'Order Placed',
-      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08),
+      total: getCartTotal() + 49 + (getCartTotal() * 0.05), // Example delivery and tax in Rupees
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -164,8 +164,8 @@ export default function CheckoutPage() {
   }
 
   const subTotal = getCartTotal();
-  const deliveryFee = 2.99;
-  const estimatedTax = subTotal * 0.08;
+  const deliveryFee = 49; // Example in Rupees
+  const estimatedTax = subTotal * 0.05; // Example tax rate
   const grandTotal = subTotal + deliveryFee + estimatedTax;
 
   return (
@@ -228,7 +228,7 @@ export default function CheckoutPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Contact Phone Number (for this order)</Label>
-                <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(555) 123-4567" required />
+                <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(+91) 98765-43210" required />
               </div>
               <Separator />
               <div className="space-y-2">
@@ -250,8 +250,8 @@ export default function CheckoutPage() {
                     htmlFor="payment-cod"
                     className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
                   >
-                    <RadioGroupItem value="COD" id="payment-cod" />
-                    <DollarSign className="h-5 w-5 text-primary" />
+                    <RadioGroupItem value="Cash on Delivery" id="payment-cod" /> 
+                    <Wallet className="h-5 w-5 text-primary" />
                     <span>Cash on Delivery</span>
                   </Label>
                 </RadioGroup>
@@ -265,7 +265,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (${grandTotal.toFixed(2)})
+                    <PackageCheck className="mr-2 h-5 w-5" /> Place Order (₹{grandTotal.toFixed(2)})
                   </>
                 )}
               </Button>
@@ -292,20 +292,20 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-lg">
               <div className="flex justify-between font-medium">
                 <span>Subtotal:</span>
-                <span>${subTotal.toFixed(2)}</span>
+                <span>₹{subTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Delivery Fee:</span>
-                <span>${deliveryFee.toFixed(2)}</span>
+                <span>₹{deliveryFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground text-sm">
                 <span>Taxes (Estimated):</span>
-                <span>${estimatedTax.toFixed(2)}</span>
+                <span>₹{estimatedTax.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-primary text-xl">
                 <span>Total:</span>
-                <span>${grandTotal.toFixed(2)}</span>
+                <span>₹{grandTotal.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>

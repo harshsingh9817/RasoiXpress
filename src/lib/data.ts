@@ -1,3 +1,4 @@
+
 import type { Restaurant, MenuItem } from './types';
 
 export const mockMenuItems: MenuItem[] = [
@@ -5,7 +6,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm1',
     name: 'Margherita Pizza',
     description: 'Classic delight with 100% real mozzarella cheese',
-    price: 12.99,
+    price: 349.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isVegetarian: true,
@@ -15,7 +16,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm2',
     name: 'Pepperoni Pizza',
     description: 'A classic American favorite with spicy pepperoni',
-    price: 15.50,
+    price: 429.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isPopular: true,
@@ -24,7 +25,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm3',
     name: 'Chicken Burger',
     description: 'Juicy chicken patty with fresh lettuce and secret sauce',
-    price: 8.75,
+    price: 249.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
   },
@@ -32,7 +33,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm4',
     name: 'Veggie Burger',
     description: 'Delicious veggie patty with all the fixings',
-    price: 7.99,
+    price: 220.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
     isVegetarian: true,
@@ -41,7 +42,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm5',
     name: 'Caesar Salad',
     description: 'Crisp romaine lettuce, parmesan cheese, and croutons',
-    price: 9.20,
+    price: 275.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Salads',
     isVegetarian: true,
@@ -50,7 +51,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm6',
     name: 'Spaghetti Carbonara',
     description: 'Creamy pasta with bacon and parmesan',
-    price: 14.00,
+    price: 399.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pasta',
   },
@@ -58,7 +59,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm7',
     name: 'Chocolate Lava Cake',
     description: 'Warm chocolate cake with a gooey center',
-    price: 6.50,
+    price: 180.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Desserts',
     isVegetarian: true,
@@ -67,7 +68,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm8',
     name: 'Butter Chicken',
     description: 'Tender chicken in a creamy tomato sauce',
-    price: 16.00,
+    price: 450.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
   },
@@ -75,7 +76,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm9',
     name: 'Paneer Tikka Masala',
     description: 'Grilled paneer in a spiced curry sauce',
-    price: 14.50,
+    price: 420.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
     isVegetarian: true,
@@ -85,7 +86,7 @@ export const mockMenuItems: MenuItem[] = [
     id: 'm10',
     name: 'French Fries',
     description: 'Crispy golden french fries',
-    price: 4.00,
+    price: 120.00, // Example Price in Rupees
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Sides',
     isVegetarian: true,
@@ -103,7 +104,7 @@ export const mockRestaurants: Restaurant[] = [
     categories: ['Pizza', 'Italian', 'Fast Food'],
     menu: [mockMenuItems[0], mockMenuItems[1], mockMenuItems[4], mockMenuItems[6]],
     address: '123 Pizza St, Flavor Town',
-    promotions: ['20% off on orders above $50'],
+    promotions: ['20% off on orders above ₹1000'], // Example in Rupees
   },
   {
     id: 'r2',
@@ -167,9 +168,9 @@ export const getCurrentTrends = (): string[] => {
 
 // Add data-ai-hint to image URLs
 mockMenuItems.forEach(item => {
-  item.imageUrl = `${item.imageUrl}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category.toLowerCase()}`;
+  item.imageUrl = `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category.toLowerCase()}`;
 });
 
 mockRestaurants.forEach(restaurant => {
-  restaurant.imageUrl = `${restaurant.imageUrl}?data-ai-hint=${restaurant.name.split(" ")[0].toLowerCase()} ${restaurant.cuisine.split(",")[0].trim().toLowerCase()}`;
+  restaurant.imageUrl = `${restaurant.imageUrl.split('?')[0]}?data-ai-hint=${restaurant.name.split(" ")[0].toLowerCase()} ${restaurant.cuisine.split(",")[0].trim().toLowerCase()}`;
 });

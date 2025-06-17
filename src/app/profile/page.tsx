@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, DollarSign
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
@@ -61,10 +61,10 @@ const initialMockOrders: Order[] = [
     id: 'ORD12345',
     date: '2024-07-15',
     status: 'Delivered',
-    total: 45.99,
+    total: 3500.00,
     items: [
-      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 12.99, imageUrl: 'https://placehold.co/100x100.png', category: 'Pizza', description: 'Classic pizza' },
-      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 8.75, imageUrl: 'https://placehold.co/100x100.png', category: 'Burgers', description: 'Juicy burger' },
+      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png', category: 'Pizza', description: 'Classic pizza' },
+      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png', category: 'Burgers', description: 'Juicy burger' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'UPI',
@@ -73,10 +73,10 @@ const initialMockOrders: Order[] = [
     id: 'ORD67890',
     date: '2024-07-20',
     status: 'Preparing',
-    total: 22.50,
+    total: 1850.50,
     items: [
-      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 16.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
-      { id: 'm10', name: 'French Fries', quantity: 1, price: 4.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Sides', description: 'Crispy fries' },
+      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 1600, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
+      { id: 'm10', name: 'French Fries', quantity: 1, price: 400, imageUrl: 'https://placehold.co/100x100.png', category: 'Sides', description: 'Crispy fries' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'Cash on Delivery',
@@ -85,8 +85,8 @@ const initialMockOrders: Order[] = [
     id: 'ORD11223',
     date: '2024-07-22',
     status: 'Shipped',
-    total: 30.00,
-    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 14.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Pasta', description: 'Creamy pasta' }],
+    total: 2500.00,
+    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
     paymentMethod: 'UPI',
   },
@@ -94,8 +94,8 @@ const initialMockOrders: Order[] = [
     id: 'ORDCANCELED',
     date: '2024-07-21',
     status: 'Cancelled',
-    total: 15.00,
-    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 9.20, imageUrl: 'https://placehold.co/100x100.png', category: 'Salads', description: 'Crisp salad' }],
+    total: 1200.00,
+    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
   }
@@ -136,18 +136,7 @@ export default function ProfilePage() {
     if (typeof window !== 'undefined') {
       // Load Orders
       const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
-      let loadedOrders: Order[] = initialMockOrders;
-      if (storedOrdersString) {
-        try {
-          const parsedOrders = JSON.parse(storedOrdersString) as Order[];
-          if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
-            loadedOrders = parsedOrders;
-          }
-        } catch (e) {
-          console.error("Failed to parse orders from localStorage", e);
-        }
-      }
-      const ordersWithHints = loadedOrders.map(order => ({
+      let loadedOrders: Order[] = initialMockOrders.map(order => ({
         ...order,
         items: order.items.map(item => ({
           ...item,
@@ -155,8 +144,27 @@ export default function ProfilePage() {
             ? item.imageUrl
             : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
         }))
-      }));
-      setOrders(ordersWithHints);
+      })); // Ensure mock orders have hints from the start
+      if (storedOrdersString) {
+        try {
+          const parsedOrders = JSON.parse(storedOrdersString) as Order[];
+          if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
+            loadedOrders = parsedOrders.map(order => ({ // Also apply hints to loaded orders if missing
+              ...order,
+              items: order.items.map(item => ({
+                ...item,
+                imageUrl: item.imageUrl.includes('data-ai-hint')
+                  ? item.imageUrl
+                  : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
+              }))
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to parse orders from localStorage", e);
+        }
+      }
+      setOrders(loadedOrders);
+
 
       // Load Addresses
       const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
@@ -342,7 +350,7 @@ export default function ProfilePage() {
                             Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
                           </CardDescription>
                         </div>
-                        <p className="text-lg font-semibold text-primary">${order.total.toFixed(2)}</p>
+                        <p className="text-lg font-semibold text-primary">₹{order.total.toFixed(2)}</p>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
@@ -361,14 +369,14 @@ export default function ProfilePage() {
                               />
                               <span>{item.name} (x{item.quantity})</span>
                             </div>
-                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                            <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>
                       <p className="text-sm text-muted-foreground pt-1">Shipped to: {order.shippingAddress}</p>
                       <div className="text-sm text-muted-foreground flex items-center">
                         Payment:
-                        {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <DollarSign className="ml-2 mr-1 h-4 w-4 text-primary" />}
+                        {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <Wallet className="ml-2 mr-1 h-4 w-4 text-primary" />}
                         {order.paymentMethod}
                       </div>
                       <Button

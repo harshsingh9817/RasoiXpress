@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { useParams, notFound } from 'next/navigation';
 import { getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
-import { Star, Clock, Leaf, Filter, Award, DollarSign } from 'lucide-react';
+import { Star, Clock, Leaf, Filter, Award, TrendingUp } from 'lucide-react'; // Using TrendingUp for price sorting
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -142,7 +143,7 @@ export default function RestaurantDetailPage() {
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
               <SelectTrigger className="w-full md:w-[180px]" aria-label="Sort by">
-                 <DollarSign className="mr-2 h-4 w-4 text-muted-foreground"/>
+                 <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
