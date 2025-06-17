@@ -8,8 +8,8 @@ export interface Restaurant {
   imageUrl: string;
   categories: string[];
   menu: MenuItem[];
-  address: string; 
-  promotions?: string[]; 
+  address: string;
+  promotions?: string[];
 }
 
 export interface MenuItem {
@@ -18,7 +18,7 @@ export interface MenuItem {
   description: string;
   price: number;
   imageUrl: string;
-  category: string; 
+  category: string;
   isVegetarian?: boolean;
   isPopular?: boolean;
 }
@@ -27,16 +27,23 @@ export interface CartItem extends MenuItem {
   quantity: number;
 }
 
-// Added Order and OrderItem interfaces here to be globally accessible if needed
-// Or ensure they are correctly defined/imported where used (e.g., ProfilePage, CheckoutPage)
-export interface OrderItem extends MenuItem { // OrderItem can extend MenuItem
+export type OrderStatus =
+  | 'Order Placed'
+  | 'Confirmed'
+  | 'Preparing'
+  | 'Shipped'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Cancelled';
+
+export interface OrderItem extends MenuItem {
   quantity: number;
 }
 
 export interface Order {
   id: string;
   date: string;
-  status: 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  status: OrderStatus;
   total: number;
   items: OrderItem[];
   shippingAddress: string;

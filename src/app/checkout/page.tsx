@@ -13,7 +13,7 @@ import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
-import type { Order, OrderItem } from '@/lib/types'; // Assuming types are in lib/types
+import type { Order, OrderItem } from '@/lib/types';
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
@@ -47,28 +47,25 @@ export default function CheckoutPage() {
     event.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Create the order object
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
-      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-      status: 'Processing',
-      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), // Including fees and tax as displayed
+      date: new Date().toISOString().split('T')[0],
+      status: 'Order Placed', // Initial status for new orders
+      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08),
       items: cartItems.map(item => ({
-        id: item.id, // This is the menu item id
+        id: item.id,
         name: item.name,
         quantity: item.quantity,
         price: item.price,
-        imageUrl: item.imageUrl, // imageUrl from CartItem
-        category: item.category, // Added category from MenuItem
-        description: item.description, // Added description from MenuItem
+        imageUrl: item.imageUrl,
+        category: item.category,
+        description: item.description,
       })),
       shippingAddress: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
     };
 
-    // Save order to localStorage
     if (typeof window !== 'undefined') {
       const existingOrdersString = localStorage.getItem('nibbleNowUserOrders');
       let orders: Order[] = [];
@@ -77,10 +74,10 @@ export default function CheckoutPage() {
           orders = JSON.parse(existingOrdersString);
         } catch (e) {
           console.error("Failed to parse orders from localStorage", e);
-          orders = []; // Reset if parsing fails
+          orders = [];
         }
       }
-      orders.unshift(newOrder); // Add new order to the beginning
+      orders.unshift(newOrder);
       localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
     }
 
@@ -91,7 +88,7 @@ export default function CheckoutPage() {
       duration: 5000,
     });
     clearCart();
-    router.push('/profile'); // Redirect to profile to see the new order
+    router.push('/profile');
     setIsLoading(false);
   };
 

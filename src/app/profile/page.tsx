@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation'; 
-import { useAuth } from '@/contexts/AuthContext'; 
+import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,9 +11,33 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
-import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle, Loader2, LogOut } from 'lucide-react';
+import {
+  ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle
+} from 'lucide-react';
 import Image from 'next/image';
-import type { Order, OrderItem, Address as AddressType } from '@/lib/types';
+import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+const orderProgressSteps: OrderStatus[] = [
+  'Order Placed',
+  'Confirmed',
+  'Preparing',
+  'Shipped',
+  'Out for Delivery',
+  'Delivered',
+];
+
+const stepIcons: Record<OrderStatus, React.ElementType> = {
+  'Order Placed': PackagePlus,
+  'Confirmed': ClipboardCheck,
+  'Preparing': ChefHat,
+  'Shipped': Truck,
+  'Out for Delivery': Bike,
+  'Delivered': PackageCheckIcon,
+  'Cancelled': XCircle,
+};
+
 
 const initialMockOrders: Order[] = [
   {
@@ -30,7 +54,7 @@ const initialMockOrders: Order[] = [
   {
     id: 'ORD67890',
     date: '2024-07-20',
-    status: 'Processing',
+    status: 'Preparing', // Changed from 'Processing'
     total: 22.50,
     items: [
       { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 16.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
@@ -38,6 +62,22 @@ const initialMockOrders: Order[] = [
     ],
     shippingAddress: '123 Main St, Anytown, USA',
   },
+   {
+    id: 'ORD11223',
+    date: '2024-07-22',
+    status: 'Shipped',
+    total: 30.00,
+    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 14.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Pasta', description: 'Creamy pasta' }],
+    shippingAddress: '456 Oak Ave, Anytown, USA',
+  },
+  {
+    id: 'ORDCANCELED',
+    date: '2024-07-21',
+    status: 'Cancelled',
+    total: 15.00,
+    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 9.20, imageUrl: 'https://placehold.co/100x100.png', category: 'Salads', description: 'Crisp salad' }],
+    shippingAddress: '789 Pine Ln, Anytown, USA',
+  }
 ];
 
 const mockAddresses: AddressType[] = [
@@ -48,35 +88,38 @@ const mockAddresses: AddressType[] = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: isAuthLoading, logout } = useAuth(); 
+  const { isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState('orders');
   const [trackOrderId, setTrackOrderId] = useState('');
-  const [trackedOrderStatus, setTrackedOrderStatus] = useState<string | null>(null);
+  const [trackedOrderDetails, setTrackedOrderDetails] = useState<Order | null>(null);
+  const [trackOrderError, setTrackOrderError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<AddressType[]>(mockAddresses);
   const [isClientRendered, setIsClientRendered] = useState(false);
 
   useEffect(() => {
-    setIsClientRendered(true); 
+    setIsClientRendered(true);
     if (typeof window !== 'undefined') {
       const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
-      let loadedOrders: Order[] = initialMockOrders; // Default to mock if nothing in LS or parsing fails
+      let loadedOrders: Order[] = initialMockOrders;
       if (storedOrdersString) {
         try {
-          loadedOrders = JSON.parse(storedOrdersString) as Order[];
+          const parsedOrders = JSON.parse(storedOrdersString) as Order[];
+          if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
+            loadedOrders = parsedOrders;
+          }
         } catch (e) {
           console.error("Failed to parse orders from localStorage", e);
-          // Keep loadedOrders as initialMockOrders
         }
       }
-      
+
       const ordersWithHints = loadedOrders.map(order => ({
         ...order,
         items: order.items.map(item => ({
           ...item,
-          imageUrl: item.imageUrl.includes('data-ai-hint') 
-            ? item.imageUrl 
+          imageUrl: item.imageUrl.includes('data-ai-hint')
+            ? item.imageUrl
             : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
         }))
       }));
@@ -91,20 +134,23 @@ export default function ProfilePage() {
   }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
 
   const findAndDisplayOrderStatus = (idToTrack: string) => {
+    setTrackedOrderDetails(null);
+    setTrackOrderError(null);
+
     if (!idToTrack) {
-      setTrackedOrderStatus('Please enter an order ID.');
+      setTrackOrderError('Please enter an order ID.');
       return;
     }
-    setTrackedOrderStatus(`Searching for order ${idToTrack}...`);
+
     // Simulate API call for status
     setTimeout(() => {
-      const foundOrder = orders.find(o => o.id === idToTrack);
+      const foundOrder = orders.find(o => o.id.toLowerCase() === idToTrack.toLowerCase());
       if (foundOrder) {
-        setTrackedOrderStatus(`Order ${idToTrack} is currently ${foundOrder.status}.`);
+        setTrackedOrderDetails(foundOrder);
       } else {
-        setTrackedOrderStatus(`Order ${idToTrack} not found.`);
+        setTrackOrderError(`Order ${idToTrack} not found.`);
       }
-    }, 1500);
+    }, 1000);
   };
 
   const handleTrackOrderSubmit = (e: FormEvent) => {
@@ -117,6 +163,20 @@ export default function ProfilePage() {
     setTrackOrderId(orderIdToList);
     findAndDisplayOrderStatus(orderIdToList);
   };
+  
+  const getStatusColor = (status: OrderStatus): string => {
+    switch (status) {
+      case 'Delivered': return 'text-green-600';
+      case 'Shipped':
+      case 'Out for Delivery': return 'text-blue-600';
+      case 'Preparing':
+      case 'Confirmed': return 'text-yellow-600';
+      case 'Order Placed': return 'text-sky-600';
+      case 'Cancelled': return 'text-red-600';
+      default: return 'text-orange-600'; // Default for Processing or others
+    }
+  };
+
 
   if (!isClientRendered || isAuthLoading || (!isAuthenticated && isClientRendered)) {
     return (
@@ -162,7 +222,7 @@ export default function ProfilePage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
-                          <CardDescription>Date: {order.date} | Status: <span className={`font-semibold ${order.status === 'Delivered' ? 'text-green-600' : order.status === 'Processing' ? 'text-blue-600' : 'text-orange-600'}`}>{order.status}</span></CardDescription>
+                          <CardDescription>Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></CardDescription>
                         </div>
                         <p className="text-lg font-semibold text-primary">${order.total.toFixed(2)}</p>
                       </div>
@@ -173,12 +233,12 @@ export default function ProfilePage() {
                         {order.items.map(item => (
                           <li key={item.id + item.name} className="flex items-center justify-between text-sm text-muted-foreground">
                             <div className="flex items-center">
-                              <Image 
+                              <Image
                                 src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
-                                alt={item.name} 
-                                width={40} 
-                                height={40} 
-                                className="rounded mr-2" 
+                                alt={item.name}
+                                width={40}
+                                height={40}
+                                className="rounded mr-2"
                                 data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
                               />
                               <span>{item.name} (x{item.quantity})</span>
@@ -187,16 +247,16 @@ export default function ProfilePage() {
                           </li>
                         ))}
                       </ul>
-                       <p className="text-sm text-muted-foreground pt-1">Shipped to: {order.shippingAddress}</p>
-                       <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 w-full sm:w-auto"
-                          onClick={() => handleTrackOrderFromList(order.id)}
-                        >
-                          <PackageSearch className="mr-2 h-4 w-4" />
-                          Track this Order
-                        </Button>
+                      <p className="text-sm text-muted-foreground pt-1">Shipped to: {order.shippingAddress}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full sm:w-auto"
+                        onClick={() => handleTrackOrderFromList(order.id)}
+                      >
+                        <PackageSearch className="mr-2 h-4 w-4" />
+                        Track this Order
+                      </Button>
                     </CardContent>
                   </Card>
                 ))
@@ -242,31 +302,87 @@ export default function ProfilePage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl font-headline">Track Your Order</CardTitle>
-              <CardDescription>Enter your order ID to see its current status.</CardDescription>
+              <CardDescription>Enter your order ID to see its current status and progress.</CardDescription>
             </CardHeader>
             <form onSubmit={handleTrackOrderSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="orderId">Order ID</Label>
-                  <Input 
-                    id="orderId" 
-                    placeholder="e.g., ORD12345" 
+                  <Input
+                    id="orderId"
+                    placeholder="e.g., ORD12345"
                     value={trackOrderId}
-                    onChange={(e) => setTrackOrderId(e.target.value)}
+                    onChange={(e) => {
+                      setTrackOrderId(e.target.value);
+                      setTrackedOrderDetails(null); // Clear previous details when ID changes
+                      setTrackOrderError(null);
+                    }}
                   />
                 </div>
-                {trackedOrderStatus && (
-                  <p className={`text-sm ${trackedOrderStatus.includes('not found') || trackedOrderStatus.includes('Please enter') ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {trackedOrderStatus}
-                  </p>
-                )}
-              </CardContent>
-              <CardFooter>
                 <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
                   <PackageSearch className="mr-2 h-4 w-4" /> Track Order
                 </Button>
-              </CardFooter>
+              </CardContent>
             </form>
+            <CardContent>
+              {trackOrderError && (
+                <p className="text-destructive text-center py-4">{trackOrderError}</p>
+              )}
+              {trackedOrderDetails && trackedOrderDetails.status === 'Cancelled' && (
+                 <Card className="mt-4 border-destructive bg-destructive/10">
+                    <CardHeader className="flex flex-row items-center space-x-3">
+                        <AlertTriangle className="h-8 w-8 text-destructive" />
+                        <div>
+                            <CardTitle className="text-destructive">Order Cancelled</CardTitle>
+                            <CardDescription>Order ID: {trackedOrderDetails.id} was cancelled.</CardDescription>
+                        </div>
+                    </CardHeader>
+                 </Card>
+              )}
+              {trackedOrderDetails && trackedOrderDetails.status !== 'Cancelled' && (
+                <div className="mt-6 space-y-6">
+                  <div>
+                     <h3 className="text-lg font-semibold mb-1">Order ID: {trackedOrderDetails.id}</h3>
+                     <p className="text-sm text-muted-foreground">Current Status: <span className={cn("font-bold", getStatusColor(trackedOrderDetails.status))}>{trackedOrderDetails.status}</span></p>
+                  </div>
+                  <div className="relative pt-2">
+                    {/* Progress line */}
+                    <div className="absolute left-5 top-2 bottom-0 w-0.5 bg-border -z-10" />
+
+                    {orderProgressSteps.map((step, index) => {
+                      const IconComponent = stepIcons[step as OrderStatus] || PackageSearch;
+                      const currentIndex = orderProgressSteps.indexOf(trackedOrderDetails.status);
+                      const isCompleted = index < currentIndex;
+                      const isActive = index === currentIndex;
+                      const isFuture = index > currentIndex;
+
+                      return (
+                        <div key={step} className="flex items-start mb-5 last:mb-0">
+                          <div className={cn(
+                            "flex h-10 w-10 items-center justify-center rounded-full border-2 shrink-0",
+                            isActive ? "bg-primary border-primary text-primary-foreground animate-pulse" : "",
+                            isCompleted ? "bg-primary/80 border-primary/80 text-primary-foreground" : "",
+                            isFuture ? "bg-muted border-border text-muted-foreground" : ""
+                          )}>
+                            <IconComponent className="h-5 w-5" />
+                          </div>
+                          <div className="ml-4 pt-1.5">
+                            <p className={cn(
+                              "font-medium",
+                              isActive ? "text-primary" : "",
+                              isCompleted ? "text-foreground" : "",
+                              isFuture ? "text-muted-foreground" : ""
+                            )}>{step}</p>
+                            {isActive && <p className="text-xs text-muted-foreground">This is the current step.</p>}
+                            {isCompleted && <p className="text-xs text-muted-foreground">Completed</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -292,21 +408,21 @@ export default function ProfilePage() {
               <div>
                 <h4 className="font-medium mb-2">Notification Preferences</h4>
                 <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                        <Input type="checkbox" id="promoEmails" defaultChecked />
-                        <Label htmlFor="promoEmails" className="font-normal">Receive promotional emails</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Input type="checkbox" id="orderUpdates" defaultChecked />
-                        <Label htmlFor="orderUpdates" className="font-normal">Get order status updates</Label>
-                    </div>
+                  <div className="flex items-center space-x-2">
+                    <Input type="checkbox" id="promoEmails" defaultChecked />
+                    <Label htmlFor="promoEmails" className="font-normal">Receive promotional emails</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input type="checkbox" id="orderUpdates" defaultChecked />
+                    <Label htmlFor="orderUpdates" className="font-normal">Get order status updates</Label>
+                  </div>
                 </div>
-                 <Button variant="default" size="sm" className="mt-3 bg-primary hover:bg-primary/90">Save Preferences</Button>
+                <Button variant="default" size="sm" className="mt-3 bg-primary hover:bg-primary/90">Save Preferences</Button>
               </div>
               <Separator />
               <div>
                 <Button variant="destructive" onClick={logout} className="w-full sm:w-auto">
-                    <LogOut className="mr-2 h-4 w-4" /> Log Out
+                  <LogOut className="mr-2 h-4 w-4" /> Log Out
                 </Button>
               </div>
             </CardContent>
@@ -317,5 +433,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
