@@ -18,15 +18,17 @@ const Header = () => {
         <Link href="/" aria-label="NibbleNow Home">
           <NibbleNowLogo />
         </Link>
-        <nav className="flex items-center space-x-4 lg:space-x-6">
+        <nav className="flex items-center space-x-2 sm:space-x-4 lg:space-x-6">
           <Link href="/">
             <Button variant="ghost" className="text-sm font-medium">
-              <Home className="mr-2 h-4 w-4" /> Restaurants
+              <Home className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only">Restaurants</span>
             </Button>
           </Link>
           <Link href="/recommendations">
             <Button variant="ghost" className="text-sm font-medium">
-              <Sparkles className="mr-2 h-4 w-4" /> Recommendations
+              <Sparkles className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only">Recommendations</span>
             </Button>
           </Link>
           <Button
