@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, DollarSign
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
@@ -67,6 +67,7 @@ const initialMockOrders: Order[] = [
       { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 8.75, imageUrl: 'https://placehold.co/100x100.png', category: 'Burgers', description: 'Juicy burger' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
+    paymentMethod: 'UPI',
   },
   {
     id: 'ORD67890',
@@ -78,6 +79,7 @@ const initialMockOrders: Order[] = [
       { id: 'm10', name: 'French Fries', quantity: 1, price: 4.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Sides', description: 'Crispy fries' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
+    paymentMethod: 'Cash on Delivery',
   },
    {
     id: 'ORD11223',
@@ -86,6 +88,7 @@ const initialMockOrders: Order[] = [
     total: 30.00,
     items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 14.00, imageUrl: 'https://placehold.co/100x100.png', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
+    paymentMethod: 'UPI',
   },
   {
     id: 'ORDCANCELED',
@@ -94,6 +97,7 @@ const initialMockOrders: Order[] = [
     total: 15.00,
     items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 9.20, imageUrl: 'https://placehold.co/100x100.png', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
+    paymentMethod: 'UPI',
   }
 ];
 
@@ -334,7 +338,9 @@ export default function ProfilePage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
-                          <CardDescription>Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></CardDescription>
+                          <CardDescription>
+                            Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
+                          </CardDescription>
                         </div>
                         <p className="text-lg font-semibold text-primary">${order.total.toFixed(2)}</p>
                       </div>
@@ -360,6 +366,11 @@ export default function ProfilePage() {
                         ))}
                       </ul>
                       <p className="text-sm text-muted-foreground pt-1">Shipped to: {order.shippingAddress}</p>
+                      <div className="text-sm text-muted-foreground flex items-center">
+                        Payment:
+                        {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <DollarSign className="ml-2 mr-1 h-4 w-4 text-primary" />}
+                        {order.paymentMethod}
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
