@@ -2,14 +2,16 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User } from 'lucide-react'; // Added User icon
+import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext'; 
 import { Badge } from './ui/badge';
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
+  const { isAuthenticated, logout, isLoading } = useAuth(); 
   const itemCount = getCartItemCount();
 
   return (
@@ -31,12 +33,39 @@ const Header = () => {
               <span className="hidden sm:inline">Recommendations</span>
             </Button>
           </Link>
-          <Link href="/profile">
-            <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-              <User className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Profile</span>
-            </Button>
-          </Link>
+
+          {!isLoading && ( 
+            isAuthenticated ? (
+              <>
+                <Link href="/profile">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                    <User className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Profile</span>
+                  </Button>
+                </Link>
+                <Button variant="ghost" onClick={logout} className="text-sm font-medium px-2 sm:px-3">
+                  <LogOut className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                    <LogIn className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Login</span>
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <UserPlus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign Up</span>
+                  </Button>
+                </Link>
+              </>
+            )
+          )}
+
           <Button
             variant="outline"
             size="icon"

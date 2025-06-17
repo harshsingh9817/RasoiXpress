@@ -1,20 +1,19 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation'; 
+import { useAuth } from '@/contexts/AuthContext'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCart } from '@/contexts/CartContext';
-import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
-import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle } from 'lucide-react';
+import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
-// Mock data types (can be moved to lib/types.ts later)
 interface OrderItem {
   id: string;
   name: string;
@@ -73,24 +72,31 @@ const mockAddresses: Address[] = [
 
 
 export default function ProfilePage() {
-  const { cartItems, getCartTotal, clearCart: clearCartContext, setIsCartOpen } = useCart();
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth(); 
+
   const [trackOrderId, setTrackOrderId] = useState('');
   const [trackedOrderStatus, setTrackedOrderStatus] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
+  const [isClientRendered, setIsClientRendered] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setIsClientRendered(true); 
   }, []);
 
-  const handleTrackOrder = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isClientRendered && !isAuthLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
+
+  const handleTrackOrder = (e: FormEvent) => {
     e.preventDefault();
     if (!trackOrderId) {
       setTrackedOrderStatus('Please enter an order ID.');
       return;
     }
-    // Simulate API call
     setTrackedOrderStatus(`Searching for order ${trackOrderId}...`);
     setTimeout(() => {
       const foundOrder = orders.find(o => o.id === trackOrderId);
@@ -102,11 +108,13 @@ export default function ProfilePage() {
     }, 1500);
   };
 
-  if (!isClient) {
+  if (!isClientRendered || isAuthLoading || (!isAuthenticated && isClientRendered)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <User className="h-16 w-16 text-primary animate-pulse" />
-        <p className="mt-4 text-xl text-muted-foreground">Loading profile...</p>
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="mt-4 text-xl text-muted-foreground">
+          {isAuthLoading || !isClientRendered ? "Loading profile..." : "Redirecting to login..."}
+        </p>
       </div>
     );
   }
