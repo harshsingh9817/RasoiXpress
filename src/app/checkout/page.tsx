@@ -14,7 +14,7 @@ import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet } from 'lucide-react';
+import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle } from 'lucide-react'; // Added CheckCircle
 import type { Order, Address as AddressType } from '@/lib/types';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
@@ -142,7 +142,12 @@ export default function CheckoutPage() {
     }
 
     toast({
-      title: 'Order Placed Successfully!',
+      title: (
+        <div className="flex items-center">
+          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+          <span>Order Confirmed!</span>
+        </div>
+      ),
       description: 'Thank you for your order. We will process it shortly.',
       variant: 'default',
       duration: 5000,
@@ -320,3 +325,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
