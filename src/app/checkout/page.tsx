@@ -12,8 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import CartSheet from '@/components/CartSheet';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreditCard, Home, Loader2, PackageCheck } from 'lucide-react';
-import type { Order, OrderItem, Address as AddressType } from '@/lib/types';
+import type { Order, Address as AddressType } from '@/lib/types';
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
@@ -29,6 +30,8 @@ export default function CheckoutPage() {
     postalCode: '',
     phone: '',
   });
+  const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(''); // Empty string for "Enter manually" or placeholder
 
   useEffect(() => {
     setIsClient(true);
@@ -41,19 +44,28 @@ export default function CheckoutPage() {
       if (storedAddressesString) {
         try {
           const addresses = JSON.parse(storedAddressesString) as AddressType[];
+          setSavedAddresses(addresses);
+          
           const defaultAddress = addresses.find(addr => addr.isDefault);
           if (defaultAddress) {
+            setSelectedAddressId(defaultAddress.id);
             setFormData(prev => ({
               ...prev,
               address: defaultAddress.street,
               city: defaultAddress.city,
               postalCode: defaultAddress.postalCode,
-              // You might want to pre-fill fullName and phone if stored in address object
             }));
+          } else {
+             setSelectedAddressId(''); // No default, ensure placeholder is shown
           }
         } catch (e) {
           console.error("Failed to parse addresses from localStorage for checkout", e);
+          setSavedAddresses([]);
+          setSelectedAddressId('');
         }
+      } else {
+        setSavedAddresses([]);
+        setSelectedAddressId('');
       }
     }
   }, [getCartItemCount, router]);
@@ -64,18 +76,39 @@ export default function CheckoutPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAddressSelectChange = (value: string) => {
+    setSelectedAddressId(value);
+    if (value) { // An actual address ID is selected
+      const selectedAddr = savedAddresses.find(addr => addr.id === value);
+      if (selectedAddr) {
+        setFormData(prev => ({
+          ...prev,
+          address: selectedAddr.street,
+          city: selectedAddr.city,
+          postalCode: selectedAddr.postalCode,
+        }));
+      }
+    } else { // "Enter manually" or placeholder is re-selected
+      setFormData(prev => ({
+        ...prev,
+        address: '',
+        city: '',
+        postalCode: '',
+      }));
+    }
+  };
+
   const handleSubmitOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call or order processing
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
 
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
       date: new Date().toISOString().split('T')[0],
-      status: 'Order Placed', // Initial status for new orders
-      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), // Example fee and tax
+      status: 'Order Placed',
+      total: getCartTotal() + 2.99 + (getCartTotal() * 0.08), 
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -99,7 +132,7 @@ export default function CheckoutPage() {
           orders = []; 
         }
       }
-      orders.unshift(newOrder); // Add new order to the beginning
+      orders.unshift(newOrder); 
       localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
     }
 
@@ -110,7 +143,7 @@ export default function CheckoutPage() {
       duration: 5000,
     });
     clearCart();
-    router.push('/profile'); // Redirect to profile page to see the new order
+    router.push('/profile'); 
     setIsLoading(false);
   };
 
@@ -151,6 +184,29 @@ export default function CheckoutPage() {
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="John Doe" required />
               </div>
+
+              {savedAddresses.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="savedAddressSelect">Saved Addresses</Label>
+                  <Select
+                    value={selectedAddressId}
+                    onValueChange={handleAddressSelectChange}
+                  >
+                    <SelectTrigger id="savedAddressSelect" className="w-full">
+                      <SelectValue placeholder="Select a saved address or enter manually" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Enter new address manually</SelectItem>
+                      {savedAddresses.map(addr => (
+                        <SelectItem key={addr.id} value={addr.id}>
+                          {`${addr.type}: ${addr.street}, ${addr.city}${addr.isDefault ? " (Default)" : ""}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="address">Street Address</Label>
                 <Input id="address" name="address" value={formData.address} onChange={handleInputChange} placeholder="123 Main St" required />
