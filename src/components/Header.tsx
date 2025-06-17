@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -11,7 +11,7 @@ import { Badge } from './ui/badge';
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
-  const { isAuthenticated, logout, isLoading } = useAuth(); 
+  const { isAuthenticated, isLoading } = useAuth(); 
   const itemCount = getCartItemCount();
 
   return (
@@ -43,10 +43,6 @@ const Header = () => {
                     <span className="hidden sm:inline">Profile</span>
                   </Button>
                 </Link>
-                <Button variant="ghost" onClick={logout} className="text-sm font-medium px-2 sm:px-3">
-                  <LogOut className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Logout</span>
-                </Button>
               </>
             ) : (
               <>

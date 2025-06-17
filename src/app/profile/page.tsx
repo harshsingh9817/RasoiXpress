@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
-import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle, Loader2 } from 'lucide-react';
+import { ListOrdered, MapPin, PackageSearch, Settings, User, ShoppingBag, Edit3, Trash2, PlusCircle, Loader2, LogOut } from 'lucide-react';
 import Image from 'next/image';
 
 interface OrderItem {
@@ -73,7 +73,7 @@ const mockAddresses: Address[] = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth(); 
+  const { isAuthenticated, isLoading: isAuthLoading, logout } = useAuth(); 
 
   const [trackOrderId, setTrackOrderId] = useState('');
   const [trackedOrderStatus, setTrackedOrderStatus] = useState<string | null>(null);
@@ -248,7 +248,7 @@ export default function ProfilePage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl font-headline">Account Settings</CardTitle>
-              <CardDescription>Manage your account preferences.</CardDescription>
+              <CardDescription>Manage your account preferences and logout.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -276,6 +276,12 @@ export default function ProfilePage() {
                     </div>
                 </div>
                  <Button variant="default" size="sm" className="mt-3 bg-primary hover:bg-primary/90">Save Preferences</Button>
+              </div>
+              <Separator />
+              <div>
+                <Button variant="destructive" onClick={logout} className="w-full sm:w-auto">
+                    <LogOut className="mr-2 h-4 w-4" /> Log Out
+                </Button>
               </div>
             </CardContent>
           </Card>
