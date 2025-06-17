@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -18,12 +19,12 @@ const Header = () => {
           <NibbleNowLogo />
         </Link>
         <nav className="flex items-center space-x-4 lg:space-x-6">
-          <Link href="/" passHref legacyBehavior>
+          <Link href="/">
             <Button variant="ghost" className="text-sm font-medium">
               <Home className="mr-2 h-4 w-4" /> Restaurants
             </Button>
           </Link>
-          <Link href="/recommendations" passHref legacyBehavior>
+          <Link href="/recommendations">
             <Button variant="ghost" className="text-sm font-medium">
               <Sparkles className="mr-2 h-4 w-4" /> Recommendations
             </Button>
