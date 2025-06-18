@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ShieldCheck } from 'lucide-react';
-import CartSheet from '@/components/CartSheet'; // For layout consistency
+import CartSheet from '@/components/CartSheet'; 
 
 export default function AdminPage() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -14,7 +14,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
-      router.replace('/'); // Redirect to home if not admin or not authenticated
+      router.replace('/'); 
     }
   }, [isAdmin, isLoading, isAuthenticated, router]);
 
@@ -23,7 +23,7 @@ export default function AdminPage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {isLoading ? "Loading..." : "Access Denied. Redirecting..."}
+          {isLoading ? "Verifying access..." : "Access Denied. Redirecting..."}
         </p>
       </div>
     );
