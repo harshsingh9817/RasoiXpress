@@ -47,7 +47,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">Food item management will be here.</p>
-            {/* Placeholder for future components */}
+            {/* Placeholder for future components for adding/editing food items */}
           </CardContent>
         </Card>
 
@@ -58,7 +58,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">Order viewing interface will be here.</p>
-            {/* Placeholder for future components */}
+            {/* Placeholder for future components for viewing orders */}
           </CardContent>
         </Card>
       </div>

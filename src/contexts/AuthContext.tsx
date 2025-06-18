@@ -12,7 +12,7 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   getIdTokenResult,
-  updateProfile // Added
+  updateProfile
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,7 +21,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string, fullName?: string) => Promise<void>; // Added fullName
+  signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -78,6 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle routing and setting isAdmin
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -86,9 +87,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (email?: string, password?: string, fullName?: string) => { // Added fullName
+  const signup = async (email?: string, password?: string, fullName?: string) => {
     setIsLoading(true);
-     if (!email || !password || !fullName) { // Added fullName check
+     if (!email || !password || !fullName) {
       toast({ title: 'Signup Error', description: 'Full name, email and password are required.', variant: 'destructive' });
       setIsLoading(false);
       return;
@@ -97,8 +98,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
-        // The onAuthStateChanged listener will update the user state with displayName
       }
+      // onAuthStateChanged will handle routing
       toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -123,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
+      setIsAdmin(false); // Explicitly set isAdmin to false on logout
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
       router.push('/'); 
     } catch (error: any) {
