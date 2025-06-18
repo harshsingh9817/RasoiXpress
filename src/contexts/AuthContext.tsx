@@ -11,7 +11,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
-  getIdTokenResult
+  getIdTokenResult,
+  updateProfile // Added
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +21,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string) => Promise<void>;
+  signup: (email?: string, password?: string, fullName?: string) => Promise<void>; // Added fullName
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -41,11 +42,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         try {
-          // Force refresh the token to get the latest custom claims
           const idTokenResult = await getIdTokenResult(currentUser, true); 
           console.log('Firebase ID Token Claims:', idTokenResult.claims); 
           
-          // Check for the 'admin' custom claim
           const isAdminClaim = !!idTokenResult.claims.admin; 
           setIsAdmin(isAdminClaim);
           console.log('User is admin:', isAdminClaim);
@@ -55,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (error) {
           console.error("Error getting user claims:", error);
-          setIsAdmin(false); // Default to not admin on error
+          setIsAdmin(false); 
         }
       } else {
         setIsAdmin(false);
@@ -68,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [router, pathname]); // router and pathname are dependencies for navigation logic
+  }, [router, pathname]);
 
   const login = async (email?: string, password?: string) => {
     setIsLoading(true);
@@ -79,27 +78,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting user, claims, and redirecting.
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase login error:", error);
       toast({ title: 'Login Failed', description: error.message || 'Invalid credentials.', variant: 'destructive' });
-      setIsLoading(false); // Explicitly set loading to false on error here since onAuthStateChanged might not re-trigger immediately for a failed login
+      setIsLoading(false); 
     }
-    // No finally setIsLoading(false) here, as onAuthStateChanged handles success cases.
   };
 
-  const signup = async (email?: string, password?: string) => {
+  const signup = async (email?: string, password?: string, fullName?: string) => { // Added fullName
     setIsLoading(true);
-     if (!email || !password) {
-      toast({ title: 'Signup Error', description: 'Email and password are required.', variant: 'destructive' });
+     if (!email || !password || !fullName) { // Added fullName check
+      toast({ title: 'Signup Error', description: 'Full name, email and password are required.', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: fullName });
+        // The onAuthStateChanged listener will update the user state with displayName
+      }
       toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
-      // onAuthStateChanged will handle redirecting.
     } catch (error: any) {
       console.error("Firebase signup error:", error);
       if (error.code === 'auth/email-already-in-use') {
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           variant: 'destructive',
         });
       }
-      setIsLoading(false); // Explicitly set loading to false on error here
+      setIsLoading(false); 
     }
   };
 
@@ -123,16 +123,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
-      // User state will be cleared by onAuthStateChanged
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      // setUser(null); // Let onAuthStateChanged handle this
-      // setIsAdmin(false); // Let onAuthStateChanged handle this
       router.push('/'); 
     } catch (error: any) {
       console.error("Firebase logout error:", error);
       toast({ title: 'Logout Failed', description: error.message || 'Could not log out.', variant: 'destructive' });
     } finally {
-      setIsLoading(false); // Ensure loading is false after logout attempt
+      setIsLoading(false); 
     }
   };
   

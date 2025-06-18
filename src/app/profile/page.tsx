@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added Avatar components
 import {
   Dialog,
   DialogContent,
@@ -310,13 +311,37 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <section className="text-center md:text-left">
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2 flex items-center justify-center md:justify-start">
-          <User className="mr-3 h-10 w-10" /> My Profile
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Welcome, {firebaseUser?.email || 'User'}! Manage your orders, addresses, and account settings.
-        </p>
+       <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-4 bg-card rounded-lg shadow">
+        <div className="relative">
+          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-2 border-primary shadow-md">
+            <AvatarImage 
+              src={firebaseUser?.photoURL || 'https://placehold.co/128x128.png'} 
+              alt={firebaseUser?.displayName || 'User profile photo'} 
+              data-ai-hint="profile avatar"
+            />
+            <AvatarFallback className="text-4xl">
+              {firebaseUser?.displayName?.charAt(0).toUpperCase() || firebaseUser?.email?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="absolute bottom-1 right-1 rounded-full bg-background/80 hover:bg-background h-8 w-8" 
+            onClick={() => { /* TODO: Implement photo upload dialog */ }}
+            aria-label="Edit profile photo"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="text-center md:text-left">
+          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1">
+            {firebaseUser?.displayName || firebaseUser?.email || 'Welcome, User!'}
+          </h1>
+          {firebaseUser?.displayName && <p className="text-lg text-muted-foreground mb-2">{firebaseUser?.email}</p>}
+          <p className="text-md text-muted-foreground">
+            Manage your orders, addresses, and account settings.
+          </p>
+        </div>
       </section>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

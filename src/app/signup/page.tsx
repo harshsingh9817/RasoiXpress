@@ -16,7 +16,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState(''); // Added for completeness, though not used by Firebase auth directly
+  const [fullName, setFullName] = useState(''); 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -28,8 +28,7 @@ export default function SignupPage() {
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await signup(email, password);
-    // Navigation is handled by onAuthStateChanged in AuthContext or if signup fails, user stays here
+    await signup(email, password, fullName); // Pass fullName
     setIsSubmitting(false);
   };
   
