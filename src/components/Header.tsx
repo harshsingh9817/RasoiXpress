@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut, ShieldCheck } from 'lucide-react'; // Added ShieldCheck for Admin
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -12,7 +12,7 @@ import { Skeleton } from './ui/skeleton'; // For loading state
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
-  const { isAuthenticated, logout, isLoading: isAuthLoading } = useAuth(); 
+  const { isAuthenticated, isAdmin, logout, isLoading: isAuthLoading } = useAuth(); // Added isAdmin
   const itemCount = getCartItemCount();
 
   return (
@@ -21,7 +21,7 @@ const Header = () => {
         <Link href="/" aria-label="NibbleNow Home">
           <NibbleNowLogo />
         </Link>
-        <nav className="flex items-center space-x-2 sm:space-x-4 lg:space-x-6">
+        <nav className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
           <Link href="/">
             <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
               <Home className="h-4 w-4 sm:mr-2" />
@@ -41,35 +41,45 @@ const Header = () => {
               <Skeleton className="h-8 w-20 rounded-md" />
             </div>
           ) : ( 
-            isAuthenticated ? (
-              <>
-                <Link href="/profile">
-                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                    <User className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Profile</span>
+            <>
+              {isAuthenticated ? (
+                <>
+                  {isAdmin && ( // Conditionally render Admin link
+                    <Link href="/admin">
+                      <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
+                        <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Admin</span>
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/profile">
+                    <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                      <User className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Profile</span>
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" onClick={logout} className="text-sm font-medium px-2 sm:px-3">
+                      <LogOut className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Logout</span>
                   </Button>
-                </Link>
-                <Button variant="ghost" onClick={logout} className="text-sm font-medium px-2 sm:px-3">
-                    <LogOut className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Logout</span>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                    <LogIn className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Login</span>
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <UserPlus className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Sign Up</span>
-                  </Button>
-                </Link>
-              </>
-            )
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                      <LogIn className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Login</span>
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
+                      <UserPlus className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Sign Up</span>
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </>
           )}
 
           <Button

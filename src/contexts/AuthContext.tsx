@@ -9,13 +9,15 @@ import {
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
+  signOut as firebaseSignOut,
+  getIdTokenResult
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean; // Added isAdmin
   login: (email?: string, password?: string) => Promise<void>;
   signup: (email?: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,19 +28,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false); // Added isAdmin state
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setIsLoading(false);
-      if (currentUser && (router.pathname === '/login' || router.pathname === '/signup')) {
-        router.replace('/profile');
-      } else if (!currentUser && router.pathname === '/profile') {
-        router.replace('/login');
+      if (currentUser) {
+        try {
+          const idTokenResult = await getIdTokenResult(currentUser);
+          setIsAdmin(!!idTokenResult.claims.admin); // Check for admin custom claim
+        } catch (error) {
+          console.error("Error getting user claims:", error);
+          setIsAdmin(false);
+        }
+        if (router.pathname === '/login' || router.pathname === '/signup') {
+          router.replace('/profile');
+        }
+      } else {
+        setIsAdmin(false); // Reset admin status on logout
+        if (router.pathname === '/profile' || router.pathname === '/admin') { // Also redirect from /admin if not logged in
+          router.replace('/login');
+        }
       }
+      setIsLoading(false);
     });
 
     return () => unsubscribe(); // Cleanup subscription on unmount
@@ -53,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting user and redirecting
+      // onAuthStateChanged will handle setting user, claims, and redirecting
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -73,6 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle setting user and redirecting
+      // Note: New users won't have admin claims by default.
       toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -86,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
-      // onAuthStateChanged will handle setting user to null
+      // onAuthStateChanged will handle setting user to null and isAdmin to false
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
       router.push('/');
     } catch (error: any) {
@@ -100,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
