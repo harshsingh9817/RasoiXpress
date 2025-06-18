@@ -2,16 +2,17 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus } from 'lucide-react';
+import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton'; // For loading state
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
-  const { isAuthenticated, isLoading } = useAuth(); 
+  const { isAuthenticated, logout, isLoading: isAuthLoading } = useAuth(); 
   const itemCount = getCartItemCount();
 
   return (
@@ -34,7 +35,12 @@ const Header = () => {
             </Button>
           </Link>
 
-          {!isLoading && ( 
+          {isAuthLoading ? (
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-8 w-16 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          ) : ( 
             isAuthenticated ? (
               <>
                 <Link href="/profile">
@@ -43,6 +49,10 @@ const Header = () => {
                     <span className="hidden sm:inline">Profile</span>
                   </Button>
                 </Link>
+                <Button variant="ghost" onClick={logout} className="text-sm font-medium px-2 sm:px-3">
+                    <LogOut className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Logout</span>
+                </Button>
               </>
             ) : (
               <>

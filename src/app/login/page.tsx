@@ -7,27 +7,35 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { KeyRound, LogInIcon, UserPlus, Loader2 } from 'lucide-react';
+import { KeyRound, LogInIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isAuthLoading && isAuthenticated) {
       router.replace('/profile'); 
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isAuthLoading, router]);
 
-  const handleLogin = (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    login();
-    router.push('/profile'); 
+    setIsSubmitting(true);
+    await login(email, password);
+    // Navigation is handled by onAuthStateChanged in AuthContext or if login fails, user stays here
+    setIsSubmitting(false);
   };
 
-  if (isLoading || (!isLoading && isAuthenticated)) {
+  const pageLoading = isAuthLoading || (!isAuthLoading && isAuthenticated);
+
+  if (pageLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
@@ -48,16 +56,17 @@ export default function LoginPage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" placeholder="you@example.com" required defaultValue="user@example.com" />
+              <Input id="email" type="email" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" required defaultValue="password" />
+              <Input id="password" type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3">
-              <LogInIcon className="mr-2 h-5 w-5" /> Log In
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
+              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogInIcon className="mr-2 h-5 w-5" />}
+              {isSubmitting ? 'Logging In...' : 'Log In'}
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Don&apos;t have an account?{' '}

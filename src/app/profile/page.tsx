@@ -63,8 +63,8 @@ const initialMockOrders: Order[] = [
     status: 'Delivered',
     total: 3500.00,
     items: [
-      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png', category: 'Pizza', description: 'Classic pizza' },
-      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png', category: 'Burgers', description: 'Juicy burger' },
+      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
+      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=chicken%20burgers', category: 'Burgers', description: 'Juicy burger' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'UPI',
@@ -75,8 +75,8 @@ const initialMockOrders: Order[] = [
     status: 'Preparing',
     total: 1850.50,
     items: [
-      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 1600, imageUrl: 'https://placehold.co/100x100.png', category: 'Indian', description: 'Creamy chicken' },
-      { id: 'm10', name: 'French Fries', quantity: 1, price: 400, imageUrl: 'https://placehold.co/100x100.png', category: 'Sides', description: 'Crispy fries' },
+      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 1600, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=butter%20indian', category: 'Indian', description: 'Creamy chicken' },
+      { id: 'm10', name: 'French Fries', quantity: 1, price: 400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=french%20sides', category: 'Sides', description: 'Crispy fries' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'Cash on Delivery',
@@ -86,7 +86,7 @@ const initialMockOrders: Order[] = [
     date: '2024-07-22',
     status: 'Shipped',
     total: 2500.00,
-    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png', category: 'Pasta', description: 'Creamy pasta' }],
+    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=spaghetti%20pasta', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
     paymentMethod: 'UPI',
   },
@@ -95,7 +95,7 @@ const initialMockOrders: Order[] = [
     date: '2024-07-21',
     status: 'Cancelled',
     total: 1200.00,
-    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png', category: 'Salads', description: 'Crisp salad' }],
+    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
   }
@@ -117,7 +117,7 @@ const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
+  const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState('orders');
   const [trackOrderId, setTrackOrderId] = useState('');
@@ -134,7 +134,6 @@ export default function ProfilePage() {
   useEffect(() => {
     setIsClientRendered(true);
     if (typeof window !== 'undefined') {
-      // Load Orders
       const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
       let loadedOrders: Order[] = initialMockOrders.map(order => ({
         ...order,
@@ -144,12 +143,12 @@ export default function ProfilePage() {
             ? item.imageUrl
             : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
         }))
-      })); // Ensure mock orders have hints from the start
+      }));
       if (storedOrdersString) {
         try {
           const parsedOrders = JSON.parse(storedOrdersString) as Order[];
           if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
-            loadedOrders = parsedOrders.map(order => ({ // Also apply hints to loaded orders if missing
+            loadedOrders = parsedOrders.map(order => ({ 
               ...order,
               items: order.items.map(item => ({
                 ...item,
@@ -165,8 +164,6 @@ export default function ProfilePage() {
       }
       setOrders(loadedOrders);
 
-
-      // Load Addresses
       const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
       if (storedAddressesString) {
         try {
@@ -283,18 +280,16 @@ export default function ProfilePage() {
   const handleAddressFormSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (addressToEdit) {
-      // Editing existing address
       setAddresses(prev =>
         prev.map(addr =>
           addr.id === addressToEdit.id ? { ...addressToEdit, ...currentAddressFormData } : addr
         )
       );
     } else {
-      // Adding new address
       const newAddress: AddressType = {
         id: `addr${Date.now()}`,
         ...currentAddressFormData,
-        isDefault: addresses.length === 0, // Make first address default
+        isDefault: addresses.length === 0, 
       };
       setAddresses(prev => [...prev, newAddress]);
     }
@@ -320,7 +315,7 @@ export default function ProfilePage() {
           <User className="mr-3 h-10 w-10" /> My Profile
         </h1>
         <p className="text-lg text-muted-foreground">
-          Manage your orders, addresses, and account settings.
+          Welcome, {firebaseUser?.email || 'User'}! Manage your orders, addresses, and account settings.
         </p>
       </section>
 
@@ -533,14 +528,14 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" defaultValue="user@example.com" disabled />
-                <Button variant="outline" size="sm" className="mt-1">Update Email</Button>
+                <Input id="email" type="email" value={firebaseUser?.email || ''} disabled />
+                <Button variant="outline" size="sm" className="mt-1" disabled>Update Email (Not Implemented)</Button>
               </div>
               <Separator />
               <div className="space-y-2">
                 <Label>Password</Label>
                 <p className="text-sm text-muted-foreground">********</p>
-                <Button variant="outline" size="sm" className="mt-1">Change Password</Button>
+                <Button variant="outline" size="sm" className="mt-1" disabled>Change Password (Not Implemented)</Button>
               </div>
               <Separator />
               <div>
@@ -557,19 +552,12 @@ export default function ProfilePage() {
                 </div>
                 <Button variant="default" size="sm" className="mt-3 bg-primary hover:bg-primary/90">Save Preferences</Button>
               </div>
-              <Separator />
-              <div>
-                <Button variant="destructive" onClick={logout} className="w-full sm:w-auto">
-                  <LogOut className="mr-2 h-4 w-4" /> Log Out
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
       <CartSheet />
 
-      {/* Address Add/Edit Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
