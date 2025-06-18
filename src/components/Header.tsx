@@ -2,17 +2,17 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut, ShieldCheck } from 'lucide-react'; // Added ShieldCheck for Admin
+import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, LogOut, ShieldCheck } from 'lucide-react'; 
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { Badge } from './ui/badge';
-import { Skeleton } from './ui/skeleton'; // For loading state
+import { Skeleton } from './ui/skeleton'; 
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
-  const { isAuthenticated, isAdmin, logout, isLoading: isAuthLoading } = useAuth(); // Added isAdmin
+  const { isAuthenticated, isAdmin, logout, isLoading: isAuthLoading } = useAuth(); 
   const itemCount = getCartItemCount();
 
   return (
@@ -44,7 +44,7 @@ const Header = () => {
             <>
               {isAuthenticated ? (
                 <>
-                  {isAdmin && ( // Conditionally render Admin link
+                  {isAdmin && ( 
                     <Link href="/admin">
                       <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
                         <ShieldCheck className="h-4 w-4 sm:mr-2" />
