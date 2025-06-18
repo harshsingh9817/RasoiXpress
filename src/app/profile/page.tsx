@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
+import { useState, useEffect, type FormEvent, type ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added Avatar components
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -31,11 +31,16 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { auth, storage } from '@/lib/firebase'; // Import storage
+import { updateProfile } from 'firebase/auth';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+
 
 const orderProgressSteps: OrderStatus[] = [
   'Order Placed',
@@ -119,6 +124,9 @@ const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
 export default function ProfilePage() {
   const router = useRouter();
   const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [activeTab, setActiveTab] = useState('orders');
   const [trackOrderId, setTrackOrderId] = useState('');
@@ -297,6 +305,52 @@ export default function ProfilePage() {
     setIsAddressDialogOpen(false);
   };
 
+  const handlePhotoEditClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    const file = event.target.files[0];
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
+      return;
+    }
+    if (!firebaseUser || !auth.currentUser) {
+      toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const filePath = `profileImages/${firebaseUser.uid}/${file.name}`;
+      const imageRef = storageRef(storage, filePath);
+      
+      await uploadBytes(imageRef, file);
+      const downloadURL = await getDownloadURL(imageRef);
+      
+      await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      
+      // The onAuthStateChanged listener in AuthContext should update the firebaseUser object.
+      // If immediate UI update is needed without waiting for onAuthStateChanged:
+      // setUser(prevUser => prevUser ? { ...prevUser, photoURL: downloadURL } : null); // (if setUser was exposed from context)
+      // Or simply rely on onAuthStateChanged which is generally better.
+
+      toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
+    } catch (error: any) {
+      console.error("Error uploading profile photo:", error);
+      toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
+    } finally {
+      setIsUploadingPhoto(false);
+      // Reset file input value so the same file can be re-selected if needed
+      if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
 
   if (!isClientRendered || isAuthLoading || (!isAuthenticated && isClientRendered)) {
     return (
@@ -315,7 +369,7 @@ export default function ProfilePage() {
         <div className="relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-2 border-primary shadow-md">
             <AvatarImage 
-              src={firebaseUser?.photoURL || 'https://placehold.co/128x128.png'} 
+              src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`} 
               alt={firebaseUser?.displayName || 'User profile photo'} 
               data-ai-hint="profile avatar"
             />
@@ -323,14 +377,16 @@ export default function ProfilePage() {
               {firebaseUser?.displayName?.charAt(0).toUpperCase() || firebaseUser?.email?.charAt(0).toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
           <Button 
             variant="outline" 
             size="icon" 
             className="absolute bottom-1 right-1 rounded-full bg-background/80 hover:bg-background h-8 w-8" 
-            onClick={() => { /* TODO: Implement photo upload dialog */ }}
+            onClick={handlePhotoEditClick}
             aria-label="Edit profile photo"
+            disabled={isUploadingPhoto}
           >
-            <Edit3 className="h-4 w-4" />
+            {isUploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           </Button>
         </div>
         <div className="text-center md:text-left">
