@@ -99,9 +99,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
+      // onAuthStateChanged will handle redirecting.
     } catch (error: any) {
       console.error("Firebase signup error:", error);
-      toast({ title: 'Signup Failed', description: error.message || 'Could not create account.', variant: 'destructive' });
+      if (error.code === 'auth/email-already-in-use') {
+        toast({
+          title: 'Signup Failed',
+          description: 'This email address is already in use. Please try a different email or log in.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Signup Failed',
+          description: error.message || 'Could not create account. Please try again.',
+          variant: 'destructive',
+        });
+      }
       setIsLoading(false); // Explicitly set loading to false on error here
     }
   };
