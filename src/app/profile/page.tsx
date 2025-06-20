@@ -204,6 +204,13 @@ export default function ProfilePage() {
     }
   }, [addresses, isClientRendered]);
 
+  // For debugging: Log when firebaseUser.photoURL changes
+  useEffect(() => {
+    if (firebaseUser) {
+      console.log("ProfilePage: firebaseUser.photoURL is now:", firebaseUser.photoURL);
+    }
+  }, [firebaseUser?.photoURL]);
+
 
   const findAndDisplayOrderStatus = (idToTrack: string) => {
     setTrackedOrderDetails(null);
@@ -332,6 +339,11 @@ export default function ProfilePage() {
       const downloadURL = await getDownloadURL(imageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      // Force refresh the ID token to ensure the client has the latest user data, including the new photoURL.
+      // This helps in making onAuthStateChanged in AuthContext pick up the change faster.
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true);
+      }
 
       toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
     } catch (error: any) {
@@ -363,6 +375,7 @@ export default function ProfilePage() {
         <div className="relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/50 shadow-lg">
             <AvatarImage
+              key={firebaseUser?.photoURL || 'default-avatar-key'} // Add key here
               src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
               alt={firebaseUser?.displayName || 'User profile photo'}
               data-ai-hint="profile avatar"
