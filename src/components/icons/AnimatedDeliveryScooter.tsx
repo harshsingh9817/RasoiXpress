@@ -72,9 +72,9 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
         <path d="M70,43 q 10,0 15,10 l 0,10 l -10,0 q -2,-5 -5,-6 Z" fill={scooterBodyColor} />
         
         {/* Handlebars area */}
-        <rect x="63" y="26" width="6" height="4" rx="1" fill={handlebarAccentColor} />
-        <line x1="66" y1="28" x2="70" y2="25" stroke={handlebarAccentColor} strokeWidth="1.5"/>
-        <line x1="66" y1="28" x2="62" y2="25" stroke={handlebarAccentColor} strokeWidth="1.5"/>
+        <rect x="63" y="26" width="6" height="4" rx="1" fill={handlebarAccentColor} /> {/* Central stem */}
+        <line x1="66" y1="28" x2="70" y2="25" stroke={wheelRimColor} strokeWidth="2"/> {/* Right grip */}
+        <line x1="66" y1="28" x2="62" y2="25" stroke={wheelRimColor} strokeWidth="2"/> {/* Left grip */}
 
 
         {/* Package Box */}
