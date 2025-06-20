@@ -3,9 +3,9 @@ import type { FC } from 'react';
 
 const NibbleNowLogo: FC = () => {
   return (
-    <div className="flex items-center" aria-label="NibbleNow restaurant logo - chef hat in a circle">
+    <div className="flex items-center" aria-label="NibbleNow restaurant logo and name">
       <svg
-        className="h-10 w-10"
+        className="h-10 w-10 mr-2" // Added margin to separate icon from text
         viewBox="0 0 100 100"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
@@ -21,6 +21,9 @@ const NibbleNowLogo: FC = () => {
         {/* Chef Hat Band */}
         <rect x="30" y="60" width="40" height="15" rx="3" fill="hsl(var(--primary))" />
       </svg>
+      <span className="text-2xl font-bold text-primary font-headline">
+        NibbleNow
+      </span>
     </div>
   );
 };
