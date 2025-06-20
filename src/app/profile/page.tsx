@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
@@ -63,6 +63,19 @@ const stepIcons: Record<OrderStatus, React.ElementType> = {
 
 
 const initialMockOrders: Order[] = [
+  {
+    id: 'ORDNEW001',
+    date: '2024-07-25',
+    status: 'Order Placed',
+    total: 899.00,
+    items: [
+      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 349, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
+      { id: 'm4', name: 'Veggie Burger', quantity: 1, price: 220, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=veggie%20burgers', category: 'Burgers', description: 'Yummy veggie burger' },
+      { id: 'm10', name: 'French Fries', quantity: 1, price: 120, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=french%20sides', category: 'Sides', description: 'Crispy fries' },
+    ],
+    shippingAddress: '777 New Order Ln, Fresh City',
+    paymentMethod: 'UPI',
+  },
   {
     id: 'ORD12345',
     date: '2024-07-15',
@@ -171,7 +184,8 @@ export default function ProfilePage() {
           console.error("Failed to parse orders from localStorage", e);
         }
       }
-      setOrders(loadedOrders);
+      setOrders(loadedOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
+
 
       const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
       if (storedAddressesString) {
@@ -203,8 +217,14 @@ export default function ProfilePage() {
       localStorage.setItem('nibbleNowUserAddresses', JSON.stringify(addresses));
     }
   }, [addresses, isClientRendered]);
+  
+  useEffect(() => {
+    if (isClientRendered && typeof window !== 'undefined' && orders.length > 0) {
+        localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
+    }
+  }, [orders, isClientRendered]);
 
-  // For debugging: Log when firebaseUser.photoURL changes
+
   useEffect(() => {
     if (firebaseUser) {
       console.log("ProfilePage: firebaseUser.photoURL is now:", firebaseUser.photoURL);
@@ -339,10 +359,8 @@ export default function ProfilePage() {
       const downloadURL = await getDownloadURL(imageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      // Force refresh the ID token to ensure the client has the latest user data, including the new photoURL.
-      // This helps in making onAuthStateChanged in AuthContext pick up the change faster.
       if (auth.currentUser) {
-        await auth.currentUser.getIdToken(true);
+        await auth.currentUser.getIdToken(true); 
       }
 
       toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
@@ -355,6 +373,38 @@ export default function ProfilePage() {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    setOrders(prevOrders => {
+      const updatedOrders = prevOrders.map(order => {
+        if (order.id === orderId) {
+          if (order.status === 'Order Placed') {
+            return { ...order, status: 'Cancelled' as OrderStatus };
+          } else {
+            toast({
+              title: 'Cancellation Failed',
+              description: 'This order can no longer be cancelled.',
+              variant: 'destructive',
+            });
+            return order;
+          }
+        }
+        return order;
+      });
+
+      // Check if the order was actually cancelled to show success toast
+      const originalOrder = prevOrders.find(o => o.id === orderId);
+      const updatedOrder = updatedOrders.find(o => o.id === orderId);
+      if (originalOrder && updatedOrder && originalOrder.status === 'Order Placed' && updatedOrder.status === 'Cancelled') {
+        toast({
+          title: 'Order Cancelled',
+          description: `Order ${orderId} has been successfully cancelled.`,
+          variant: 'default',
+        });
+      }
+      return updatedOrders;
+    });
   };
 
 
@@ -375,7 +425,7 @@ export default function ProfilePage() {
         <div className="relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/50 shadow-lg">
             <AvatarImage
-              key={firebaseUser?.photoURL || 'default-avatar-key'} // Add key here
+              key={firebaseUser?.photoURL || 'default-avatar-key'}
               src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
               alt={firebaseUser?.displayName || 'User profile photo'}
               data-ai-hint="profile avatar"
@@ -462,15 +512,28 @@ export default function ProfilePage() {
                         {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <Wallet className="ml-2 mr-1 h-4 w-4 text-primary" />}
                         {order.paymentMethod}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 w-full sm:w-auto"
-                        onClick={() => handleTrackOrderFromList(order.id)}
-                      >
-                        <PackageSearch className="mr-2 h-4 w-4" />
-                        Track this Order
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => handleTrackOrderFromList(order.id)}
+                        >
+                          <PackageSearch className="mr-2 h-4 w-4" />
+                          Track this Order
+                        </Button>
+                        {order.status === 'Order Placed' && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-full sm:w-auto"
+                            onClick={() => handleCancelOrder(order.id)}
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Cancel Order
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))
