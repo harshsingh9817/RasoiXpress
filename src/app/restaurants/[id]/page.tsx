@@ -21,8 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import CartSheet from '@/components/CartSheet';
 
 export default function RestaurantDetailPage() {
-  const params = React.use(useParams()); 
-  const searchParams = React.use(useSearchParams()); // Unwrapped searchParams
+  const params = useParams(); 
+  const searchParams = useSearchParams(); 
   const id = params.id as string;
   
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
