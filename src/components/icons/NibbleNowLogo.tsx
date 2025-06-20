@@ -11,7 +11,7 @@ const NibbleNowLogo: FC = () => {
         width={40}
         height={40}
         className="mr-2"
-        priority // Add priority if this is a critical LCP element
+        priority // Ensures the logo image is prioritized for loading
       />
       <span className="text-2xl font-bold text-primary font-headline">
         NibbleNow
