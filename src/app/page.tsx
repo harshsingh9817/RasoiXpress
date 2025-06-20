@@ -65,7 +65,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-10 md:py-14 bg-orange-100 rounded-lg shadow-xl">
+      <section className="text-center py-10 md:py-14 bg-orange-200 rounded-lg shadow-xl">
         <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary mb-3">
           Home Delivery In Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
