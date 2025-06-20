@@ -3,40 +3,30 @@ import type { FC } from 'react';
 
 const NibbleNowLogo: FC = () => {
   return (
-    <div className="flex items-center" aria-label="NibbleNow logo - a food cloche with spoon, fork, and knife, and the name NibbleNow">
+    <div className="flex items-center" aria-label="NibbleNow logo - a plate with a fork and spoon, and the name NibbleNow">
       <svg
         width="40"
         height="40"
         viewBox="0 0 100 100"
-        fill="hsl(var(--primary))"
         xmlns="http://www.w3.org/2000/svg"
         className="mr-2"
         aria-hidden="true"
       >
-        {/* Tray */}
-        <rect x="10" y="70" width="80" height="10" rx="3" />
+        {/* Outer Plate (lighter) */}
+        <circle cx="50" cy="50" r="45" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="2" />
+        {/* Inner Plate (primary color) */}
+        <circle cx="50" cy="50" r="35" fill="hsl(var(--primary))" />
 
-        {/* Cloche Dome */}
-        <path d="M15 70 Q15 40 50 40 T85 70 Z" />
+        {/* Fork */}
+        <rect x="30" y="25" width="8" height="50" rx="2" fill="hsl(var(--card))" />
+        {/* Fork prongs */}
+        <rect x="30" y="20" width="2" height="10" fill="hsl(var(--card))" />
+        <rect x="33" y="20" width="2" height="10" fill="hsl(var(--card))" />
+        <rect x="36" y="20" width="2" height="10" fill="hsl(var(--card))" />
         
-        {/* Cloche Handle */}
-        <rect x="45" y="30" width="10" height="10" rx="2" />
-
-        {/* Spoon (Left) */}
-        <path d="M35 70 Q35 55 30 45 A5 5 0 1 0 30 55 Q35 65 35 70Z" transform="rotate(10 32.5 57.5)" fill="hsl(var(--card))" />
-        <rect x="33" y="52" width="4" height="18" rx="1" transform="rotate(10 35 61)" fill="hsl(var(--card))" />
-
-
-        {/* Fork (Center) */}
-        <rect x="48" y="45" width="4" height="25" rx="1" fill="hsl(var(--card))" />
-        <path d="M46 45 L46 50 L44 50 L44 45 Z" fill="hsl(var(--card))" />
-        <path d="M50 45 L50 52 L49 52 L49 45 Z" fill="hsl(var(--card))" />
-        <path d="M54 45 L54 50 L56 50 L56 45 Z" fill="hsl(var(--card))" />
-        
-        {/* Knife (Right) */}
-        <path d="M65 70 L65 45 L68 45 Q70 50 68 70 Z" fill="hsl(var(--card))"/>
-        <rect x="63" y="52" width="4" height="18" rx="1" transform="rotate(-10 65 61)" fill="hsl(var(--card))"/>
-
+        {/* Spoon */}
+        <ellipse cx="65" cy="35" rx="10" ry="12" fill="hsl(var(--card))" />
+        <rect x="62" y="45" width="6" height="30" rx="2" fill="hsl(var(--card))" />
       </svg>
       <span className="text-2xl font-bold text-primary font-headline">
         NibbleNow
