@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -62,11 +63,11 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-8 bg-gradient-to-r from-primary/10 via-background to-accent/10 rounded-lg shadow-inner">
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">
-          Discover Deliciousness with <span className="text-accent">NibbleNow</span>
+      <section className="text-center py-10 md:py-14 bg-gradient-to-br from-primary to-red-700 rounded-lg shadow-xl">
+        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
+          Discover Deliciousness with <span className="text-amber-300">NibbleNow</span>
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
         </p>
       </section>
