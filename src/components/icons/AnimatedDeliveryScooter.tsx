@@ -8,13 +8,15 @@ interface AnimatedDeliveryScooterProps {
 }
 
 const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, width = "100%", height = "100%" }) => {
+  const scooterFillColor = "#2D3748"; // Dark Gray
+
   return (
     <svg
       width={width}
       height={height}
       viewBox="0 0 100 75" // Adjusted viewBox for a wider aspect ratio
       xmlns="http://www.w3.org/2000/svg"
-      className={className} // Handles sizing and text color for currentColor
+      className={className} // Handles sizing and text color for currentColor (used by speed lines)
     >
       <style>
         {`
@@ -41,7 +43,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
           }
         `}
       </style>
-      <g className="scooter-group" fill="currentColor">
+      <g className="scooter-group" fill={scooterFillColor}>
         {/* Rider */}
         {/* Helmet */}
         <path d="M52,15 q -7,0 -7,7 q 0,7 7,7 q 7,0 7,-7 q 0,-7 -7,-7 M 52,29 L 58,29 L 58,22 Q 58,15 52,15" />
@@ -67,7 +69,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
         <circle cx="78" cy="62" r="8" /> {/* Front Wheel */}
 
       </g>
-      {/* Speed Lines - stroke based */}
+      {/* Speed Lines - stroke based, will use 'currentColor' from className prop */}
       <g>
         <line className="speed-line speed-line-1" x1="40" y1="35" x2="15" y2="35" />
         <line className="speed-line speed-line-2" x1="35" y1="40" x2="10" y2="40" />
