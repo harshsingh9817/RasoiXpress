@@ -226,8 +226,10 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
-    if (firebaseUser) {
-      console.log("ProfilePage: firebaseUser.photoURL is now:", firebaseUser.photoURL);
+    if (firebaseUser?.photoURL) {
+      // This log helps confirm if the ProfilePage component itself
+      // is receiving the updated photoURL from the AuthContext.
+      console.log("ProfilePage: firebaseUser.photoURL updated to:", firebaseUser.photoURL);
     }
   }, [firebaseUser?.photoURL]);
 
@@ -359,10 +361,11 @@ export default function ProfilePage() {
       const downloadURL = await getDownloadURL(imageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      // Force refresh of ID token to get updated claims/photoURL immediately
       if (auth.currentUser) {
         await auth.currentUser.getIdToken(true); 
       }
-
+      
       toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
     } catch (error: any) {
       console.error("Error uploading profile photo:", error);
@@ -376,35 +379,35 @@ export default function ProfilePage() {
   };
 
   const handleCancelOrder = (orderId: string) => {
-    setOrders(prevOrders => {
-      const updatedOrders = prevOrders.map(order => {
-        if (order.id === orderId) {
-          if (order.status === 'Order Placed') {
-            return { ...order, status: 'Cancelled' as OrderStatus };
-          } else {
-            toast({
-              title: 'Cancellation Failed',
-              description: 'This order can no longer be cancelled.',
-              variant: 'destructive',
-            });
-            return order;
-          }
-        }
-        return order;
-      });
+    const orderToUpdate = orders.find(o => o.id === orderId);
 
-      // Check if the order was actually cancelled to show success toast
-      const originalOrder = prevOrders.find(o => o.id === orderId);
-      const updatedOrder = updatedOrders.find(o => o.id === orderId);
-      if (originalOrder && updatedOrder && originalOrder.status === 'Order Placed' && updatedOrder.status === 'Cancelled') {
+    if (orderToUpdate) {
+      if (orderToUpdate.status === 'Order Placed') {
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            order.id === orderId ? { ...order, status: 'Cancelled' as OrderStatus } : order
+          )
+        );
         toast({
           title: 'Order Cancelled',
           description: `Order ${orderId} has been successfully cancelled.`,
           variant: 'default',
         });
+      } else {
+        toast({
+          title: 'Cancellation Failed',
+          description: 'This order can no longer be cancelled.',
+          variant: 'destructive',
+        });
       }
-      return updatedOrders;
-    });
+    } else {
+      // This case should ideally not be reached if the UI only shows the button for existing orders
+      toast({
+        title: 'Error',
+        description: 'Order not found.',
+        variant: 'destructive',
+      });
+    }
   };
 
 
@@ -425,7 +428,7 @@ export default function ProfilePage() {
         <div className="relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/50 shadow-lg">
             <AvatarImage
-              key={firebaseUser?.photoURL || 'default-avatar-key'}
+              key={firebaseUser?.photoURL || 'default-avatar-key'} // Add key here
               src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
               alt={firebaseUser?.displayName || 'User profile photo'}
               data-ai-hint="profile avatar"
@@ -802,3 +805,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
