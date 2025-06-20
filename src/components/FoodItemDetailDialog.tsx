@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Leaf, ShoppingCart, Tag, Weight, UtensilsCross, Info } from 'lucide-react';
+import { Leaf, ShoppingCart, Tag, Weight, UtensilsCrossed, Info } from 'lucide-react'; // Changed UtensilsCross to UtensilsCrossed
 import { useCart } from '@/contexts/CartContext';
 import { Separator } from './ui/separator';
 
@@ -82,7 +82,7 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
           {menuItem.ingredients && (
             <div>
               <h4 className="font-semibold text-sm mb-1 flex items-center">
-                <UtensilsCross className="mr-2 h-4 w-4 text-primary" />
+                <UtensilsCrossed className="mr-2 h-4 w-4 text-primary" />
                 Ingredients:
               </h4>
               <p className="text-sm text-muted-foreground leading-relaxed">
