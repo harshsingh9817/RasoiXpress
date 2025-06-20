@@ -89,3 +89,5 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
 };
 
 export default AnimatedDeliveryScooter;
+
+    
