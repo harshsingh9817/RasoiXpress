@@ -12,7 +12,6 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
   const seatColor = "#2D3748"; // Dark Gray (for seat and main handlebar parts)
   const wheelTireColor = "#2D3748"; // Dark Gray (for tires)
   const wheelRimColor = "#E2E8F0"; // Light Gray (for rims and handlebar grips)
-  // handlebarAccentColor is not explicitly used below, seatColor and wheelRimColor are used for handlebars
   const riderAndBoxColor = "#2D3748"; // Dark Gray (for rider and box silhouette)
 
   return (
@@ -71,25 +70,22 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
         {/* Front Panel/Shield */}
         <path d="M70,43 q 10,0 15,10 l 0,10 l -10,0 q -2,-5 -5,-6 Z" fill={scooterBodyColor} />
         
-        {/* Handlebars - More detailed, centered around x=65 */}
+        {/* Handlebars - Revised for better visibility and realism */}
         <g>
           {/* Steering Column Post - connecting to scooter's front structure */}
-          <rect x="63.5" y="30" width="3" height="10" fill={seatColor} /> {/* Vertical post */}
+          <rect x="56.5" y="30" width="3" height="10" fill={seatColor} /> {/* Vertical post, centered for the bar */}
           
           {/* Horizontal Bar */}
-          <rect x="58" y="28" width="14" height="4" rx="1" fill={seatColor} /> {/* Bar from x=58 to x=72 */}
+          <rect x="48" y="28" width="18" height="4" rx="1" fill={seatColor} /> {/* Bar spans x=48 to x=66 */}
           
           {/* Left Grip */}
-          <rect x="54" y="26" width="5" height="7" rx="2" fill={wheelRimColor} /> 
-          <circle cx="53.5" cy="29.5" r="1.5" fill={seatColor} /> {/* End cap for left grip */}
-
+          <rect x="46" y="27" width="5" height="6" rx="2" fill={wheelRimColor} /> {/* Grip at the left end of the bar */}
           {/* Right Grip */}
-          <rect x="71" y="26" width="5" height="7" rx="2" fill={wheelRimColor} /> 
-          <circle cx="76.5" cy="29.5" r="1.5" fill={seatColor} /> {/* End cap for right grip */}
+          <rect x="63" y="27" width="5" height="6" rx="2" fill={wheelRimColor} /> {/* Grip at the right end of the bar, aligns with rider's hand */}
 
-          {/* Brake levers (simplified) pointing downwards */}
-          <line x1="58" y1="32" x2="56" y2="36" stroke={seatColor} strokeWidth="1.5" /> {/* Left lever */}
-          <line x1="72" y1="32" x2="74" y2="36" stroke={seatColor} strokeWidth="1.5" /> {/* Right lever */}
+          {/* Simplified Brake levers */}
+          <line x1="48" y1="33" x2="46" y2="37" stroke={seatColor} strokeWidth="1.5" /> {/* Left lever, from bottom of grip */}
+          <line x1="66" y1="33" x2="68" y2="37" stroke={seatColor} strokeWidth="1.5" /> {/* Right lever, from bottom of grip */}
         </g>
 
         {/* Package Box */}
@@ -121,6 +117,4 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
 };
 
 export default AnimatedDeliveryScooter;
-    
-
     
