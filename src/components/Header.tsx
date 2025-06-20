@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck } from 'lucide-react'; // Removed Sparkles
+import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle } from 'lucide-react'; // Added HelpCircle
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -28,7 +28,12 @@ const Header = () => {
               <span className="hidden sm:inline">Restaurants</span>
             </Button>
           </Link>
-          {/* Recommendations link removed */}
+
+          {/* Help Button - Added */}
+          <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => alert('Help page coming soon!')}>
+            <HelpCircle className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Help</span>
+          </Button>
 
           {isAuthLoading ? (
             <div className="flex items-center space-x-2">
