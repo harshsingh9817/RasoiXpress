@@ -2,9 +2,9 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react'; 
-import { useRouter } from 'next/navigation'; 
-import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -13,6 +13,8 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AppNotification {
   id: number;
@@ -20,9 +22,9 @@ interface AppNotification {
   message: string;
   read: boolean;
   type: 'new_dish' | 'order_update' | 'offer' | 'general';
-  link?: string; // Direct link
-  restaurantId?: string; // For linking to a restaurant
-  orderId?: string; // For linking to an order in profile
+  link?: string;
+  restaurantId?: string;
+  orderId?: string;
 }
 
 const Header = () => {
@@ -33,7 +35,11 @@ const Header = () => {
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
-  // Initial mock notifications
+  // Location State
+  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+  const [isLocationPopoverOpen, setIsLocationPopoverOpen] = useState(false);
+  const [pinCodeInput, setPinCodeInput] = useState('');
+
   const initialNotifications: AppNotification[] = [
     { id: 1, title: "New Dish Alert at Pizza Palace!", message: "Try our new 'Spicy Dragon Noodles'. Limited time only!", read: false, type: 'new_dish', restaurantId: 'r1' },
     { id: 2, title: "Order #ORD12345 Delivered", message: "Your recent order has been successfully delivered. Enjoy!", read: true, type: 'order_update', orderId: 'ORD12345', link: '/profile' },
@@ -44,7 +50,11 @@ const Header = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
 
   useEffect(() => {
-    // In a real app, you might fetch notifications here.
+    // Load location from localStorage
+    const savedLocation = localStorage.getItem('nibbleNowUserLocation');
+    if (savedLocation) {
+      setCurrentLocation(savedLocation);
+    }
   }, []);
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
@@ -66,10 +76,30 @@ const Header = () => {
     } else if (clickedNotification.type === 'offer' && clickedNotification.restaurantId) {
       router.push(`/restaurants/${clickedNotification.restaurantId}`);
     } else if (clickedNotification.type === 'order_update' && clickedNotification.orderId) {
-      // For now, go to profile, in future could scroll to specific order
-      router.push('/profile'); 
+      router.push('/profile');
     }
     // setIsNotificationPanelOpen(false); // Optionally close popover
+  };
+
+  const handleConfirmLocation = (e: FormEvent) => {
+    e.preventDefault();
+    if (pinCodeInput.trim().length === 6 && /^\d+$/.test(pinCodeInput.trim())) { // Basic 6-digit PIN validation
+      // Mock city based on PIN - in a real app, this would be an API call
+      let mockCity = "Foodville";
+      if (pinCodeInput.startsWith("11")) mockCity = "Delhi";
+      else if (pinCodeInput.startsWith("40")) mockCity = "Mumbai";
+      else if (pinCodeInput.startsWith("56")) mockCity = "Bangalore";
+      else if (pinCodeInput.startsWith("70")) mockCity = "Kolkata";
+      
+      const newLocation = `${mockCity} - ${pinCodeInput}`;
+      setCurrentLocation(newLocation);
+      localStorage.setItem('nibbleNowUserLocation', newLocation);
+      setIsLocationPopoverOpen(false);
+      setPinCodeInput(''); // Clear input
+    } else {
+      // Basic feedback for invalid PIN, can be improved with toast
+      alert("Please enter a valid 6-digit pin code.");
+    }
   };
 
 
@@ -77,9 +107,49 @@ const Header = () => {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/" aria-label="NibbleNow Home">
-            <NibbleNowLogo />
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/" aria-label="NibbleNow Home">
+              <NibbleNowLogo />
+            </Link>
+            
+            <Popover open={isLocationPopoverOpen} onOpenChange={setIsLocationPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className="px-2 py-1 h-auto text-xs sm:text-sm text-muted-foreground hover:text-primary">
+                  <MapPin className="h-4 w-4 sm:mr-1 text-primary" />
+                  <div className="flex flex-col items-start">
+                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={currentLocation || "Set Location"}>
+                       {currentLocation ? currentLocation.split(" - ")[0] : "Set Location"}
+                     </span>
+                     <span className="text-xs text-muted-foreground hidden sm:inline leading-tight max-w-[100px] truncate">
+                       {currentLocation ? currentLocation.split(" - ")[1] : "Select your area"}
+                     </span>
+                     <span className="sm:hidden text-primary">{currentLocation ? currentLocation.split(" - ")[0] : "Location"}</span>
+                  </div>
+                  <ChevronDown className="h-3 w-3 sm:ml-1 opacity-70" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4" align="start">
+                <form onSubmit={handleConfirmLocation}>
+                  <div className="space-y-3">
+                    <Label htmlFor="pinCode" className="font-medium">Enter Delivery Pin Code</Label>
+                    <Input
+                      id="pinCode"
+                      type="text"
+                      placeholder="e.g., 110001"
+                      value={pinCodeInput}
+                      onChange={(e) => setPinCodeInput(e.target.value)}
+                      maxLength={6}
+                      className="text-sm"
+                    />
+                    <Button type="submit" size="sm" className="w-full bg-primary hover:bg-primary/90">
+                      Confirm Location
+                    </Button>
+                  </div>
+                </form>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <nav className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
             <Link href="/">
               <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
@@ -96,7 +166,6 @@ const Header = () => {
             {isAuthLoading ? (
               <div className="flex items-center space-x-2">
                 <Skeleton className="h-8 w-16 rounded-md" />
-                 <Skeleton className="h-8 w-16 rounded-md" />
               </div>
             ) : (
               <>
@@ -213,3 +282,4 @@ const Header = () => {
 };
 
 export default Header;
+    
