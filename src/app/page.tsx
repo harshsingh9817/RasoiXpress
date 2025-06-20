@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading'; // Updated import
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter'; // Updated import
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -70,7 +70,7 @@ export default function HomePage() {
           Home Delivery In Your City Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
         <div className="mt-6 mb-4 flex justify-center">
-          <AnimatedFoodPackingAndLoading className="h-24 w-48 text-accent" /> 
+          <AnimatedDeliveryScooter className="h-24 w-48 text-accent" /> 
         </div>
         <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
