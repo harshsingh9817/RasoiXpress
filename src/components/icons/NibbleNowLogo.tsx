@@ -3,11 +3,10 @@ import type { FC } from 'react';
 
 const NibbleNowLogo: FC = () => {
   return (
-    <div className="flex items-center" aria-label="NibbleNow Logo">
+    <div className="flex items-center" aria-label="NibbleNow logo mark">
       <svg
-        className="mr-2 h-8 w-8" /* Removed text-primary */
+        className="h-10 w-10" /* Increased size, removed mr-2 */
         viewBox="0 0 100 100"
-        /* fill="currentColor" Removed */
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
@@ -20,10 +19,7 @@ const NibbleNowLogo: FC = () => {
           fill="hsl(var(--primary))" /* Color for the 'N' and circle */
         />
       </svg>
-      <span className="font-headline text-3xl font-bold">
-        <span className="text-primary">Nibble</span>
-        <span className="text-accent">Now</span>
-      </span>
+      {/* Text name removed */}
     </div>
   );
 };
