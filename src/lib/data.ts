@@ -5,91 +5,111 @@ export const mockMenuItems: MenuItem[] = [
   {
     id: 'm1',
     name: 'Margherita Pizza',
-    description: 'Classic delight with 100% real mozzarella cheese',
-    price: 349.00, 
+    description: 'Classic delight with 100% real mozzarella cheese, fresh basil, and a tangy tomato sauce on a thin crust.',
+    price: 349.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isVegetarian: true,
     isPopular: true,
+    weight: 'Approx. 450g',
+    ingredients: 'Pizza dough, Mozzarella cheese, Tomato sauce, Fresh basil, Olive oil, Salt',
   },
   {
     id: 'm2',
     name: 'Pepperoni Pizza',
-    description: 'A classic American favorite with spicy pepperoni',
-    price: 429.00, 
+    description: 'A classic American favorite with spicy pepperoni, mozzarella cheese, and our signature pizza sauce.',
+    price: 429.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pizza',
     isPopular: true,
+    weight: 'Approx. 500g',
+    ingredients: 'Pizza dough, Mozzarella cheese, Pepperoni, Tomato sauce, Oregano',
   },
   {
     id: 'm3',
     name: 'Chicken Burger',
-    description: 'Juicy chicken patty with fresh lettuce and secret sauce',
-    price: 249.00, 
+    description: 'Juicy grilled chicken patty with fresh lettuce, ripe tomatoes, onions, and our secret sauce in a toasted bun.',
+    price: 249.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
+    weight: 'Approx. 280g',
+    ingredients: 'Chicken patty, Burger bun, Lettuce, Tomato, Onion, Secret sauce, Pickles',
   },
   {
     id: 'm4',
     name: 'Veggie Burger',
-    description: 'Delicious veggie patty with all the fixings',
-    price: 220.00, 
+    description: 'A delicious and hearty veggie patty made with mixed vegetables and spices, served with all the fixings.',
+    price: 220.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Burgers',
     isVegetarian: true,
+    weight: 'Approx. 260g',
+    ingredients: 'Veggie patty, Burger bun, Lettuce, Tomato, Onion, Mayonnaise',
   },
   {
     id: 'm5',
     name: 'Caesar Salad',
-    description: 'Crisp romaine lettuce, parmesan cheese, and croutons',
-    price: 275.00, 
+    description: 'Crisp romaine lettuce, Parmesan cheese, crunchy croutons, and a creamy Caesar dressing.',
+    price: 275.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Salads',
     isVegetarian: true,
+    weight: 'Approx. 300g',
+    ingredients: 'Romaine lettuce, Parmesan cheese, Croutons, Caesar dressing (contains anchovy extract for non-veg version)',
   },
   {
     id: 'm6',
     name: 'Spaghetti Carbonara',
-    description: 'Creamy pasta with bacon and parmesan',
-    price: 399.00, 
+    description: 'Classic Italian pasta with creamy egg yolk sauce, Pecorino Romano cheese, pancetta, and black pepper.',
+    price: 399.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Pasta',
+    weight: 'Approx. 350g',
+    ingredients: 'Spaghetti, Pancetta, Egg yolks, Pecorino Romano cheese, Black pepper',
   },
   {
     id: 'm7',
     name: 'Chocolate Lava Cake',
-    description: 'Warm chocolate cake with a gooey center',
-    price: 180.00, 
+    description: 'Warm, rich chocolate cake with a gooey, molten chocolate center. Served with a dusting of powdered sugar.',
+    price: 180.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Desserts',
     isVegetarian: true,
+    weight: 'Approx. 150g',
+    ingredients: 'Dark chocolate, Butter, Eggs, Sugar, Flour, Cocoa powder',
   },
   {
     id: 'm8',
     name: 'Butter Chicken',
-    description: 'Tender chicken in a creamy tomato sauce',
-    price: 450.00, 
+    description: 'Tender pieces of tandoori chicken cooked in a rich, creamy tomato and butter sauce, flavored with spices.',
+    price: 450.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
+    weight: 'Approx. 400g (with gravy)',
+    ingredients: 'Chicken, Tomato, Cream, Butter, Ginger, Garlic, Spices (Garam masala, Turmeric, Cumin, Coriander)',
   },
   {
     id: 'm9',
     name: 'Paneer Tikka Masala',
-    description: 'Grilled paneer in a spiced curry sauce',
-    price: 420.00, 
+    description: 'Grilled cubes of paneer (Indian cottage cheese) simmered in a flavorful and aromatic spiced curry sauce.',
+    price: 420.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Indian',
     isVegetarian: true,
     isPopular: true,
+    weight: 'Approx. 400g (with gravy)',
+    ingredients: 'Paneer, Tomato, Onion, Cream, Ginger, Garlic, Capsicum, Spices (Garam masala, Turmeric, Cumin, Coriander, Kasuri methi)',
   },
   {
     id: 'm10',
     name: 'French Fries',
-    description: 'Crispy golden french fries',
-    price: 120.00, 
+    description: 'Crispy golden french fries, lightly salted. Perfect as a side or a snack.',
+    price: 120.00,
     imageUrl: 'https://placehold.co/300x200.png',
     category: 'Sides',
     isVegetarian: true,
+    weight: 'Approx. 150g',
+    ingredients: 'Potatoes, Vegetable oil, Salt',
   },
 ];
 
@@ -104,7 +124,7 @@ export const mockRestaurants: Restaurant[] = [
     categories: ['Pizza', 'Italian', 'Fast Food'],
     menu: [mockMenuItems[0], mockMenuItems[1], mockMenuItems[4], mockMenuItems[6]],
     address: '123 Pizza St, Flavor Town',
-    promotions: ['20% off on orders above Rs.1000'], 
+    promotions: ['20% off on orders above Rs.1000'],
   },
   {
     id: 'r2',
@@ -125,7 +145,7 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '40-50 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Indian', 'Curry', 'Vegetarian Options'],
-    menu: [mockMenuItems[7], mockMenuItems[8], mockMenuItems[4]],
+    menu: [mockMenuItems[7], mockMenuItems[8], mockMenuItems[4]], // Added m4 Caesar Salad as a side
     address: '789 Spice Rd, Masala City',
     promotions: ['Free Naan with every main course'],
   },
@@ -168,9 +188,13 @@ export const getCurrentTrends = (): string[] => {
 
 // Add data-ai-hint to image URLs
 mockMenuItems.forEach(item => {
-  item.imageUrl = `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category.toLowerCase()}`;
+  const imageName = item.name.split(" ")[0].toLowerCase();
+  const imageCategory = item.category.toLowerCase();
+  item.imageUrl = `${item.imageUrl.split('?')[0]}?data-ai-hint=${imageName} ${imageCategory}`;
 });
 
 mockRestaurants.forEach(restaurant => {
-  restaurant.imageUrl = `${restaurant.imageUrl.split('?')[0]}?data-ai-hint=${restaurant.name.split(" ")[0].toLowerCase()} ${restaurant.cuisine.split(",")[0].trim().toLowerCase()}`;
+  const restaurantName = restaurant.name.split(" ")[0].toLowerCase();
+  const restaurantCuisine = restaurant.cuisine.split(",")[0].trim().toLowerCase();
+  restaurant.imageUrl = `${restaurant.imageUrl.split('?')[0]}?data-ai-hint=${restaurantName} ${restaurantCuisine}`;
 });

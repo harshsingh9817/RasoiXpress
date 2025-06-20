@@ -21,6 +21,8 @@ export interface MenuItem {
   category: string;
   isVegetarian?: boolean;
   isPopular?: boolean;
+  weight?: string; // e.g., "250g", "Approx. 300g"
+  ingredients?: string; // e.g., "Flour, Tomato, Cheese, Basil" or comma-separated
 }
 
 export interface CartItem extends MenuItem {
