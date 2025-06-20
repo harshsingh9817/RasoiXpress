@@ -9,7 +9,7 @@ import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; // Import CartSheet for the layout
-import { Utensils, Package } from 'lucide-react'; // Changed Bike to Package
+import { Utensils } from 'lucide-react'; // Removed Package from lucide-react imports
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -67,7 +67,32 @@ export default function HomePage() {
         <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
           Home Delivery In Your City Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
-        <Package className="mx-auto h-12 w-12 text-amber-300 mt-3 mb-2" /> 
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mx-auto h-12 w-12 text-amber-300 mt-3 mb-2"
+          aria-label="Delivery person on a bike"
+        >
+          <circle cx="5.5" cy="17.5" r="2.5" />
+          <circle cx="18.5" cy="17.5" r="2.5" />
+          <line x1="5.5" y1="17.5" x2="8.5" y2="12.5" />
+          <line x1="18.5" y1="17.5" x2="15.5" y2="12.5" />
+          <line x1="8.5" y1="12.5" x2="15.5" y2="12.5" />
+          <line x1="11.5" y1="17.5" x2="8.5" y2="12.5" />
+          <path d="M8.5 12.5 Q8.5 10.5 10.5 9.5 L12.5 7.5" />
+          <circle cx="13" cy="6" r="1.5" />
+          <path d="M12.5 7.5 L15.5 10.5" />
+          <line x1="15.5" y1="10.5" x2="17.5" y2="10" />
+          <rect x="9.5" y="7" width="4" height="5" rx="0.5" ry="0.5" />
+          <path d="M8.5 12.5 L7 15" />
+        </svg>
         <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
         </p>
