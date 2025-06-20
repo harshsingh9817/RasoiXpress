@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-// Removed Image import
+import Image from 'next/image'; // Re-imported Image
 import type { Restaurant } from '@/lib/types';
 import { mockRestaurants } from '@/lib/data';
 import RestaurantCard from '@/components/RestaurantCard';
@@ -65,16 +65,28 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-10 md:py-14 bg-primary rounded-lg shadow-xl">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
-          Home Delivery In Nagra With <span className="text-accent">NibbleNow</span>
-        </h1>
-        <div className="mt-6 mb-4 flex justify-center">
-          <AnimatedDeliveryScooter className="h-24 w-48 text-accent" /> 
+      <section className="relative text-center rounded-lg shadow-xl overflow-hidden">
+        <Image
+          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhA-2-vM3w2v3E6D0V8I0I2S8q7c0j1027528732"
+          alt="Dining plate with fork and spoon"
+          layout="fill"
+          objectFit="cover"
+          className="z-0"
+          data-ai-hint="plate cutlery"
+          priority
+        />
+        <div className="absolute inset-0 bg-black/60 z-0" /> {/* Overlay for text contrast */}
+        <div className="relative z-10 py-10 md:py-14 px-4 sm:px-6 lg:px-8">
+          <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
+            Home Delivery In Nagra With <span className="text-accent">NibbleNow</span>
+          </h1>
+          <div className="mt-6 mb-4 flex justify-center">
+            <AnimatedDeliveryScooter className="h-24 w-48 text-accent" /> 
+          </div>
+          <p className="text-lg md:text-xl text-primary-foreground max-w-2xl mx-auto">
+            Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
+          </p>
         </div>
-        <p className="text-lg md:text-xl text-primary-foreground max-w-2xl mx-auto">
-          Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
-        </p>
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow">
