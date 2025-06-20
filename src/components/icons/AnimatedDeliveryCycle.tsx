@@ -84,7 +84,7 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
         `}
       </style>
 
-      <g className="cyclist-group" transform="translate(5, 5)"> {/* Added slight translation for padding */}
+      <g className="cyclist-group" transform="translate(5, 5)"> 
         {/* Backpack */}
         <rect x="38" y="15" width="34" height="40" rx="4" fill={backpackColor} strokeWidth="1" stroke="hsl(var(--border))"/>
         <rect x="40" y="17" width="30" height="8" rx="2" fill={backpackHighlightColor} opacity="0.6"/>
@@ -99,26 +99,26 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
            <path d="M60,60 Q64,68 68,60 L68,63 Q64,71 60,63 Z" fill={pantsColor} />
 
           {/* Head & Helmet */}
-          <circle cx="64" cy="27" r="7" fill={helmetColor} /> {/* Helmet */}
-          <rect x="59" y="30" width="10" height="5" fill={skinColor} /> {/* Face area */}
-          <rect x="60" y="32" width="8" height="4" fill={maskColor} rx="1"/> {/* Mask */}
+          <circle cx="64" cy="27" r="7" fill={helmetColor} /> 
+          <rect x="59" y="30" width="10" height="5" fill={skinColor} /> 
+          <rect x="60" y="32" width="8" height="4" fill={maskColor} rx="1"/> 
 
 
           {/* Arms (simplified) */}
-          <path d="M68,40 Q75,42 83,43 L85,40 Q77,39 69,38 Z" fill={shirtColor} /> {/* Right Arm */}
-          <circle cx="84" cy="41.5" r="2" fill={skinColor} /> {/* Hand */}
+          <path d="M68,40 Q75,42 83,43 L85,40 Q77,39 69,38 Z" fill={shirtColor} /> 
+          <circle cx="84" cy="41.5" r="2" fill={skinColor} /> 
 
 
           {/* Legs */}
-          {/* Front Leg (transforms applied via CSS) */}
-          <g transform="translate(62 62)"> {/* Hip joint approx */}
-            <path d="M0,0 L2,15 L-2,15 Z" fill={pantsColor} className="rider-leg-upper"/> {/* Upper leg */}
-            <g transform="translate(0, 15)"> {/* Knee joint */}
-               <path d="M0,0 Q1,10 0,18 L-2,18 Q-3,10 -2,0 Z" fill={pantsColor} className="rider-leg-lower"/> {/* Lower leg */}
-               <ellipse cx="0" cy="18" rx="3" ry="2" fill={helmetColor} /> {/* Foot/Shoe */}
+          
+          <g transform="translate(62 62)"> 
+            <path d="M0,0 L2,15 L-2,15 Z" fill={pantsColor} className="rider-leg-upper"/> 
+            <g transform="translate(0, 15)"> 
+               <path d="M0,0 Q1,10 0,18 L-2,18 Q-3,10 -2,0 Z" fill={pantsColor} className="rider-leg-lower"/> 
+               <ellipse cx="0" cy="18" rx="3" ry="2" fill={helmetColor} /> 
             </g>
           </g>
-           {/* Back Leg (Static or less animated for simplicity) - Could mirror front leg with offset */}
+           
            <g transform="translate(66 62) rotate(15)">
             <path d="M0,0 L2,14 L-2,14 Z" fill={pantsColor} transform="rotate(120 0 0)"/>
             <g transform="translate(0, 14) rotate(10)">
@@ -131,10 +131,10 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
         {/* Bicycle */}
         <g id="bicycle" stroke="currentColor" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
           {/* Frame */}
-          <path d="M45,85 L64,60 L90,60" /> {/* Main triangle down tube + top tube */}
-          <path d="M64,60 L68,85" /> {/* Seat tube */}
-          <path d="M90,60 L105,85" /> {/* Front fork part 1 */}
-          <path d="M90,60 Q88,48 83,45" /> {/* Handlebar stem */}
+          <path d="M45,85 L64,60 L90,60" /> 
+          <path d="M64,60 L68,85" /> 
+          <path d="M90,60 L105,85" /> 
+          <path d="M90,60 Q88,48 83,45" /> 
 
           {/* Handlebars */}
           <path d="M78,40 L88,45" />
@@ -143,24 +143,24 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
           <path d="M58,56 L70,56" strokeWidth="3" fill="currentColor"/>
 
           {/* Crank & Pedals */}
-          <g transform="translate(64,85)" className="pedal-arm"> {/* Crank center */}
-            {/* Pedal Arm */}
-            <line x1="0" y1="0" x2="12" y2="3" strokeWidth="2.5" /> {/* Main arm to pedal */}
-            {/* Pedal */}
+          <g transform="translate(64,85)" className="pedal-arm"> 
+            
+            <line x1="0" y1="0" x2="12" y2="3" strokeWidth="2.5" /> 
+            
             <rect x="10" y="1" width="6" height="3" rx="0.5" strokeWidth="1" fill="currentColor"/>
           </g>
            <g transform="translate(64,85) rotate(180)" className="pedal-arm" style={{ animationDelay: '-0.8s' }}>
             <line x1="0" y1="0" x2="12" y2="3" strokeWidth="2.5" />
             <rect x="10" y="1" width="6" height="3" rx="0.5" strokeWidth="1" fill="currentColor"/>
           </g>
-          <circle cx="64" cy="85" r="2" fill="currentColor" stroke="none" /> {/* Crankset center dot */}
+          <circle cx="64" cy="85" r="2" fill="currentColor" stroke="none" /> 
 
 
           {/* Wheels (drawn last to be on top of frame ends) */}
           <g className="wheel" transform="translate(45, 85)">
             <circle cx="0" cy="0" r="15" strokeWidth="2.5" fill="hsl(var(--background))" />
             <circle cx="0" cy="0" r="2.5" fill="currentColor" stroke="none"/>
-            {/* Spokes */}
+            
             {[0, 45, 90, 135].map(angle => (
               <line key={`b_spoke_${angle}`} x1="0" y1="0" x2="0" y2="-13.5" transform={`rotate(${angle})`} className="spoke"/>
             ))}
@@ -168,7 +168,7 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
           <g className="wheel" transform="translate(105, 85)">
             <circle cx="0" cy="0" r="15" strokeWidth="2.5" fill="hsl(var(--background))" />
             <circle cx="0" cy="0" r="2.5" fill="currentColor" stroke="none"/>
-             {/* Spokes */}
+             
             {[0, 45, 90, 135].map(angle => (
               <line key={`f_spoke_${angle}`} x1="0" y1="0" x2="0" y2="-13.5" transform={`rotate(${angle})`} className="spoke"/>
             ))}
@@ -180,5 +180,3 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
 };
 
 export default AnimatedDeliveryCycle;
-
-    
