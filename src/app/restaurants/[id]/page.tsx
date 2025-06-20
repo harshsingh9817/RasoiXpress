@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react'; // Ensured React is imported
 import Image from 'next/image';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import { getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
@@ -21,7 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import CartSheet from '@/components/CartSheet';
 
 export default function RestaurantDetailPage() {
-  const params = React.use(useParams()); // Unwrapped params with React.use()
+  const params = React.use(useParams()); 
+  const searchParams = React.use(useSearchParams()); // Unwrapped searchParams
   const id = params.id as string;
   
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -178,3 +179,4 @@ export default function RestaurantDetailPage() {
     </div>
   );
 }
+
