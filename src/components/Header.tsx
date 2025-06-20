@@ -59,11 +59,20 @@ const Header = () => {
     const savedLocationString = localStorage.getItem('nibbleNowUserLocation');
     if (savedLocationString) {
       try {
-        const savedLocation = JSON.parse(savedLocationString);
-        setCurrentLocation(savedLocation);
-      } catch (e) {
-        console.error("Failed to parse location from localStorage", e);
-        localStorage.removeItem('nibbleNowUserLocation');
+        const parsedValue = JSON.parse(savedLocationString);
+        // Check if the parsed value is an object and not null,
+        // as JSON.parse can return primitives or null for valid JSON like "123" or "null".
+        if (typeof parsedValue === 'object' && parsedValue !== null) {
+          // We expect an object that fits GeocodedLocation (might have city, locality, or error field)
+          setCurrentLocation(parsedValue as GeocodedLocation);
+        } else {
+          // If JSON.parse succeeded but gave a non-object, it's not what we expect for location.
+          console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object, got ${typeof parsedValue}. Removing item.`);
+          localStorage.removeItem('nibbleNowUserLocation');
+        }
+      } catch (error) { // This catches syntax errors in JSON.parse itself
+        console.error(`Failed to parse location from localStorage (malformed JSON: "${savedLocationString}"):`, error);
+        localStorage.removeItem('nibbleNowUserLocation'); // Clear the malformed item
       }
     }
   }, []);
@@ -104,7 +113,7 @@ const Header = () => {
     }
 
     setIsFetchingLocation(true);
-    setCurrentLocation(null); // Clear previous location while fetching
+    setCurrentLocation(null); 
 
     try {
       const response = await fetch('/api/geocode', {
@@ -121,7 +130,9 @@ const Header = () => {
           description: data.error || "Could not fetch location data for this pin code.",
           variant: "destructive",
         });
-        setCurrentLocation({ error: data.error || "Could not fetch location." }); // Store error state
+        setCurrentLocation({ error: data.error || "Could not fetch location." }); 
+        // Do not save error states to the primary location storage to avoid parsing issues later.
+        // localStorage.removeItem('nibbleNowUserLocation'); // Or clear it if an error occurs.
       } else {
         setCurrentLocation(data);
         localStorage.setItem('nibbleNowUserLocation', JSON.stringify(data));
@@ -148,6 +159,7 @@ const Header = () => {
 
   const displayLocation = currentLocation?.locality || currentLocation?.city || "Set Location";
   const displayPin = currentLocation?.fullAddress?.match(/\b\d{6}\b/)?.[0] || (currentLocation?.error ? "Error" : "Select Area");
+
 
   return (
     <>
