@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react'; // Ensured React is imported
 import Image from 'next/image';
 import { useParams, notFound } from 'next/navigation';
 import { getRestaurantById } from '@/lib/data';
@@ -21,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import CartSheet from '@/components/CartSheet';
 
 export default function RestaurantDetailPage() {
-  const params = useParams();
+  const params = React.use(useParams()); // Unwrapped params with React.use()
   const id = params.id as string;
   
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
