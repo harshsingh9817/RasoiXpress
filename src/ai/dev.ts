@@ -1,4 +1,4 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/recommend-dishes.ts';
+// The import for recommend-dishes.ts has been removed.

@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Home, Sparkles, User, LogIn, UserPlus, ShieldCheck } from 'lucide-react'; // Removed LogOut
+import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck } from 'lucide-react'; // Removed Sparkles
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -12,7 +12,7 @@ import { Skeleton } from './ui/skeleton';
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
-  const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth(); // Removed logout from here as it's not used
+  const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const itemCount = getCartItemCount();
 
   return (
@@ -28,12 +28,7 @@ const Header = () => {
               <span className="hidden sm:inline">Restaurants</span>
             </Button>
           </Link>
-          <Link href="/recommendations">
-            <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-              <Sparkles className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Recommendations</span>
-            </Button>
-          </Link>
+          {/* Recommendations link removed */}
 
           {isAuthLoading ? (
             <div className="flex items-center space-x-2">
@@ -58,7 +53,6 @@ const Header = () => {
                       <span className="hidden sm:inline">Profile</span>
                     </Button>
                   </Link>
-                  {/* Logout button removed from here */}
                 </>
               ) : (
                 <>
