@@ -72,3 +72,10 @@ export interface Address {
   alternatePhone?: string; // Added
   isDefault: boolean;
 }
+
+export interface GeocodedLocation {
+  city?: string;
+  locality?: string;
+  fullAddress?: string;
+  error?: string;
+}

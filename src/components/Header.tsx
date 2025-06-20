@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -15,6 +15,9 @@ import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { GeocodedLocation } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface AppNotification {
   id: number;
@@ -31,14 +34,16 @@ const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
   const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const itemCount = getCartItemCount();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
   // Location State
-  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<GeocodedLocation | null>(null);
   const [isLocationPopoverOpen, setIsLocationPopoverOpen] = useState(false);
   const [pinCodeInput, setPinCodeInput] = useState('');
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
   const initialNotifications: AppNotification[] = [
     { id: 1, title: "New Dish Alert at Pizza Palace!", message: "Try our new 'Spicy Dragon Noodles'. Limited time only!", read: false, type: 'new_dish', restaurantId: 'r1' },
@@ -51,9 +56,15 @@ const Header = () => {
 
   useEffect(() => {
     // Load location from localStorage
-    const savedLocation = localStorage.getItem('nibbleNowUserLocation');
-    if (savedLocation) {
-      setCurrentLocation(savedLocation);
+    const savedLocationString = localStorage.getItem('nibbleNowUserLocation');
+    if (savedLocationString) {
+      try {
+        const savedLocation = JSON.parse(savedLocationString);
+        setCurrentLocation(savedLocation);
+      } catch (e) {
+        console.error("Failed to parse location from localStorage", e);
+        localStorage.removeItem('nibbleNowUserLocation');
+      }
     }
   }, []);
 
@@ -81,27 +92,62 @@ const Header = () => {
     // setIsNotificationPanelOpen(false); // Optionally close popover
   };
 
-  const handleConfirmLocation = (e: FormEvent) => {
+  const handleConfirmLocation = async (e: FormEvent) => {
     e.preventDefault();
-    if (pinCodeInput.trim().length === 6 && /^\d+$/.test(pinCodeInput.trim())) { // Basic 6-digit PIN validation
-      // Mock city based on PIN - in a real app, this would be an API call
-      let mockCity = "Foodville";
-      if (pinCodeInput.startsWith("11")) mockCity = "Delhi";
-      else if (pinCodeInput.startsWith("40")) mockCity = "Mumbai";
-      else if (pinCodeInput.startsWith("56")) mockCity = "Bangalore";
-      else if (pinCodeInput.startsWith("70")) mockCity = "Kolkata";
-      
-      const newLocation = `${mockCity} - ${pinCodeInput}`;
-      setCurrentLocation(newLocation);
-      localStorage.setItem('nibbleNowUserLocation', newLocation);
-      setIsLocationPopoverOpen(false);
-      setPinCodeInput(''); // Clear input
-    } else {
-      // Basic feedback for invalid PIN, can be improved with toast
-      alert("Please enter a valid 6-digit pin code.");
+    if (!/^\d{6}$/.test(pinCodeInput.trim())) {
+      toast({
+        title: "Invalid Pin Code",
+        description: "Please enter a valid 6-digit pin code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsFetchingLocation(true);
+    setCurrentLocation(null); // Clear previous location while fetching
+
+    try {
+      const response = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinCode: pinCodeInput.trim() }),
+      });
+
+      const data: GeocodedLocation = await response.json();
+
+      if (!response.ok || data.error) {
+        toast({
+          title: "Location Error",
+          description: data.error || "Could not fetch location data for this pin code.",
+          variant: "destructive",
+        });
+        setCurrentLocation({ error: data.error || "Could not fetch location." }); // Store error state
+      } else {
+        setCurrentLocation(data);
+        localStorage.setItem('nibbleNowUserLocation', JSON.stringify(data));
+        setIsLocationPopoverOpen(false);
+        setPinCodeInput('');
+         toast({
+          title: "Location Set!",
+          description: `Serving ${data.locality || data.city || 'your area'}.`,
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch location:", error);
+      toast({
+        title: "Network Error",
+        description: "Failed to connect to location service. Please try again.",
+        variant: "destructive",
+      });
+      setCurrentLocation({ error: "Network error fetching location." });
+    } finally {
+      setIsFetchingLocation(false);
     }
   };
 
+  const displayLocation = currentLocation?.locality || currentLocation?.city || "Set Location";
+  const displayPin = currentLocation?.fullAddress?.match(/\b\d{6}\b/)?.[0] || (currentLocation?.error ? "Error" : "Select Area");
 
   return (
     <>
@@ -117,13 +163,13 @@ const Header = () => {
                 <Button variant="ghost" className="px-2 py-1 h-auto text-xs sm:text-sm text-muted-foreground hover:text-primary">
                   <MapPin className="h-4 w-4 sm:mr-1 text-primary" />
                   <div className="flex flex-col items-start">
-                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={currentLocation || "Set Location"}>
-                       {currentLocation ? currentLocation.split(" - ")[0] : "Set Location"}
+                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={displayLocation}>
+                       {isFetchingLocation ? "Fetching..." : displayLocation}
                      </span>
                      <span className="text-xs text-muted-foreground hidden sm:inline leading-tight max-w-[100px] truncate">
-                       {currentLocation ? currentLocation.split(" - ")[1] : "Select your area"}
+                       {isFetchingLocation ? "" : displayPin}
                      </span>
-                     <span className="sm:hidden text-primary">{currentLocation ? currentLocation.split(" - ")[0] : "Location"}</span>
+                     <span className="sm:hidden text-primary">{isFetchingLocation ? "Fetching..." : (currentLocation?.locality || currentLocation?.city || "Location")}</span>
                   </div>
                   <ChevronDown className="h-3 w-3 sm:ml-1 opacity-70" />
                 </Button>
@@ -140,12 +186,17 @@ const Header = () => {
                       onChange={(e) => setPinCodeInput(e.target.value)}
                       maxLength={6}
                       className="text-sm"
+                      disabled={isFetchingLocation}
                     />
-                    <Button type="submit" size="sm" className="w-full bg-primary hover:bg-primary/90">
-                      Confirm Location
+                    <Button type="submit" size="sm" className="w-full bg-primary hover:bg-primary/90" disabled={isFetchingLocation}>
+                      {isFetchingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {isFetchingLocation ? "Confirming..." : "Confirm Location"}
                     </Button>
                   </div>
                 </form>
+                 {currentLocation?.error && !isFetchingLocation && (
+                    <p className="mt-2 text-xs text-destructive">{currentLocation.error}</p>
+                )}
               </PopoverContent>
             </Popover>
           </div>
