@@ -18,31 +18,30 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
   const wheelColor = "hsl(var(--muted-foreground))";
   const detailColor = "hsl(var(--muted-foreground))"; 
 
-  // Updated Timings for a faster loop and new scooter movement
-  const loopDuration = "4.5s"; // Shortened from 6s
+  const loopDuration = "4.5s";
 
   const foodAppearDelay = "0s";
-  const foodAppearDuration = "0.4s"; // Slightly faster
+  const foodAppearDuration = "0.4s";
   const boxAppearDelay = "0.2s";
   const boxAppearDuration = "0.3s";
   
   const foodMoveDelay = "0.4s"; 
-  const foodMoveDuration = "0.8s"; // Slightly faster
+  const foodMoveDuration = "0.8s";
   
-  const flapCloseDelay = "1.2s"; // Adjusted based on foodMove
-  const flapCloseDuration = "0.4s"; // Slightly faster
+  const flapCloseDelay = "1.2s";
+  const flapCloseDuration = "0.4s";
   
-  const vehicleAppearDelay = "1.5s"; // Adjusted
-  const vehicleAppearDuration = "0.4s"; // Slightly faster
+  const vehicleAppearDelay = "1.5s";
+  const vehicleAppearDuration = "0.4s";
   
-  const boxToVehicleDelay = "1.9s"; // Adjusted
-  const boxToVehicleDuration = "0.8s"; // Slightly faster
+  const boxToVehicleDelay = "1.9s";
+  const boxToVehicleDuration = "0.8s";
   
-  const vehiclePuffDelay = "2.7s"; // Adjusted
-  const vehiclePuffDuration = "0.4s"; // Slightly faster
+  const vehiclePuffDelay = "2.7s";
+  const vehiclePuffDuration = "0.4s";
 
-  const scooterDriveOffDelay = "2.8s"; // Starts after puff
-  const scooterDriveOffDuration = "1.5s"; // Drives off until near end of loop
+  const scooterDriveOffDelay = "2.8s";
+  const scooterDriveOffDuration = "1.5s";
 
   const fadeInDurationPercentage = 10;
   const fadeOutStartTimePercentage = ((parseFloat(loopDuration) - 1) / parseFloat(loopDuration)) * 100;
@@ -140,33 +139,34 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
       </style>
       
       <g className="container-group">
-        
-        <g className="food-item" transform="translate(20 65)">
-          <rect x="0" y="0" width="22" height="5" rx="2.5" fill={foodHighlightColor} /> 
-          <rect x="2" y="5" width="18" height="4" rx="1" fill={foodColor} /> 
-          <rect x="1" y="4" width="20" height="2" rx="1" fill={foodHighlightColor} opacity="0.7"/> 
-          <rect x="0" y="9" width="22" height="5" rx="2.5" fill={foodHighlightColor} /> 
-        </g>
-
-        <g className="packaging-box" transform="translate(50 60)">
-          <g className="packed-box-motion">
-            <path d="M0,0 h30 v20 h-30 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1"/> 
-            <path d="M30,0 l10,-5 v20 l-10,5 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1" opacity="0.8"/>
-            <path className="box-lid" d="M0,0 h30 l10,-5 h-30 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1"/>
+        <g transform="translate(10, 5) scale(0.9)"> {/* Adjusted: Scale down and reposition content */}
+          <g className="food-item" transform="translate(20 65)">
+            <rect x="0" y="0" width="22" height="5" rx="2.5" fill={foodHighlightColor} /> 
+            <rect x="2" y="5" width="18" height="4" rx="1" fill={foodColor} /> 
+            <rect x="1" y="4" width="20" height="2" rx="1" fill={foodHighlightColor} opacity="0.7"/> 
+            <rect x="0" y="9" width="22" height="5" rx="2.5" fill={foodHighlightColor} /> 
           </g>
-        </g>
 
-        <g className="delivery-scooter" transform="translate(110 58)">
-          <path d="M5,25 q-2,-8 8,-10 l15,0 q8,0 12,6 l0,6 q0,4 -3,4 l-10,0 l-2,4 l-20,0 Z" fill={scooterColor} />
-          <path d="M28,15 q8,0 12,8 v8 l-8,0 q-1,-4 -4,-5 Z" fill={scooterColor} />
-          <line x1="26" y1="5" x2="29" y2="3" stroke={scooterColor} strokeWidth="1.5" />
-          <line x1="24" y1="7" x2="26" y2="5" stroke={scooterColor} strokeWidth="1.5" />
-          <circle cx="10" cy="30" r="5" fill="hsl(var(--background))" stroke={wheelColor} strokeWidth="1"/>
-          <circle cx="10" cy="30" r="1.5" fill={wheelColor} />
-          <circle cx="35" cy="30" r="5" fill="hsl(var(--background))" stroke={wheelColor} strokeWidth="1"/>
-          <circle cx="35" cy="30" r="1.5" fill={wheelColor} />
-          <rect x="2" y="8" width="18" height="10" rx="1" fill={scooterColor} opacity="0.5" /> {/* Package on scooter */}
-          <circle className="scooter-puff" cx="0" cy="28" r="4" fill={detailColor}/>
+          <g className="packaging-box" transform="translate(50 60)">
+            <g className="packed-box-motion">
+              <path d="M0,0 h30 v20 h-30 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1"/> 
+              <path d="M30,0 l10,-5 v20 l-10,5 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1" opacity="0.8"/>
+              <path className="box-lid" d="M0,0 h30 l10,-5 h-30 Z" fill={boxColor} stroke={boxStrokeColor} strokeWidth="1"/>
+            </g>
+          </g>
+
+          <g className="delivery-scooter" transform="translate(110 58)">
+            <path d="M5,25 q-2,-8 8,-10 l15,0 q8,0 12,6 l0,6 q0,4 -3,4 l-10,0 l-2,4 l-20,0 Z" fill={scooterColor} />
+            <path d="M28,15 q8,0 12,8 v8 l-8,0 q-1,-4 -4,-5 Z" fill={scooterColor} />
+            <line x1="26" y1="5" x2="29" y2="3" stroke={scooterColor} strokeWidth="1.5" />
+            <line x1="24" y1="7" x2="26" y2="5" stroke={scooterColor} strokeWidth="1.5" />
+            <circle cx="10" cy="30" r="5" fill="hsl(var(--background))" stroke={wheelColor} strokeWidth="1"/>
+            <circle cx="10" cy="30" r="1.5" fill={wheelColor} />
+            <circle cx="35" cy="30" r="5" fill="hsl(var(--background))" stroke={wheelColor} strokeWidth="1"/>
+            <circle cx="35" cy="30" r="1.5" fill={wheelColor} />
+            <rect x="2" y="8" width="18" height="10" rx="1" fill={scooterColor} opacity="0.5" /> {/* Package on scooter */}
+            <circle className="scooter-puff" cx="0" cy="28" r="4" fill={detailColor}/>
+          </g>
         </g>
       </g>
     </svg>
@@ -174,4 +174,3 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
 };
 
 export default AnimatedFoodPackingAndLoading;
-
