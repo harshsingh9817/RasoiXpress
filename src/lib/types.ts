@@ -42,6 +42,12 @@ export interface OrderItem extends MenuItem {
   quantity: number;
 }
 
+export interface Review {
+  rating: number;
+  comment?: string;
+  date: string;
+}
+
 export interface Order {
   id: string;
   date: string;
@@ -50,7 +56,8 @@ export interface Order {
   items: OrderItem[];
   shippingAddress: string;
   paymentMethod: 'UPI' | 'Cash on Delivery';
-  cancellationReason?: string; // Added for cancellation reason
+  cancellationReason?: string;
+  review?: Review; // Added for review
   // The 'total' field should represent the final amount paid by the customer, including taxes and delivery.
   // We can calculate subtotal, taxes, and delivery fee on the fly for display if needed.
 }

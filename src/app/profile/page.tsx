@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CartSheet from '@/components/CartSheet';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -31,13 +32,13 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info
-} from 'lucide-react'; // Added FileText, Info, XCircle. Changed HomeIcon alias
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star
+} from 'lucide-react'; // Added Star
 import Image from 'next/image';
-import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
+import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { auth, storage } from '@/lib/firebase'; // Import storage
+import { auth, storage } from '@/lib/firebase';
 import { updateProfile } from 'firebase/auth';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -92,13 +93,14 @@ const initialMockOrders: Order[] = [
     id: 'ORD12345',
     date: '2024-07-15',
     status: 'Delivered',
-    total: 1299 + (875*2) + DELIVERY_FEE + ((1299 + (875*2)) * TAX_RATE), // Example of total calculation
+    total: 1299 + (875*2) + DELIVERY_FEE + ((1299 + (875*2)) * TAX_RATE),
     items: [
       { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
       { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=chicken%20burgers', category: 'Burgers', description: 'Juicy burger' },
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'UPI',
+    review: { rating: 5, comment: 'Excellent pizza, very fast delivery!', date: '2024-07-16' }
   },
   {
     id: 'ORD67890',
@@ -119,6 +121,15 @@ const initialMockOrders: Order[] = [
     total: 1400 + DELIVERY_FEE + (1400 * TAX_RATE),
     items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=spaghetti%20pasta', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
+    paymentMethod: 'UPI',
+  },
+  {
+    id: 'ORDDELIVEREDNOREVIEW',
+    date: '2024-07-23',
+    status: 'Delivered',
+    total: 920 + DELIVERY_FEE + (920*TAX_RATE),
+    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
+    shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
   },
   {
@@ -175,6 +186,12 @@ export default function ProfilePage() {
   // State for Bill View Dialog
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [orderForBillView, setOrderForBillView] = useState<Order | null>(null);
+
+  // State for Review Dialog
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [orderToReview, setOrderToReview] = useState<Order | null>(null);
+  const [currentRating, setCurrentRating] = useState(0);
+  const [currentReviewComment, setCurrentReviewComment] = useState('');
 
 
   useEffect(() => {
@@ -251,7 +268,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (firebaseUser?.photoURL) {
-      console.log("ProfilePage: firebaseUser.photoURL updated to:", firebaseUser.photoURL);
+      // console.log("ProfilePage: firebaseUser.photoURL updated to:", firebaseUser.photoURL);
     }
   }, [firebaseUser?.photoURL]);
 
@@ -402,7 +419,7 @@ export default function ProfilePage() {
   const handleOpenCancelDialog = (order: Order) => {
     if (order.status === 'Order Placed') {
       setOrderToCancel(order);
-      setSelectedCancelReason(''); // Reset reason
+      setSelectedCancelReason('');
       setIsCancelDialogOpen(true);
     } else {
       toast({
@@ -424,14 +441,15 @@ export default function ProfilePage() {
       return;
     }
 
+    const orderIdToCancel = orderToCancel.id;
     setOrders(prevOrders =>
       prevOrders.map(o =>
-        o.id === orderToCancel.id ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: selectedCancelReason } : o
+        o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: selectedCancelReason } : o
       )
     );
     toast({
       title: 'Order Cancelled',
-      description: `Order ${orderToCancel.id} has been successfully cancelled. Reason: ${selectedCancelReason}`,
+      description: `Order ${orderIdToCancel} has been successfully cancelled. Reason: ${selectedCancelReason}`,
       variant: 'default',
     });
     setIsCancelDialogOpen(false);
@@ -445,6 +463,47 @@ export default function ProfilePage() {
 
   const calculateSubtotal = (items: OrderItem[]): number => {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
+  const handleOpenReviewDialog = (order: Order) => {
+    setOrderToReview(order);
+    setCurrentRating(0);
+    setCurrentReviewComment('');
+    setIsReviewDialogOpen(true);
+  };
+
+  const handleReviewSubmit = () => {
+    if (!orderToReview || currentRating === 0) {
+      toast({
+        title: 'Rating Required',
+        description: 'Please select a star rating.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newReview: Review = {
+      rating: currentRating,
+      comment: currentReviewComment.trim() || undefined,
+      date: new Date().toISOString().split('T')[0],
+    };
+
+    const orderIdToReview = orderToReview.id;
+
+    setOrders(prevOrders =>
+      prevOrders.map(o =>
+        o.id === orderIdToReview ? { ...o, review: newReview } : o
+      )
+    );
+
+    toast({
+      title: 'Review Submitted!',
+      description: 'Thank you for your feedback.',
+      variant: 'default',
+    });
+
+    setIsReviewDialogOpen(false);
+    setOrderToReview(null);
   };
 
 
@@ -558,7 +617,24 @@ export default function ProfilePage() {
                         {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <Wallet className="ml-2 mr-1 h-4 w-4 text-primary" />}
                         {order.paymentMethod}
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-2 border-t border-border">
+
+                       {order.review && (
+                        <div className="pt-2 mt-2 border-t border-border">
+                          <p className="text-sm font-medium">Your Review:</p>
+                          <div className="flex items-center mt-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={cn("h-4 w-4", i < order.review!.rating ? "fill-accent text-accent" : "text-muted-foreground")}
+                              />
+                            ))}
+                            <span className="ml-2 text-xs text-muted-foreground">({order.review.rating}/5)</span>
+                          </div>
+                          {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">{order.review.comment}</p>}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-2 mt-3 pt-2 border-t border-border">
                         <Button
                           variant="outline"
                           size="sm"
@@ -586,6 +662,17 @@ export default function ProfilePage() {
                           >
                             <Ban className="mr-2 h-4 w-4" />
                             Cancel Order
+                          </Button>
+                        )}
+                        {order.status === 'Delivered' && !order.review && (
+                           <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
+                            onClick={() => handleOpenReviewDialog(order)}
+                          >
+                            <Star className="mr-2 h-4 w-4" />
+                            Leave Review
                           </Button>
                         )}
                       </div>
@@ -960,7 +1047,55 @@ export default function ProfilePage() {
         </Dialog>
       )}
 
+      {/* Review Dialog */}
+      {orderToReview && (
+        <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <Star className="mr-2 h-5 w-5 text-primary" /> Review Order: {orderToReview.id}
+              </DialogTitle>
+              <DialogDescription>
+                Share your experience with this order.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div>
+                <Label className="mb-2 block">Your Rating:</Label>
+                <div className="flex space-x-1">
+                  {[1, 2, 3, 4, 5].map((starValue) => (
+                    <Star
+                      key={starValue}
+                      className={cn(
+                        "h-8 w-8 cursor-pointer transition-colors",
+                        starValue <= currentRating ? "fill-accent text-accent" : "text-muted-foreground hover:text-accent/70"
+                      )}
+                      onClick={() => setCurrentRating(starValue)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="reviewComment">Comments (Optional):</Label>
+                <Textarea
+                  id="reviewComment"
+                  value={currentReviewComment}
+                  onChange={(e) => setCurrentReviewComment(e.target.value)}
+                  placeholder="Tell us more about your experience..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleReviewSubmit} disabled={currentRating === 0}>
+                Submit Review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 }
-
