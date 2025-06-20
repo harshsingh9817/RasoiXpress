@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import Image from 'next/image'; // Re-imported Image
+// import Image from 'next/image'; // Removed Image import
 import type { Restaurant } from '@/lib/types';
 import { mockRestaurants } from '@/lib/data';
 import RestaurantCard from '@/components/RestaurantCard';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import PlateCutleryBackground from '@/components/icons/PlateCutleryBackground'; // Added import for new SVG component
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -66,15 +67,7 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <section className="relative text-center rounded-lg shadow-xl overflow-hidden">
-        <Image
-          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhA-2-vM3w2v3E6D0V8I0I2S8q7c0j1027528732"
-          alt="Dining plate with fork and spoon"
-          layout="fill"
-          objectFit="cover"
-          className="z-0"
-          data-ai-hint="plate cutlery"
-          priority
-        />
+        <PlateCutleryBackground className="absolute inset-0 w-full h-full z-0" />
         <div className="absolute inset-0 bg-black/60 z-0" /> {/* Overlay for text contrast */}
         <div className="relative z-10 py-10 md:py-14 px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
@@ -133,5 +126,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
