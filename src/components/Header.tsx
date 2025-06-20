@@ -2,8 +2,8 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react'; // Added useEffect
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { useState, useEffect } from 'react'; 
+import { useRouter } from 'next/navigation'; 
 import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
@@ -43,11 +43,8 @@ const Header = () => {
 
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
 
-  // Simulate fetching new notifications (e.g., on component mount or periodically)
   useEffect(() => {
     // In a real app, you might fetch notifications here.
-    // For now, we'll just use the initial mock data.
-    // You could also add logic to periodically add new mock notifications to test the UI.
   }, []);
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
@@ -56,14 +53,12 @@ const Header = () => {
     const clickedNotification = notifications.find(n => n.id === notificationId);
     if (!clickedNotification) return;
 
-    // Mark as read
     setNotifications(prevNotifications =>
       prevNotifications.map(n =>
         n.id === notificationId ? { ...n, read: true } : n
       )
     );
 
-    // Navigate if a link or specific ID is present
     if (clickedNotification.link) {
       router.push(clickedNotification.link);
     } else if (clickedNotification.type === 'new_dish' && clickedNotification.restaurantId) {
@@ -71,10 +66,10 @@ const Header = () => {
     } else if (clickedNotification.type === 'offer' && clickedNotification.restaurantId) {
       router.push(`/restaurants/${clickedNotification.restaurantId}`);
     } else if (clickedNotification.type === 'order_update' && clickedNotification.orderId) {
-      router.push('/profile'); // Could add #orderId to scroll later
+      // For now, go to profile, in future could scroll to specific order
+      router.push('/profile'); 
     }
-    // Potentially close the popover after click
-    // setIsNotificationPanelOpen(false); // Uncomment if you want popover to close on click
+    // setIsNotificationPanelOpen(false); // Optionally close popover
   };
 
 

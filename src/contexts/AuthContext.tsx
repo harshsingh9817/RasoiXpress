@@ -43,23 +43,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         try {
           const idTokenResult = await getIdTokenResult(currentUser, true);
-          console.log('Firebase ID Token Claims:', idTokenResult.claims);
-
           const isAdminClaim = !!idTokenResult.claims.admin;
           setIsAdmin(isAdminClaim);
-          console.log('User is admin:', isAdminClaim);
 
-          if ((pathname === '/login' || pathname === '/signup')) {
+          if (pathname === '/admin' && !isAdminClaim) {
+            router.replace('/'); // Redirect non-admins trying to access admin page
+          } else if ((pathname === '/login' || pathname === '/signup')) {
             router.replace('/profile');
           }
         } catch (error) {
           console.error("Error getting user claims:", error);
           setIsAdmin(false);
+          if (pathname === '/admin') router.replace('/');
         }
       } else {
         setIsAdmin(false);
-        if ((pathname === '/profile' || pathname === '/admin' || pathname === '/checkout') &&
-            pathname !== '/login' && pathname !== '/signup') {
+        // Protected routes for non-authenticated users
+        const protectedRoutes = ['/profile', '/admin', '/checkout'];
+        if (protectedRoutes.includes(pathname)) {
           router.replace('/login');
         }
       }
@@ -67,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [router, pathname]);
+  }, [router, pathname]); // isAdmin is derived, not a direct dependency for this effect
 
   const login = async (email?: string, password?: string) => {
     setIsLoading(true);
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Firebase login error:", error);
       let description = 'An unexpected error occurred during login. Please try again.';
-      if (error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
       } else if (error.message) {
         description = error.message;
@@ -104,9 +105,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
-        // After profile update, refresh token to include displayName immediately if needed,
-        // though onAuthStateChanged usually handles user object updates.
-        // await userCredential.user.getIdToken(true); // Forces refresh if claims include displayName
+        // Refresh token to ensure claims are up-to-date if any default claims were set or modified.
+        // Also helps if displayName is used in claims by custom logic (though not default).
+        await userCredential.user.getIdToken(true);
       }
       // onAuthStateChanged will handle routing
       toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
@@ -133,14 +134,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
-      setIsAdmin(false); // Explicitly set isAdmin to false on logout
+      // setIsAdmin(false); // This will be handled by onAuthStateChanged
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      router.push('/');
+      router.push('/'); // Redirect to home page after logout
     } catch (error: any) {
       console.error("Firebase logout error:", error);
       toast({ title: 'Logout Failed', description: error.message || 'Could not log out.', variant: 'destructive' });
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false); // onAuthStateChanged will set loading to false
     }
   };
 
