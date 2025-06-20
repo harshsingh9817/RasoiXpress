@@ -8,7 +8,12 @@ interface AnimatedDeliveryScooterProps {
 }
 
 const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, width = "100%", height = "100%" }) => {
-  const scooterFillColor = "#2D3748"; // Dark Gray
+  const scooterBodyColor = "#A0AEC0"; // Medium Gray (Lighter than before for body)
+  const seatColor = "#2D3748"; // Dark Gray (for seat)
+  const wheelTireColor = "#2D3748"; // Dark Gray (for tires)
+  const wheelRimColor = "#E2E8F0"; // Light Gray (for rims)
+  const handlebarAccentColor = "#718096"; // Darker Medium Gray (for handlebars/accents)
+  const riderAndBoxColor = "#2D3748"; // Dark Gray (for rider and box silhouette)
 
   return (
     <svg
@@ -43,30 +48,48 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
           }
         `}
       </style>
-      <g className="scooter-group" fill={scooterFillColor}>
+      <g className="scooter-group">
         {/* Rider */}
-        {/* Helmet */}
-        <path d="M52,15 q -7,0 -7,7 q 0,7 7,7 q 7,0 7,-7 q 0,-7 -7,-7 M 52,29 L 58,29 L 58,22 Q 58,15 52,15" />
-        {/* Body */}
-        <path d="M52,29 v15 l8,3 v-5 l-3,-1 l-0.5,-9 Z" />
-        {/* Arm */}
-        <path d="M53,32 L65,30 L64,27 L52,29 Z" />
+        <g fill={riderAndBoxColor}>
+          {/* Helmet */}
+          <path d="M52,15 q -7,0 -7,7 q 0,7 7,7 q 7,0 7,-7 q 0,-7 -7,-7 M 52,29 L 58,29 L 58,22 Q 58,15 52,15" />
+          {/* Body */}
+          <path d="M52,29 v15 l8,3 v-5 l-3,-1 l-0.5,-9 Z" />
+          {/* Arm */}
+          <path d="M53,32 L65,30 L64,27 L52,29 Z" />
+        </g>
 
         {/* Scooter */}
-        {/* Main Body + Seat + Rear Fender */}
-        <path d="M35,58 q -5,-12 10,-15 l 20,0 q 10,0 15,8 l 0,8 c 0,5 -2,5 -5,5 l -12,0 l -3,5 l -27,0 Z" />
+        {/* Main Body (under seat and rear fender part) */}
+        <path d="M35,58 q -5,-12 10,-15 l 20,0 q 10,0 15,8 l 0,3 q -5,-2 -15,-2 l -20,0 q -10,3 -8,12 Z" fill={scooterBodyColor} />
+        {/* Seat */}
+        <path d="M50,43 l 15,0 q 5,0 8,5 l0,5 c0,2 -2,3 -5,3 l -15,0 Z" fill={seatColor} />
+         {/* Rear Fender part above wheel */}
+        <path d="M35,58 l20,0 l-3,5 l-17,0 Z" fill={scooterBodyColor} />
+
+
         {/* Front Panel/Shield */}
-        <path d="M70,43 q 10,0 15,10 l 0,10 l -10,0 q -2,-5 -5,-6 Z" />
-        {/* Handlebars area */}
-        <rect x="63" y="26" width="6" height="4" rx="1" />
-
-
-        {/* Package Box (part of the silhouette) */}
-        <rect x="38" y="30" width="18" height="15" rx="1.5" ry="1.5" />
+        <path d="M70,43 q 10,0 15,10 l 0,10 l -10,0 q -2,-5 -5,-6 Z" fill={scooterBodyColor} />
         
-        {/* Wheels (solid, part of silhouette) */}
-        <circle cx="43" cy="62" r="8" /> {/* Back Wheel */}
-        <circle cx="78" cy="62" r="8" /> {/* Front Wheel */}
+        {/* Handlebars area */}
+        <rect x="63" y="26" width="6" height="4" rx="1" fill={handlebarAccentColor} />
+        <line x1="66" y1="28" x2="70" y2="25" stroke={handlebarAccentColor} strokeWidth="1.5"/>
+        <line x1="66" y1="28" x2="62" y2="25" stroke={handlebarAccentColor} strokeWidth="1.5"/>
+
+
+        {/* Package Box */}
+        <rect x="38" y="30" width="18" height="15" rx="1.5" ry="1.5" fill={riderAndBoxColor} />
+        
+        {/* Wheels */}
+        {/* Back Wheel */}
+        <circle cx="43" cy="62" r="8" fill={wheelTireColor} /> 
+        <circle cx="43" cy="62" r="4" fill={wheelRimColor} /> 
+
+        {/* Front Wheel */}
+        <circle cx="78" cy="62" r="8" fill={wheelTireColor} /> 
+        <circle cx="78" cy="62" r="3.5" fill={wheelRimColor} />
+         {/* Front wheel connection to body (fork) */}
+        <path d="M78,60 Q75,50 72,43" stroke={scooterBodyColor} strokeWidth="3" fill="none"/>
 
       </g>
       {/* Speed Lines - stroke based, will use 'currentColor' from className prop */}
