@@ -46,10 +46,13 @@ export interface Order {
   id: string;
   date: string;
   status: OrderStatus;
-  total: number;
+  total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
   paymentMethod: 'UPI' | 'Cash on Delivery';
+  cancellationReason?: string; // Added for cancellation reason
+  // The 'total' field should represent the final amount paid by the customer, including taxes and delivery.
+  // We can calculate subtotal, taxes, and delivery fee on the fly for display if needed.
 }
 
 export interface Address {

@@ -31,8 +31,8 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, Home as HomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban
-} from 'lucide-react';
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info
+} from 'lucide-react'; // Added FileText, Info, XCircle. Changed HomeIcon alias
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -61,13 +61,25 @@ const stepIcons: Record<OrderStatus, React.ElementType> = {
   'Cancelled': XCircle,
 };
 
+const CANCELLATION_REASONS = [
+  "Ordered by mistake",
+  "Want to change items in the order",
+  "Delivery time is too long",
+  "Found a better deal elsewhere",
+  "Personal reasons",
+  "Other (please specify if possible)",
+];
+
+const DELIVERY_FEE = 49.00;
+const TAX_RATE = 0.05; // 5%
+
 
 const initialMockOrders: Order[] = [
   {
     id: 'ORDNEW001',
     date: '2024-07-25',
     status: 'Order Placed',
-    total: 899.00,
+    total: 899.00 + DELIVERY_FEE + (899.00 * TAX_RATE),
     items: [
       { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 349, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
       { id: 'm4', name: 'Veggie Burger', quantity: 1, price: 220, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=veggie%20burgers', category: 'Burgers', description: 'Yummy veggie burger' },
@@ -80,7 +92,7 @@ const initialMockOrders: Order[] = [
     id: 'ORD12345',
     date: '2024-07-15',
     status: 'Delivered',
-    total: 3500.00,
+    total: 1299 + (875*2) + DELIVERY_FEE + ((1299 + (875*2)) * TAX_RATE), // Example of total calculation
     items: [
       { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
       { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=chicken%20burgers', category: 'Burgers', description: 'Juicy burger' },
@@ -92,7 +104,7 @@ const initialMockOrders: Order[] = [
     id: 'ORD67890',
     date: '2024-07-20',
     status: 'Preparing',
-    total: 1850.50,
+    total: 1600 + 400 + DELIVERY_FEE + ((1600+400) * TAX_RATE),
     items: [
       { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 1600, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=butter%20indian', category: 'Indian', description: 'Creamy chicken' },
       { id: 'm10', name: 'French Fries', quantity: 1, price: 400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=french%20sides', category: 'Sides', description: 'Crispy fries' },
@@ -104,7 +116,7 @@ const initialMockOrders: Order[] = [
     id: 'ORD11223',
     date: '2024-07-22',
     status: 'Shipped',
-    total: 2500.00,
+    total: 1400 + DELIVERY_FEE + (1400 * TAX_RATE),
     items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=spaghetti%20pasta', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
     paymentMethod: 'UPI',
@@ -113,7 +125,8 @@ const initialMockOrders: Order[] = [
     id: 'ORDCANCELED',
     date: '2024-07-21',
     status: 'Cancelled',
-    total: 1200.00,
+    cancellationReason: "Ordered by mistake",
+    total: 920 + DELIVERY_FEE + (920*TAX_RATE),
     items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
@@ -149,9 +162,20 @@ export default function ProfilePage() {
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [isClientRendered, setIsClientRendered] = useState(false);
 
+  // State for Address Dialog
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
   const [currentAddressFormData, setCurrentAddressFormData] = useState<Omit<AddressType, 'id' | 'isDefault'>>(defaultAddressFormData);
+
+  // State for Cancellation Dialog
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [selectedCancelReason, setSelectedCancelReason] = useState<string>('');
+
+  // State for Bill View Dialog
+  const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+  const [orderForBillView, setOrderForBillView] = useState<Order | null>(null);
+
 
   useEffect(() => {
     setIsClientRendered(true);
@@ -227,8 +251,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (firebaseUser?.photoURL) {
-      // This log helps confirm if the ProfilePage component itself
-      // is receiving the updated photoURL from the AuthContext.
       console.log("ProfilePage: firebaseUser.photoURL updated to:", firebaseUser.photoURL);
     }
   }, [firebaseUser?.photoURL]);
@@ -361,7 +383,6 @@ export default function ProfilePage() {
       const downloadURL = await getDownloadURL(imageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      // Force refresh of ID token to get updated claims/photoURL immediately
       if (auth.currentUser) {
         await auth.currentUser.getIdToken(true); 
       }
@@ -378,36 +399,52 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCancelOrder = (orderId: string) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-
-    if (orderToUpdate) {
-      if (orderToUpdate.status === 'Order Placed') {
-        setOrders(prevOrders =>
-          prevOrders.map(order =>
-            order.id === orderId ? { ...order, status: 'Cancelled' as OrderStatus } : order
-          )
-        );
-        toast({
-          title: 'Order Cancelled',
-          description: `Order ${orderId} has been successfully cancelled.`,
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Cancellation Failed',
-          description: 'This order can no longer be cancelled.',
-          variant: 'destructive',
-        });
-      }
+  const handleOpenCancelDialog = (order: Order) => {
+    if (order.status === 'Order Placed') {
+      setOrderToCancel(order);
+      setSelectedCancelReason(''); // Reset reason
+      setIsCancelDialogOpen(true);
     } else {
-      // This case should ideally not be reached if the UI only shows the button for existing orders
       toast({
-        title: 'Error',
-        description: 'Order not found.',
+        title: 'Cancellation Not Allowed',
+        description: 'This order can no longer be cancelled.',
         variant: 'destructive',
       });
     }
+  };
+
+  const handleConfirmCancellation = () => {
+    if (!orderToCancel) return;
+    if (!selectedCancelReason) {
+      toast({
+        title: 'Reason Required',
+        description: 'Please select a reason for cancellation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setOrders(prevOrders =>
+      prevOrders.map(o =>
+        o.id === orderToCancel.id ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: selectedCancelReason } : o
+      )
+    );
+    toast({
+      title: 'Order Cancelled',
+      description: `Order ${orderToCancel.id} has been successfully cancelled. Reason: ${selectedCancelReason}`,
+      variant: 'default',
+    });
+    setIsCancelDialogOpen(false);
+    setOrderToCancel(null);
+  };
+
+  const handleOpenBillDialog = (order: Order) => {
+    setOrderForBillView(order);
+    setIsBillDialogOpen(true);
+  };
+
+  const calculateSubtotal = (items: OrderItem[]): number => {
+    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
 
@@ -426,9 +463,9 @@ export default function ProfilePage() {
     <div className="max-w-5xl mx-auto space-y-8">
        <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-6 bg-primary/5 rounded-xl shadow-xl border border-primary/20">
         <div className="relative">
-          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/50 shadow-lg">
+          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/30 shadow-lg ring-2 ring-primary/20">
             <AvatarImage
-              key={firebaseUser?.photoURL || 'default-avatar-key'} // Add key here
+              key={firebaseUser?.photoURL || 'default-avatar-key'}
               src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
               alt={firebaseUser?.displayName || 'User profile photo'}
               data-ai-hint="profile avatar"
@@ -441,16 +478,16 @@ export default function ProfilePage() {
           <Button
             variant="outline"
             size="icon"
-            className="absolute bottom-1 right-1 rounded-full bg-background/90 hover:bg-muted h-8 w-8 border border-primary/20"
+            className="absolute bottom-1 right-1 rounded-full bg-background/90 hover:bg-muted h-9 w-9 border-2 border-primary/30 shadow-md hover:border-primary/50"
             onClick={handlePhotoEditClick}
             aria-label="Edit profile photo"
             disabled={isUploadingPhoto}
           >
-            {isUploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            {isUploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 text-primary/80" />}
           </Button>
         </div>
-        <div className="text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-sm">
+        <div className="text-center md:text-left flex-1">
+          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
             {firebaseUser?.displayName || firebaseUser?.email || 'Welcome, User!'}
           </h1>
           {firebaseUser?.displayName && <p className="text-lg text-muted-foreground mb-2">{firebaseUser?.email}</p>}
@@ -458,6 +495,9 @@ export default function ProfilePage() {
             Manage your orders, addresses, and account settings.
           </p>
         </div>
+         <Button variant="outline" onClick={logout} className="mt-4 md:mt-0 md:ml-auto self-center md:self-start text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50">
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+          </Button>
       </section>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -484,6 +524,9 @@ export default function ProfilePage() {
                           <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
                           <CardDescription>
                             Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
+                            {order.status === 'Cancelled' && order.cancellationReason && (
+                                <span className="text-xs block text-muted-foreground italic">Reason: {order.cancellationReason}</span>
+                            )}
                           </CardDescription>
                         </div>
                         <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
@@ -515,7 +558,7 @@ export default function ProfilePage() {
                         {order.paymentMethod === 'UPI' ? <CreditCard className="ml-2 mr-1 h-4 w-4 text-primary" /> : <Wallet className="ml-2 mr-1 h-4 w-4 text-primary" />}
                         {order.paymentMethod}
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                      <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-2 border-t border-border">
                         <Button
                           variant="outline"
                           size="sm"
@@ -523,14 +566,23 @@ export default function ProfilePage() {
                           onClick={() => handleTrackOrderFromList(order.id)}
                         >
                           <PackageSearch className="mr-2 h-4 w-4" />
-                          Track this Order
+                          Track
+                        </Button>
+                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => handleOpenBillDialog(order)}
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          View Bill
                         </Button>
                         {order.status === 'Order Placed' && (
                           <Button
                             variant="destructive"
                             size="sm"
                             className="w-full sm:w-auto"
-                            onClick={() => handleCancelOrder(order.id)}
+                            onClick={() => handleOpenCancelDialog(order)}
                           >
                             <Ban className="mr-2 h-4 w-4" />
                             Cancel Order
@@ -559,7 +611,7 @@ export default function ProfilePage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold flex items-center">
-                        {address.type === 'Home' && <HomeIcon className="mr-2 h-4 w-4 text-primary" />}
+                        {address.type === 'Home' && <AddressHomeIcon className="mr-2 h-4 w-4 text-primary" />}
                         {address.type === 'Work' && <User className="mr-2 h-4 w-4 text-primary" />}
                         {address.type !== 'Home' && address.type !== 'Work' && <MapPin className="mr-2 h-4 w-4 text-primary" />}
                         {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
@@ -622,7 +674,9 @@ export default function ProfilePage() {
                         <AlertTriangle className="h-8 w-8 text-destructive" />
                         <div>
                             <CardTitle className="text-destructive">Order Cancelled</CardTitle>
-                            <CardDescription>Order ID: {trackedOrderDetails.id} was cancelled.</CardDescription>
+                            <CardDescription>Order ID: {trackedOrderDetails.id} was cancelled.
+                            {trackedOrderDetails.cancellationReason && <span className="block text-xs italic">Reason: {trackedOrderDetails.cancellationReason}</span>}
+                            </CardDescription>
                         </div>
                     </CardHeader>
                  </Card>
@@ -677,13 +731,16 @@ export default function ProfilePage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl font-headline">Account Settings</CardTitle>
-              <CardDescription>Manage your account preferences and logout.</CardDescription>
+              <CardDescription>Manage your account preferences.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input id="email" type="email" value={firebaseUser?.email || ''} disabled />
-                <Button variant="outline" size="sm" className="mt-1" disabled>Update Email (Not Implemented)</Button>
+              </div>
+               <div className="space-y-2">
+                <Label>Full Name</Label>
+                 <Input id="fullNameDisplay" type="text" value={firebaseUser?.displayName || 'N/A'} disabled />
               </div>
               <Separator />
               <div className="space-y-2">
@@ -712,6 +769,7 @@ export default function ProfilePage() {
       </Tabs>
       <CartSheet />
 
+      {/* Address Management Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -802,6 +860,106 @@ export default function ProfilePage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Order Cancellation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Order Cancellation</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel order <span className="font-semibold">{orderToCancel?.id}</span>?
+              Please select a reason below. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="cancelReasonSelect">Reason for Cancellation</Label>
+            <Select
+              value={selectedCancelReason}
+              onValueChange={setSelectedCancelReason}
+            >
+              <SelectTrigger id="cancelReasonSelect">
+                <SelectValue placeholder="Select a reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {CANCELLATION_REASONS.map(reason => (
+                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button>
+            <Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Bill Dialog */}
+      {orderForBillView && (
+        <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <FileText className="mr-2 h-5 w-5 text-primary" /> Order Bill: {orderForBillView.id}
+              </DialogTitle>
+              <DialogDescription>
+                Date: {orderForBillView.date}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-2 text-sm">
+              <div className="space-y-3 my-4">
+                <h4 className="font-semibold text-base">Items:</h4>
+                {orderForBillView.items.map(item => {
+                  const itemTotal = item.price * item.quantity;
+                  return (
+                    <div key={item.id} className="flex justify-between items-center border-b pb-1">
+                      <div>
+                        <p>{item.name} (x{item.quantity})</p>
+                        <p className="text-xs text-muted-foreground">@ Rs.{item.price.toFixed(2)} each</p>
+                      </div>
+                      <p>Rs.{itemTotal.toFixed(2)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <Separator className="my-3"/>
+              <div className="space-y-1.5 text-base">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Delivery Fee:</span>
+                  <span>Rs.{DELIVERY_FEE.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxes ({(TAX_RATE * 100).toFixed(0)}%):</span>
+                  <span>Rs.{(calculateSubtotal(orderForBillView.items) * TAX_RATE).toFixed(2)}</span>
+                </div>
+                 <Separator className="my-2"/>
+                <div className="flex justify-between font-bold text-lg text-primary">
+                  <span>Grand Total:</span>
+                  <span>Rs.{orderForBillView.total.toFixed(2)}</span>
+                </div>
+              </div>
+              <Separator className="my-3"/>
+               <div className="space-y-1 text-sm mt-4">
+                  <p className="font-semibold">Payment Method:</p>
+                  <p className="text-muted-foreground">{orderForBillView.paymentMethod}</p>
+                  <p className="font-semibold mt-2">Shipping Address:</p>
+                  <p className="text-muted-foreground">{orderForBillView.shippingAddress}</p>
+               </div>
+
+            </div>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 }
