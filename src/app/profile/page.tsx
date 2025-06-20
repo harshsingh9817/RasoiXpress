@@ -33,7 +33,7 @@ import {
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
   PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star
-} from 'lucide-react'; // Added Star
+} from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -383,11 +383,15 @@ export default function ProfilePage() {
     }
     const file = event.target.files[0];
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
+      setTimeout(() => {
+        toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
+      }, 0);
       return;
     }
     if (!firebaseUser || !auth.currentUser) {
-      toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
+      setTimeout(() => {
+        toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
+      }, 0);
       return;
     }
 
@@ -404,10 +408,14 @@ export default function ProfilePage() {
         await auth.currentUser.getIdToken(true); 
       }
       
-      toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
+      setTimeout(() => {
+        toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
+      }, 0);
     } catch (error: any) {
       console.error("Error uploading profile photo:", error);
-      toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
+      setTimeout(() => {
+        toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
+      }, 0);
     } finally {
       setIsUploadingPhoto(false);
       if(fileInputRef.current) {
@@ -422,38 +430,47 @@ export default function ProfilePage() {
       setSelectedCancelReason('');
       setIsCancelDialogOpen(true);
     } else {
-      toast({
-        title: 'Cancellation Not Allowed',
-        description: 'This order can no longer be cancelled.',
-        variant: 'destructive',
-      });
+      setTimeout(() => {
+        toast({
+          title: 'Cancellation Not Allowed',
+          description: 'This order can no longer be cancelled.',
+          variant: 'destructive',
+        });
+      }, 0);
     }
   };
 
   const handleConfirmCancellation = () => {
     if (!orderToCancel) return;
     if (!selectedCancelReason) {
-      toast({
-        title: 'Reason Required',
-        description: 'Please select a reason for cancellation.',
-        variant: 'destructive',
-      });
+      setTimeout(() => {
+        toast({
+          title: 'Reason Required',
+          description: 'Please select a reason for cancellation.',
+          variant: 'destructive',
+        });
+      }, 0);
       return;
     }
 
     const orderIdToCancel = orderToCancel.id;
+    const reasonForCancellation = selectedCancelReason;
+
     setOrders(prevOrders =>
       prevOrders.map(o =>
-        o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: selectedCancelReason } : o
+        o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: reasonForCancellation } : o
       )
     );
-    toast({
-      title: 'Order Cancelled',
-      description: `Order ${orderIdToCancel} has been successfully cancelled. Reason: ${selectedCancelReason}`,
-      variant: 'default',
-    });
+    setTimeout(() => {
+      toast({
+        title: 'Order Cancelled',
+        description: `Order ${orderIdToCancel} has been successfully cancelled. Reason: ${reasonForCancellation}`,
+        variant: 'default',
+      });
+    }, 0);
     setIsCancelDialogOpen(false);
     setOrderToCancel(null);
+    setSelectedCancelReason('');
   };
 
   const handleOpenBillDialog = (order: Order) => {
@@ -467,18 +484,20 @@ export default function ProfilePage() {
 
   const handleOpenReviewDialog = (order: Order) => {
     setOrderToReview(order);
-    setCurrentRating(0);
-    setCurrentReviewComment('');
+    setCurrentRating(order.review?.rating || 0);
+    setCurrentReviewComment(order.review?.comment || '');
     setIsReviewDialogOpen(true);
   };
 
   const handleReviewSubmit = () => {
     if (!orderToReview || currentRating === 0) {
-      toast({
-        title: 'Rating Required',
-        description: 'Please select a star rating.',
-        variant: 'destructive',
-      });
+      setTimeout(() => {
+        toast({
+          title: 'Rating Required',
+          description: 'Please select a star rating.',
+          variant: 'destructive',
+        });
+      }, 0);
       return;
     }
 
@@ -495,12 +514,14 @@ export default function ProfilePage() {
         o.id === orderIdToReview ? { ...o, review: newReview } : o
       )
     );
-
-    toast({
-      title: 'Review Submitted!',
-      description: 'Thank you for your feedback.',
-      variant: 'default',
-    });
+    
+    setTimeout(() => {
+      toast({
+        title: 'Review Submitted!',
+        description: 'Thank you for your feedback.',
+        variant: 'default',
+      });
+    }, 0);
 
     setIsReviewDialogOpen(false);
     setOrderToReview(null);
