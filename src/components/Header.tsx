@@ -2,21 +2,32 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react'; // Added useState
-import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell } from 'lucide-react';
 import NibbleNowLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
-import HelpDialog from './HelpDialog'; // Added HelpDialog import
+import HelpDialog from './HelpDialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Added Popover
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
   const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const itemCount = getCartItemCount();
-  const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false); // Added state for HelpDialog
+  const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false); // State for notification panel
+
+  // Mock notifications - replace with actual data later
+  const notifications = [
+    { id: 1, title: "New Dish Alert!", message: "Try our new 'Spicy Dragon Noodles' at Pizza Palace.", read: false },
+    { id: 2, title: "Order Update", message: "Your order #ORD12345 has been delivered.", read: true },
+    { id: 3, title: "Special Offer", message: "Get 20% off on all burgers today at Burger Barn!", read: false },
+  ];
+  const unreadNotificationCount = notifications.filter(n => !n.read).length;
+
 
   return (
     <>
@@ -33,7 +44,7 @@ const Header = () => {
               </Button>
             </Link>
 
-            <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => setIsHelpDialogOpen(true)}> {/* Updated onClick */}
+            <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => setIsHelpDialogOpen(true)}>
               <HelpCircle className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Help</span>
             </Button>
@@ -41,11 +52,10 @@ const Header = () => {
             {isAuthLoading ? (
               <div className="flex items-center space-x-2">
                 <Skeleton className="h-8 w-16 rounded-md" />
-                 {/* Removed the second skeleton that was previously for logout/signup */}
               </div>
             ) : (
               <>
-                {isAuthenticated ? (
+                {isAuthenticated && (
                   <>
                     {isAdmin && (
                       <Link href="/admin">
@@ -62,8 +72,9 @@ const Header = () => {
                       </Button>
                     </Link>
                   </>
-                ) : (
-                  <>
+                )}
+                {!isAuthenticated && (
+                   <>
                     <Link href="/login">
                       <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                         <LogIn className="h-4 w-4 sm:mr-2" />
@@ -80,6 +91,49 @@ const Header = () => {
                 )}
               </>
             )}
+
+            <Popover open={isNotificationPanelOpen} onOpenChange={setIsNotificationPanelOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="relative rounded-full"
+                  aria-label={`Open notifications with ${unreadNotificationCount} unread`}
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadNotificationCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                      aria-label={`${unreadNotificationCount} unread notifications`}
+                    >
+                      {unreadNotificationCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 font-medium border-b">Notifications</div>
+                {notifications.length > 0 ? (
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.map(notification => (
+                      <div
+                        key={notification.id}
+                        className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
+                      >
+                        <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
+                        <p className="text-xs text-muted-foreground">{notification.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="p-4 text-sm text-muted-foreground text-center">No new notifications.</p>
+                )}
+                <div className="p-2 border-t text-center">
+                  <Button variant="link" size="sm" className="text-primary">View all notifications</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Button
               variant="outline"
@@ -102,7 +156,7 @@ const Header = () => {
           </nav>
         </div>
       </header>
-      <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} /> {/* Added HelpDialog instance */}
+      <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
     </>
   );
 };
