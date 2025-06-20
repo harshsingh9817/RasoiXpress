@@ -60,19 +60,15 @@ const Header = () => {
     if (savedLocationString) {
       try {
         const parsedValue = JSON.parse(savedLocationString);
-        // Check if the parsed value is an object and not null,
-        // as JSON.parse can return primitives or null for valid JSON like "123" or "null".
-        if (typeof parsedValue === 'object' && parsedValue !== null) {
-          // We expect an object that fits GeocodedLocation (might have city, locality, or error field)
+        if (typeof parsedValue === 'object' && parsedValue !== null && (parsedValue.city || parsedValue.locality || parsedValue.error)) {
           setCurrentLocation(parsedValue as GeocodedLocation);
         } else {
-          // If JSON.parse succeeded but gave a non-object, it's not what we expect for location.
-          console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object, got ${typeof parsedValue}. Removing item.`);
+          console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object with city, locality, or error. Removing item.`);
           localStorage.removeItem('nibbleNowUserLocation');
         }
-      } catch (error) { // This catches syntax errors in JSON.parse itself
+      } catch (error) { 
         console.error(`Failed to parse location from localStorage (malformed JSON: "${savedLocationString}"):`, error);
-        localStorage.removeItem('nibbleNowUserLocation'); // Clear the malformed item
+        localStorage.removeItem('nibbleNowUserLocation'); 
       }
     }
   }, []);
@@ -131,8 +127,6 @@ const Header = () => {
           variant: "destructive",
         });
         setCurrentLocation({ error: data.error || "Could not fetch location." }); 
-        // Do not save error states to the primary location storage to avoid parsing issues later.
-        // localStorage.removeItem('nibbleNowUserLocation'); // Or clear it if an error occurs.
       } else {
         setCurrentLocation(data);
         localStorage.setItem('nibbleNowUserLocation', JSON.stringify(data));
@@ -163,7 +157,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/" aria-label="NibbleNow Home">
