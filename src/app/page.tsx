@@ -9,7 +9,7 @@ import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; // Import CartSheet for the layout
-import { Utensils } from 'lucide-react';
+import { Utensils, Bike } from 'lucide-react'; // Added Bike icon
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -67,6 +67,7 @@ export default function HomePage() {
         <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
           Home Delivery In Your City Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
+        <Bike className="mx-auto h-12 w-12 text-amber-300 mt-3 mb-2" /> 
         <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
         </p>
