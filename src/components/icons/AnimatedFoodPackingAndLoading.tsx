@@ -18,30 +18,33 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
   const wheelColor = "hsl(var(--muted-foreground))";
   const detailColor = "hsl(var(--muted-foreground))"; 
 
+  // Updated Timings for a faster loop and new scooter movement
+  const loopDuration = "4.5s"; // Shortened from 6s
+
   const foodAppearDelay = "0s";
-  const foodAppearDuration = "0.5s";
+  const foodAppearDuration = "0.4s"; // Slightly faster
   const boxAppearDelay = "0.2s";
   const boxAppearDuration = "0.3s";
   
-  const foodMoveDelay = "0.5s"; 
-  const foodMoveDuration = "1s";
+  const foodMoveDelay = "0.4s"; 
+  const foodMoveDuration = "0.8s"; // Slightly faster
   
-  const flapCloseDelay = "1.5s"; 
-  const flapCloseDuration = "0.5s";
+  const flapCloseDelay = "1.2s"; // Adjusted based on foodMove
+  const flapCloseDuration = "0.4s"; // Slightly faster
   
-  const vehicleAppearDelay = "2.0s";
-  const vehicleAppearDuration = "0.5s";
+  const vehicleAppearDelay = "1.5s"; // Adjusted
+  const vehicleAppearDuration = "0.4s"; // Slightly faster
   
-  const boxToVehicleDelay = "2.5s"; 
-  const boxToVehicleDuration = "1s";
+  const boxToVehicleDelay = "1.9s"; // Adjusted
+  const boxToVehicleDuration = "0.8s"; // Slightly faster
   
-  const vehiclePuffDelay = "3.5s";
-  const vehiclePuffDuration = "0.5s";
-  
-  const loopDuration = "6s";
-  // Fade in part of loop: 10% of loopDuration
+  const vehiclePuffDelay = "2.7s"; // Adjusted
+  const vehiclePuffDuration = "0.4s"; // Slightly faster
+
+  const scooterDriveOffDelay = "2.8s"; // Starts after puff
+  const scooterDriveOffDuration = "1.5s"; // Drives off until near end of loop
+
   const fadeInDurationPercentage = 10;
-  // Fade out part of loop: last 1s, so (loopDuration - 1s) / loopDuration * 100
   const fadeOutStartTimePercentage = ((parseFloat(loopDuration) - 1) / parseFloat(loopDuration)) * 100;
 
 
@@ -110,12 +113,20 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
 
           .delivery-scooter {
             opacity: 0;
-            transform: translateX(-20px);
-            animation: scooterAppearAnim ${vehicleAppearDuration} ease-out ${vehicleAppearDelay} forwards;
+            /* Initial position set by scooterAppearAnim */
+            animation: 
+              scooterAppearAnim ${vehicleAppearDuration} ease-out ${vehicleAppearDelay} forwards,
+              scooterDriveOffAnim ${scooterDriveOffDuration} ease-in-out ${scooterDriveOffDelay} forwards;
           }
           @keyframes scooterAppearAnim {
-            to { opacity: 1; transform: translateX(0); }
+            0% { opacity: 0; transform: translateX(-20px); }
+            100% { opacity: 1; transform: translateX(0px); }
           }
+          @keyframes scooterDriveOffAnim {
+            0% { transform: translateX(0px); opacity: 1; }
+            100% { transform: translateX(40px); opacity: 0; } /* Drives forward and fades */
+          }
+
           .scooter-puff {
             opacity: 0;
             transform-origin: center;
@@ -154,7 +165,7 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
           <circle cx="10" cy="30" r="1.5" fill={wheelColor} />
           <circle cx="35" cy="30" r="5" fill="hsl(var(--background))" stroke={wheelColor} strokeWidth="1"/>
           <circle cx="35" cy="30" r="1.5" fill={wheelColor} />
-          <rect x="2" y="8" width="18" height="10" rx="1" fill={scooterColor} opacity="0.5" />
+          <rect x="2" y="8" width="18" height="10" rx="1" fill={scooterColor} opacity="0.5" /> {/* Package on scooter */}
           <circle className="scooter-puff" cx="0" cy="28" r="4" fill={detailColor}/>
         </g>
       </g>
@@ -163,3 +174,4 @@ const AnimatedFoodPackingAndLoading: FC<AnimatedFoodPackingAndLoadingProps> = ({
 };
 
 export default AnimatedFoodPackingAndLoading;
+
