@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import Image from 'next/image'; // Added Image import
+// Removed Image import
 import type { Restaurant } from '@/lib/types';
 import { mockRestaurants } from '@/lib/data';
 import RestaurantCard from '@/components/RestaurantCard';
@@ -10,7 +10,7 @@ import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; 
-import { Utensils } from 'lucide-react'; 
+import { Utensils, Bike } from 'lucide-react'; // Added Bike import
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -69,14 +69,7 @@ export default function HomePage() {
           Home Delivery In Your City Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
         <div className="mt-6 mb-4 flex justify-center">
-          <Image
-            src="https://placehold.co/250x200.png"
-            alt="Food delivery graphic"
-            width={250}
-            height={200}
-            className="rounded-lg shadow-md"
-            data-ai-hint="delivery illustration"
-          />
+          <Bike className="h-20 w-20 text-amber-300 animate-bounce" />
         </div>
         <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
