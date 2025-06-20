@@ -157,7 +157,7 @@ export default function ProfilePage() {
         try {
           const parsedOrders = JSON.parse(storedOrdersString) as Order[];
           if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
-            loadedOrders = parsedOrders.map(order => ({ 
+            loadedOrders = parsedOrders.map(order => ({
               ...order,
               items: order.items.map(item => ({
                 ...item,
@@ -298,7 +298,7 @@ export default function ProfilePage() {
       const newAddress: AddressType = {
         id: `addr${Date.now()}`,
         ...currentAddressFormData,
-        isDefault: addresses.length === 0, 
+        isDefault: addresses.length === 0,
       };
       setAddresses(prev => [...prev, newAddress]);
     }
@@ -327,16 +327,11 @@ export default function ProfilePage() {
     try {
       const filePath = `profileImages/${firebaseUser.uid}/${file.name}`;
       const imageRef = storageRef(storage, filePath);
-      
+
       await uploadBytes(imageRef, file);
       const downloadURL = await getDownloadURL(imageRef);
-      
+
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      
-      // The onAuthStateChanged listener in AuthContext should update the firebaseUser object.
-      // If immediate UI update is needed without waiting for onAuthStateChanged:
-      // setUser(prevUser => prevUser ? { ...prevUser, photoURL: downloadURL } : null); // (if setUser was exposed from context)
-      // Or simply rely on onAuthStateChanged which is generally better.
 
       toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
     } catch (error: any) {
@@ -344,7 +339,6 @@ export default function ProfilePage() {
       toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
     } finally {
       setIsUploadingPhoto(false);
-      // Reset file input value so the same file can be re-selected if needed
       if(fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -365,12 +359,12 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-       <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-4 bg-card rounded-lg shadow">
+       <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-6 bg-primary/5 rounded-xl shadow-xl border border-primary/20">
         <div className="relative">
-          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-2 border-primary shadow-md">
-            <AvatarImage 
-              src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`} 
-              alt={firebaseUser?.displayName || 'User profile photo'} 
+          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/50 shadow-lg">
+            <AvatarImage
+              src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
+              alt={firebaseUser?.displayName || 'User profile photo'}
               data-ai-hint="profile avatar"
             />
             <AvatarFallback className="text-4xl">
@@ -378,10 +372,10 @@ export default function ProfilePage() {
             </AvatarFallback>
           </Avatar>
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="absolute bottom-1 right-1 rounded-full bg-background/80 hover:bg-background h-8 w-8" 
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute bottom-1 right-1 rounded-full bg-background/90 hover:bg-muted h-8 w-8 border border-primary/20"
             onClick={handlePhotoEditClick}
             aria-label="Edit profile photo"
             disabled={isUploadingPhoto}
@@ -390,7 +384,7 @@ export default function ProfilePage() {
           </Button>
         </div>
         <div className="text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1">
+          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-sm">
             {firebaseUser?.displayName || firebaseUser?.email || 'Welcome, User!'}
           </h1>
           {firebaseUser?.displayName && <p className="text-lg text-muted-foreground mb-2">{firebaseUser?.email}</p>}
