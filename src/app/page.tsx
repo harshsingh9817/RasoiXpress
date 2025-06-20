@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
-import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter'; // Updated import
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -65,14 +65,14 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-10 md:py-14 bg-gradient-to-br from-primary to-red-700 rounded-lg shadow-xl">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
+      <section className="text-center py-10 md:py-14 bg-orange-100 rounded-lg shadow-xl">
+        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary mb-3">
           Home Delivery In Nagra With <span className="text-amber-300">NibbleNow</span>
         </h1>
         <div className="mt-6 mb-4 flex justify-center">
           <AnimatedDeliveryScooter className="h-24 w-48 text-accent" /> 
         </div>
-        <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-orange-700 max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
         </p>
       </section>
