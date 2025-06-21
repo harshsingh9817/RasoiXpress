@@ -78,4 +78,6 @@ export interface GeocodedLocation {
   locality?: string;
   fullAddress?: string;
   error?: string;
+  lat?: number;
+  lng?: number;
 }

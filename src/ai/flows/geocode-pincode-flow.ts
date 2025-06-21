@@ -23,6 +23,8 @@ export const GeocodePincodeOutputSchema = z.object({
   locality: z.string().optional(),
   fullAddress: z.string().optional(),
   error: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 export type GeocodePincodeOutput = z.infer<typeof GeocodePincodeOutputSchema>;
 
@@ -56,6 +58,7 @@ const geocodePincodeFlow = ai.defineFlow(
       if (data.status === 'OK' && data.results && data.results.length > 0) {
         const result = data.results[0];
         const addressComponents = result.address_components;
+        const location = result.geometry.location;
         let city: string | undefined;
         let locality: string | undefined;
 
@@ -87,6 +90,8 @@ const geocodePincodeFlow = ai.defineFlow(
           city: city,
           locality: locality, // This will be the more specific area name if found
           fullAddress: result.formatted_address,
+          lat: location.lat,
+          lng: location.lng,
         };
       } else {
         console.warn(`Geocoding API returned status: ${data.status}. Message: ${data.error_message || 'No results'}`);

@@ -17,7 +17,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { GeocodedLocation } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import dynamic from 'next/dynamic';
 
+const LocationMap = dynamic(() => import('@/components/LocationMap'), { 
+  ssr: false,
+  loading: () => <Skeleton className="h-[200px] w-full rounded-md" /> 
+});
 
 interface AppNotification {
   id: number;
@@ -180,7 +185,7 @@ const Header = () => {
                   <ChevronDown className="h-3 w-3 sm:ml-1 opacity-70" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-4" align="start">
+              <PopoverContent className="w-80 p-4" align="start">
                 <form onSubmit={handleConfirmLocation}>
                   <div className="space-y-3">
                     <Label htmlFor="pinCode" className="font-medium">Enter Delivery Pin Code</Label>
@@ -200,6 +205,11 @@ const Header = () => {
                     </Button>
                   </div>
                 </form>
+                {currentLocation && currentLocation.lat && currentLocation.lng && !isFetchingLocation && (
+                  <div className="mt-4">
+                    <LocationMap position={[currentLocation.lat, currentLocation.lng]} />
+                  </div>
+                )}
                  {currentLocation?.error && !isFetchingLocation && (
                     <p className="mt-2 text-xs text-destructive">{currentLocation.error}</p>
                 )}
