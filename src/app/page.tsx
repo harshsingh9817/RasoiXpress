@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-// import Image from 'next/image'; // Removed Image import
 import type { Restaurant } from '@/lib/types';
 import { mockRestaurants } from '@/lib/data';
 import RestaurantCard from '@/components/RestaurantCard';
@@ -11,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -52,8 +52,6 @@ export default function HomePage() {
   }, [searchTerm, selectedCuisine, sortBy]);
 
   if (!isClient) {
-    // Render a loading state or null during server-side rendering and initial client-side hydration
-    // to prevent hydration mismatch for components relying on client-side state (like CartSheet)
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Utensils className="h-16 w-16 text-primary animate-bounce" />
@@ -64,13 +62,18 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-10 md:py-16 px-4 sm:px-6 lg:px-8 bg-primary/10 rounded-lg shadow-inner">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary mb-3">
-           Great food, at your <span className="text-accent">fingertips</span>.
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
-        </p>
+      <section className="flex flex-col md:flex-row items-center justify-between gap-8 py-10 md:py-16 px-4 sm:px-6 lg:px-8 bg-primary/10 rounded-lg shadow-inner">
+        <div className="text-center md:text-left md:w-1/2 space-y-4">
+            <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary mb-3">
+              Home Delivery In Nagra With <span className="text-accent">Rasoi Express</span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto md:mx-0">
+              Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
+            </p>
+        </div>
+        <div className="md:w-1/2 flex justify-center text-primary">
+            <AnimatedDeliveryScooter className="w-full max-w-sm h-auto" />
+        </div>
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow">
