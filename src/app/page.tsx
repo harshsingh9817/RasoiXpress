@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -65,14 +64,11 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-10 md:py-14 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary to-accent rounded-lg shadow-xl">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
-          Home Delivery In Nagra With Rasoi Express
+      <section className="text-center py-10 md:py-16 px-4 sm:px-6 lg:px-8 bg-primary/10 rounded-lg shadow-inner">
+        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary mb-3">
+           Great food, at your <span className="text-accent">fingertips</span>.
         </h1>
-        <div className="mt-6 mb-4 flex justify-center">
-           <AnimatedFoodPackingAndLoading className="h-48 w-full max-w-lg mx-auto text-primary-foreground" />
-        </div>
-        <p className="text-lg md:text-xl text-primary-foreground max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
           Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
         </p>
       </section>
