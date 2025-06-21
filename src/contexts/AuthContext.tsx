@@ -59,8 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setIsAdmin(false);
         // Protected routes for non-authenticated users
-        const protectedRoutes = ['/profile', '/admin', '/checkout'];
-        if (protectedRoutes.includes(pathname)) {
+        const protectedRoutes = ['/profile', '/admin', '/checkout', '/'];
+        if (protectedRoutes.includes(pathname) || pathname.startsWith('/restaurants')) {
           router.replace('/login');
         }
       }
@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await userCredential.user.getIdToken(true);
       }
       // onAuthStateChanged will handle routing
-      toast({ title: 'Signup Successful!', description: 'Welcome to NibbleNow!', variant: 'default' });
+      toast({ title: 'Signup Successful!', description: 'Welcome to Rasoi Express!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase signup error:", error);
       if (error.code === 'auth/email-already-in-use') {

@@ -197,7 +197,7 @@ export default function ProfilePage() {
   useEffect(() => {
     setIsClientRendered(true);
     if (typeof window !== 'undefined') {
-      const storedOrdersString = localStorage.getItem('nibbleNowUserOrders');
+      const storedOrdersString = localStorage.getItem('rasoiExpressUserOrders');
       let loadedOrders: Order[] = initialMockOrders.map(order => ({
         ...order,
         items: order.items.map(item => ({
@@ -228,7 +228,7 @@ export default function ProfilePage() {
       setOrders(loadedOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
 
 
-      const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
+      const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
       if (storedAddressesString) {
         try {
           const parsedAddresses = JSON.parse(storedAddressesString) as AddressType[];
@@ -255,13 +255,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (isClientRendered && typeof window !== 'undefined' && addresses.length > 0) {
-      localStorage.setItem('nibbleNowUserAddresses', JSON.stringify(addresses));
+      localStorage.setItem('rasoiExpressUserAddresses', JSON.stringify(addresses));
     }
   }, [addresses, isClientRendered]);
   
   useEffect(() => {
     if (isClientRendered && typeof window !== 'undefined' && orders.length > 0) {
-        localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
+        localStorage.setItem('rasoiExpressUserOrders', JSON.stringify(orders));
     }
   }, [orders, isClientRendered]);
 

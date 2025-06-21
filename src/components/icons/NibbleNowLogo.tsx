@@ -1,9 +1,9 @@
 
 import type { FC } from 'react';
 
-const NibbleNowLogo: FC = () => {
+const RasoiExpressLogo: FC = () => {
   return (
-    <div className="flex items-center" aria-label="NibbleNow logo - a plate with a fork and spoon, and the name NibbleNow">
+    <div className="flex items-center" aria-label="Rasoi Express logo - a plate with a fork and spoon, and the name Rasoi Express">
       <svg
         width="40"
         height="40"
@@ -38,10 +38,10 @@ const NibbleNowLogo: FC = () => {
         <path d="M42 84 Q50 87 58 84" stroke="hsl(var(--foreground))" strokeWidth="3" fill="none" strokeLinecap="round"/>
       </svg>
       <span className="text-2xl font-bold text-primary font-headline">
-        NibbleNow
+        Rasoi Express
       </span>
     </div>
   );
 };
 
-export default NibbleNowLogo;
+export default RasoiExpressLogo;

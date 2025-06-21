@@ -44,7 +44,7 @@ export default function CheckoutPage() {
     }
 
     if (typeof window !== 'undefined') {
-      const storedAddressesString = localStorage.getItem('nibbleNowUserAddresses');
+      const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
       if (storedAddressesString) {
         try {
           const addresses = JSON.parse(storedAddressesString) as AddressType[];
@@ -127,7 +127,7 @@ export default function CheckoutPage() {
     };
 
     if (typeof window !== 'undefined') {
-      const existingOrdersString = localStorage.getItem('nibbleNowUserOrders');
+      const existingOrdersString = localStorage.getItem('rasoiExpressUserOrders');
       let orders: Order[] = [];
       if (existingOrdersString) {
         try {
@@ -138,7 +138,7 @@ export default function CheckoutPage() {
         }
       }
       orders.unshift(newOrder);
-      localStorage.setItem('nibbleNowUserOrders', JSON.stringify(orders));
+      localStorage.setItem('rasoiExpressUserOrders', JSON.stringify(orders));
     }
 
     toast({
@@ -325,4 +325,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-

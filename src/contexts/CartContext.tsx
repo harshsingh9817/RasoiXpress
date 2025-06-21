@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MenuItem, CartItem } from '@/lib/types';
@@ -27,13 +28,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Load cart from localStorage on initial render (client-side only)
     if (typeof window !== 'undefined') {
-      const storedCart = localStorage.getItem('nibbleNowCart');
+      const storedCart = localStorage.getItem('rasoiExpressCart');
       if (storedCart) {
         try {
           setCartItems(JSON.parse(storedCart));
         } catch (error) {
           console.error("Error parsing cart from localStorage:", error);
-          localStorage.removeItem('nibbleNowCart'); // Clear corrupted cart data
+          localStorage.removeItem('rasoiExpressCart'); // Clear corrupted cart data
         }
       }
     }
@@ -42,7 +43,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Save cart to localStorage whenever it changes (client-side only)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nibbleNowCart', JSON.stringify(cartItems));
+      localStorage.setItem('rasoiExpressCart', JSON.stringify(cartItems));
     }
   }, [cartItems]);
 

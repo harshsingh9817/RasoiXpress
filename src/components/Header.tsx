@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import NibbleNowLogo from './icons/NibbleNowLogo';
+import RasoiExpressLogo from './icons/NibbleNowLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,14 +49,14 @@ const Header = () => {
     { id: 1, title: "New Dish Alert at Pizza Palace!", message: "Try our new 'Spicy Dragon Noodles'. Limited time only!", read: false, type: 'new_dish', restaurantId: 'r1' },
     { id: 2, title: "Order #ORD12345 Delivered", message: "Your recent order has been successfully delivered. Enjoy!", read: true, type: 'order_update', orderId: 'ORD12345', link: '/profile' },
     { id: 3, title: "Weekend Special: 20% Off!", message: "Get 20% off on all burgers at Burger Barn this weekend!", read: false, type: 'offer', restaurantId: 'r2' },
-    { id: 4, title: "Welcome to NibbleNow!", message: "Explore thousands of restaurants and dishes.", read: true, type: 'general' },
+    { id: 4, title: "Welcome to Rasoi Express!", message: "Explore thousands of restaurants and dishes.", read: true, type: 'general' },
   ];
 
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
 
   useEffect(() => {
     // Load location from localStorage
-    const savedLocationString = localStorage.getItem('nibbleNowUserLocation');
+    const savedLocationString = localStorage.getItem('rasoiExpressUserLocation');
     if (savedLocationString) {
       try {
         const parsedValue = JSON.parse(savedLocationString);
@@ -64,11 +64,11 @@ const Header = () => {
           setCurrentLocation(parsedValue as GeocodedLocation);
         } else {
           console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object with city, locality, or error. Removing item.`);
-          localStorage.removeItem('nibbleNowUserLocation');
+          localStorage.removeItem('rasoiExpressUserLocation');
         }
       } catch (error) { 
         console.error(`Failed to parse location from localStorage (malformed JSON: "${savedLocationString}"):`, error);
-        localStorage.removeItem('nibbleNowUserLocation'); 
+        localStorage.removeItem('rasoiExpressUserLocation'); 
       }
     }
   }, []);
@@ -129,7 +129,7 @@ const Header = () => {
         setCurrentLocation({ error: data.error || "Could not fetch location." }); 
       } else {
         setCurrentLocation(data);
-        localStorage.setItem('nibbleNowUserLocation', JSON.stringify(data));
+        localStorage.setItem('rasoiExpressUserLocation', JSON.stringify(data));
         setIsLocationPopoverOpen(false);
         setPinCodeInput('');
          toast({
@@ -160,8 +160,8 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/" aria-label="NibbleNow Home">
-              <NibbleNowLogo />
+            <Link href="/" aria-label="Rasoi Express Home">
+              <RasoiExpressLogo />
             </Link>
             
             <Popover open={isLocationPopoverOpen} onOpenChange={setIsLocationPopoverOpen}>

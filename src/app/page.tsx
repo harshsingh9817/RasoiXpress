@@ -68,7 +68,7 @@ export default function HomePage() {
     <div className="space-y-8">
       <section className="text-center py-10 md:py-14 px-4 sm:px-6 lg:px-8 bg-primary rounded-lg shadow-xl">
         <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary-foreground mb-3">
-          Home Delivery In Nagra With <span className="text-accent">NibbleNow</span>
+          Home Delivery In Nagra With <span className="text-accent">Rasoi Express</span>
         </h1>
         <div className="mt-6 mb-4 flex justify-center">
           <AnimatedDeliveryScooter className="h-24 w-48 text-accent" /> 
