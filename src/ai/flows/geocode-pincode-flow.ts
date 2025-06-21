@@ -38,18 +38,22 @@ const geocodePincodeFlow = ai.defineFlow(
     // Using OpenStreetMap's Nominatim API, which does not require an API key.
     // It's important to provide a descriptive User-Agent as per their usage policy.
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&postalcode=${pinCode}&country=india&addressdetails=1&limit=1`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5-second timeout
 
     try {
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'RasoiExpressApp/1.0 (for app location feature)',
         },
+        signal: controller.signal, // Add abort signal
       });
+      clearTimeout(timeoutId); // Clear timeout if request succeeds or fails quickly
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Nominatim API request failed with status: ${response.status}`, errorText);
-        return { error: `Geocoding service request failed. Status: ${response.status}.` };
+        return { error: `The location service is currently unavailable. Please try again later.` };
       }
       
       const data = await response.json();
@@ -78,8 +82,12 @@ const geocodePincodeFlow = ai.defineFlow(
         return { error: `No location found for pin code ${pinCode}.` };
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.error("Error calling Nominatim API:", err);
-      return { error: "Failed to fetch location data. " + err.message };
+      if (err.name === 'AbortError') {
+        return { error: "The location service took too long to respond. Please try again." };
+      }
+      return { error: "Could not connect to the location service. Please check your network and try again." };
     }
   }
 );
