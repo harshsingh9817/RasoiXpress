@@ -581,7 +581,7 @@ export default function ProfilePage() {
       </section>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
           <TabsTrigger value="orders"><ListOrdered className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Orders</TabsTrigger>
           <TabsTrigger value="addresses"><MapPin className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Addresses</TabsTrigger>
           <TabsTrigger value="track"><PackageSearch className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Track Order</TabsTrigger>
@@ -591,7 +591,7 @@ export default function ProfilePage() {
         <TabsContent value="orders">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-headline">Order History</CardTitle>
+              <CardTitle className="text-xl md:text-2xl font-headline">Order History</CardTitle>
               <CardDescription>Review your past and current orders.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -710,7 +710,7 @@ export default function ProfilePage() {
         <TabsContent value="addresses">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-headline">My Addresses</CardTitle>
+              <CardTitle className="text-xl md:text-2xl font-headline">My Addresses</CardTitle>
               <CardDescription>Manage your saved shipping addresses.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -749,7 +749,7 @@ export default function ProfilePage() {
         <TabsContent value="track">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-headline">Track Your Order</CardTitle>
+              <CardTitle className="text-xl md:text-2xl font-headline">Track Your Order</CardTitle>
               <CardDescription>Enter your order ID to see its current status and progress.</CardDescription>
             </CardHeader>
             <form onSubmit={handleTrackOrderSubmit}>
@@ -838,7 +838,7 @@ export default function ProfilePage() {
         <TabsContent value="settings">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-headline">Account Settings</CardTitle>
+              <CardTitle className="text-xl md:text-2xl font-headline">Account Settings</CardTitle>
               <CardDescription>Manage your account preferences.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -915,7 +915,7 @@ export default function ProfilePage() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="city">City</Label>
                   <Input

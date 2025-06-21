@@ -176,7 +176,7 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <section className="text-center">
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Checkout</h1>
+        <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-2">Checkout</h1>
         <p className="text-lg text-muted-foreground">
           Almost there! Please review your order and provide your details.
         </p>
@@ -185,7 +185,7 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline">Shipping & Payment</CardTitle>
+            <CardTitle className="text-xl md:text-2xl font-headline">Shipping & Payment</CardTitle>
             <CardDescription>Enter your shipping address and payment details.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmitOrder}>
@@ -280,7 +280,7 @@ export default function CheckoutPage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline">Order Summary</CardTitle>
+            <CardTitle className="text-xl md:text-2xl font-headline">Order Summary</CardTitle>
             <CardDescription>You have {getCartItemCount()} item(s) in your cart.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

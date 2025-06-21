@@ -42,7 +42,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline">Manage Food Items</CardTitle>
+            <CardTitle className="text-xl md:text-2xl font-headline">Manage Food Items</CardTitle>
             <CardDescription>Add, edit, or remove food items from the menu.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -53,7 +53,7 @@ export default function AdminPage() {
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline">View Orders</CardTitle>
+            <CardTitle className="text-xl md:text-2xl font-headline">View Orders</CardTitle>
             <CardDescription>See current and past customer orders.</CardDescription>
           </CardHeader>
           <CardContent>
