@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import RasoiExpressLogo from './icons/NibbleNowLogo';
+import RasoiExpressLogo from './icons/RasoiExpressLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
