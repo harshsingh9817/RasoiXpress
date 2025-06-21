@@ -1,17 +1,13 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to geocode a pin code using Google Maps API.
+ * @fileOverview A Genkit flow to geocode a pin code using the OpenStreetMap Nominatim API.
  * - geocodePincode - Function to get location details from a pin code.
  * - GeocodePincodeInputSchema - The input type for the geocodePincode function.
  * - GeocodePincodeOutputSchema - The return type for the geocodePincode function.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-// IMPORTANT: You need to set GOOGLE_MAPS_API_KEY in your .env file for this to work.
-// Ensure the Geocoding API is enabled in your Google Cloud project.
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export const GeocodePincodeInputSchema = z.object({
   pinCode: z.string().length(6, { message: "Pin code must be 6 digits" }).regex(/^\d{6}$/, { message: "Pin code must be 6 digits" }),
@@ -39,66 +35,50 @@ const geocodePincodeFlow = ai.defineFlow(
     outputSchema: GeocodePincodeOutputSchema,
   },
   async ({ pinCode }) => {
-    if (!GOOGLE_MAPS_API_KEY) {
-      console.error("GOOGLE_MAPS_API_KEY is not set in .env file.");
-      return { error: "Server configuration error: Missing API key." };
-    }
-
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${pinCode}&key=${GOOGLE_MAPS_API_KEY}&components=country:IN`;
+    // Using OpenStreetMap's Nominatim API, which does not require an API key.
+    // It's important to provide a descriptive User-Agent as per their usage policy.
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&postalcode=${pinCode}&country=india&addressdetails=1&limit=1`;
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'RasoiExpressApp/1.0 (for app location feature)',
+        },
+      });
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`Geocoding API request failed with status: ${response.status}`, errorData);
-        return { error: `Geocoding service request failed. Status: ${response.status}. ${errorData.error_message || ''}`.trim() };
+        const errorText = await response.text();
+        console.error(`Nominatim API request failed with status: ${response.status}`, errorText);
+        return { error: `Geocoding service request failed. Status: ${response.status}.` };
       }
+      
       const data = await response.json();
 
-      if (data.status === 'OK' && data.results && data.results.length > 0) {
-        const result = data.results[0];
-        const addressComponents = result.address_components;
-        const location = result.geometry.location;
-        let city: string | undefined;
-        let locality: string | undefined;
+      if (data && data.length > 0) {
+        const result = data[0];
+        const address = result.address;
 
-        // Extract city: typically administrative_area_level_2 or locality
-        const cityComponent = addressComponents.find((comp: any) => comp.types.includes('administrative_area_level_2')) ||
-                              addressComponents.find((comp: any) => comp.types.includes('locality'));
-        city = cityComponent?.long_name;
-
-        // Extract locality: typically sublocality_level_1, sublocality, or locality if it's more specific than the city
-        const sublocalityComponentL1 = addressComponents.find((comp: any) => comp.types.includes('sublocality_level_1'));
-        const sublocalityComponent = addressComponents.find((comp: any) => comp.types.includes('sublocality'));
-        const localityComponentFromAPI = addressComponents.find((comp: any) => comp.types.includes('locality'));
-
-        if (sublocalityComponentL1) {
-          locality = sublocalityComponentL1.long_name;
-        } else if (sublocalityComponent) {
-          locality = sublocalityComponent.long_name;
-        } else if (localityComponentFromAPI && localityComponentFromAPI.long_name !== city) {
-          // Use locality if it's different from the determined city
-          locality = localityComponentFromAPI.long_name;
-        }
-
+        let city = address.city || address.town || address.state_district;
+        let locality = address.suburb || address.neighbourhood || address.city_district;
 
         // Fallback logic
-        if (!city && locality) city = locality; // If city is missing, use locality as city
-        if (!locality && city) locality = city; // If locality is missing, use city as locality
+        if (!city && locality) city = locality;
+        if (!locality && city) locality = city;
+        if (!city && !locality) city = address.state;
 
         return {
           city: city,
-          locality: locality, // This will be the more specific area name if found
-          fullAddress: result.formatted_address,
-          lat: location.lat,
-          lng: location.lng,
+          locality: locality,
+          fullAddress: result.display_name,
+          lat: parseFloat(result.lat),
+          lng: parseFloat(result.lon),
         };
       } else {
-        console.warn(`Geocoding API returned status: ${data.status}. Message: ${data.error_message || 'No results'}`);
-        return { error: data.error_message || `No location found for pin code ${pinCode}. Status: ${data.status}` };
+        console.warn(`Nominatim API returned no results for pin code: ${pinCode}`);
+        return { error: `No location found for pin code ${pinCode}.` };
       }
     } catch (err: any) {
-      console.error("Error calling Geocoding API:", err);
+      console.error("Error calling Nominatim API:", err);
       return { error: "Failed to fetch location data. " + err.message };
     }
   }
