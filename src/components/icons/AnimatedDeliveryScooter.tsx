@@ -1,4 +1,3 @@
-
 import type { FC } from 'react';
 
 interface AnimatedDeliveryScooterProps {
@@ -15,6 +14,11 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
   const riderAndBoxColor = "#2D3748"; // Dark Gray (Tailwind gray.800 - for rider and box silhouette)
   const roadColor = "#4A5568"; // Tailwind gray.700 for asphalt
   const roadLineColor = "#E2E8F0"; // Tailwind gray.200 for markings
+  
+  // New colors for buildings
+  const buildingColor1 = "#CBD5E0"; // gray.400
+  const buildingColor2 = "#E2E8F0"; // gray.300
+  const buildingColor3 = "#BEE3F8"; // blue.200 - for a bit of variety
 
   return (
     <svg
@@ -56,8 +60,44 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
               from { stroke-dashoffset: 0; }
               to { stroke-dashoffset: 40; } /* Animate by length of dash + gap (positive makes it move left) */
           }
+          .buildings-scrolling {
+            animation: scrollBuildings 8s linear infinite;
+          }
+          @keyframes scrollBuildings {
+            from { transform: translateX(0); }
+            to { transform: translateX(-140px); } /* Width of the building pattern */
+          }
         `}
       </style>
+      
+      {/* Background Buildings */}
+      <g id="background-buildings">
+        <g className="buildings-scrolling">
+            {/* Pattern 1 */}
+            <rect x="0" y="30" width="20" height="40" fill={buildingColor1} />
+            <rect x="5" y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="25" y="20" width="15" height="50" fill={buildingColor2} />
+            <rect x="28" y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="28" y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="45" y="40" width="25" height="30" fill={buildingColor3} />
+            <rect x="75" y="10" width="30" height="60" fill={buildingColor1} />
+            <rect x="78" y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="78" y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="110" y="35" width="20" height="35" fill={buildingColor2} />
+            
+            {/* Pattern 2 (repeat of pattern 1 for looping) */}
+            <rect x="140" y="30" width="20" height="40" fill={buildingColor1} />
+            <rect x="145" y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="165" y="20" width="15" height="50" fill={buildingColor2} />
+            <rect x="168" y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="168" y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="185" y="40" width="25" height="30" fill={buildingColor3} />
+            <rect x="215" y="10" width="30" height="60" fill={buildingColor1} />
+            <rect x="218" y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="218" y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="250" y="35" width="20" height="35" fill={buildingColor2} />
+        </g>
+      </g>
       
       {/* Road */}
       <g id="road">
@@ -151,4 +191,3 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
 };
 
 export default AnimatedDeliveryScooter;
-    
