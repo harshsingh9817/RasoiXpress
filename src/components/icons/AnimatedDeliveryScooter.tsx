@@ -19,6 +19,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
   const buildingColor1 = "#CBD5E0"; // gray.400
   const buildingColor2 = "#E2E8F0"; // gray.300
   const buildingColor3 = "#BEE3F8"; // blue.200 - for a bit of variety
+  const buildingTextColor = "hsl(var(--primary))"; // Red color from theme
 
   return (
     <svg
@@ -76,26 +77,70 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
             {/* Pattern 1 */}
             <rect x="0" y="30" width="20" height="40" fill={buildingColor1} />
             <rect x="5" y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <text x="10" y="40" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="10" dy="0">sandhya</tspan>
+                <tspan x="10" dy="4">sweets</tspan>
+            </text>
+
             <rect x="25" y="20" width="15" height="50" fill={buildingColor2} />
             <rect x="28" y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
             <rect x="28" y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            
             <rect x="45" y="40" width="25" height="30" fill={buildingColor3} />
+            <text x="57.5" y="50" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="57.5" dy="0">Prakash</tspan>
+                <tspan x="57.5" dy="4">Vastralaya</tspan>
+            </text>
+
             <rect x="75" y="10" width="30" height="60" fill={buildingColor1} />
             <rect x="78" y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
             <rect x="78" y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <text x="90" y="20" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="90" dy="0">City</tspan>
+                <tspan x="90" dy="4">Mega</tspan>
+                <tspan x="90" dy="4">Mart</tspan>
+            </text>
+
             <rect x="110" y="35" width="20" height="35" fill={buildingColor2} />
+             <text x="120" y="45" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="120" dy="0">Google</tspan>
+                <tspan x="120" dy="4">Mens</tspan>
+                <tspan x="120" dy="4">Wear</tspan>
+            </text>
             
             {/* Pattern 2 (repeat of pattern 1 for looping) */}
             <rect x="140" y="30" width="20" height="40" fill={buildingColor1} />
             <rect x="145" y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <text x="150" y="40" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="150" dy="0">sandhya</tspan>
+                <tspan x="150" dy="4">sweets</tspan>
+            </text>
+
             <rect x="165" y="20" width="15" height="50" fill={buildingColor2} />
             <rect x="168" y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
             <rect x="168" y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            
             <rect x="185" y="40" width="25" height="30" fill={buildingColor3} />
+            <text x="197.5" y="50" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="197.5" dy="0">Prakash</tspan>
+                <tspan x="197.5" dy="4">Vastralaya</tspan>
+            </text>
+
             <rect x="215" y="10" width="30" height="60" fill={buildingColor1} />
             <rect x="218" y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
             <rect x="218" y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <text x="230" y="20" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="230" dy="0">City</tspan>
+                <tspan x="230" dy="4">Mega</tspan>
+                <tspan x="230" dy="4">Mart</tspan>
+            </text>
+
             <rect x="250" y="35" width="20" height="35" fill={buildingColor2} />
+             <text x="260" y="45" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="260" dy="0">Google</tspan>
+                <tspan x="260" dy="4">Mens</tspan>
+                <tspan x="260" dy="4">Wear</tspan>
+            </text>
         </g>
       </g>
       
