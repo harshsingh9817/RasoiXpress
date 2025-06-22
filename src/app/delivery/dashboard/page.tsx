@@ -14,13 +14,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type ActionableStatus = 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
+// UPDATED: Added 'Order Placed' to allow delivery staff to confirm new orders
+type ActionableStatus = 'Order Placed' | 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
 
 const getNextStatus = (currentStatus: ActionableStatus): OrderStatus | null => {
     const statusFlow: Record<ActionableStatus, OrderStatus> = {
+        'Order Placed': 'Confirmed',      // UPDATED: Added new step
         'Confirmed': 'Preparing',
         'Preparing': 'Shipped',
-        'Shipped': 'Out for Delivery',
+        'Shipped': 'Out for Delivery',    // FIXED: Corrected status value
         'Out for Delivery': 'Delivered',
     };
     return statusFlow[currentStatus] || null;
@@ -28,6 +30,7 @@ const getNextStatus = (currentStatus: ActionableStatus): OrderStatus | null => {
 
 const getActionText = (currentStatus: ActionableStatus): string => {
     const actionTextMap: Record<ActionableStatus, string> = {
+        'Order Placed': 'Confirm Order', // UPDATED: Added new action text
         'Confirmed': 'Start Preparing',
         'Preparing': 'Mark as Shipped',
         'Shipped': 'Start Delivery',
@@ -69,14 +72,16 @@ export default function DeliveryDashboard() {
       if (allOrdersString) {
           try {
               const allOrders = JSON.parse(allOrdersString) as Order[];
-              // Filter for orders that are actionable by delivery personnel
+              // UPDATED: Filter for orders that are actionable, now including 'Order Placed'
               const filteredOrders = allOrders.filter(o => 
+                o.status === 'Order Placed' || 
                 o.status === 'Confirmed' || 
                 o.status === 'Preparing' || 
                 o.status === 'Shipped' || 
                 o.status === 'Out for Delivery'
               );
-              setActiveOrders(filteredOrders.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+              // Show newest orders first
+              setActiveOrders(filteredOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
           } catch(e) {
               console.error("Failed to parse all orders from localStorage", e);
           }
@@ -266,3 +271,5 @@ export default function DeliveryDashboard() {
     </div>
   );
 }
+
+    
