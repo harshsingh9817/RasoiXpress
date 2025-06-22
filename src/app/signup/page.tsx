@@ -21,7 +21,7 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
-      router.replace('/profile'); 
+      router.replace('/'); 
     }
   }, [isAuthenticated, isAuthLoading, router]);
 

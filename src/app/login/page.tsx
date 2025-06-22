@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
-      router.replace('/profile'); 
+      router.replace('/'); 
     }
   }, [isAuthenticated, isAuthLoading, router]);
 

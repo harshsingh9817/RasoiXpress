@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (pathname === '/admin' && !isAdminClaim) {
             router.replace('/'); // Redirect non-admins trying to access admin page
           } else if ((pathname === '/login' || pathname === '/signup')) {
-            router.replace('/profile');
+            router.replace('/');
           }
         } catch (error) {
           console.error("Error getting user claims:", error);
@@ -58,9 +58,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         setIsAdmin(false);
-        // Protected routes for non-authenticated users
-        const protectedRoutes = ['/profile', '/admin', '/checkout', '/'];
-        if (protectedRoutes.includes(pathname) || pathname.startsWith('/restaurants')) {
+        // All routes except login and signup are protected
+        const publicRoutes = ['/login', '/signup'];
+        if (!publicRoutes.includes(pathname)) {
           router.replace('/login');
         }
       }
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [router, pathname]); // isAdmin is derived, not a direct dependency for this effect
+  }, [router, pathname]);
 
   const login = async (email?: string, password?: string) => {
     setIsLoading(true);
@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await firebaseSignOut(auth);
       // setIsAdmin(false); // This will be handled by onAuthStateChanged
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      router.push('/'); // Redirect to home page after logout
+      router.push('/login'); // Redirect to login page after logout
     } catch (error: any) {
       console.error("Firebase logout error:", error);
       toast({ title: 'Logout Failed', description: error.message || 'Could not log out.', variant: 'destructive' });
