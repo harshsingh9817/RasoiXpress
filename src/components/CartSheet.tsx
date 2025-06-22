@@ -55,7 +55,7 @@ const CartSheet = () => {
   return (
     <>
       {showFAB && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 left-6 z-50">
           <Button
             variant="default"
             size="icon"
@@ -63,7 +63,7 @@ const CartSheet = () => {
             onClick={() => setIsCartOpen(true)}
             aria-label={`Open cart with ${itemCount} items`}
           >
-            <ShoppingCart className="h-8 w-8" />
+            <ShoppingCart className="h-7 w-7" />
             {itemCount > 0 && (
               <Badge
                 variant="destructive"
