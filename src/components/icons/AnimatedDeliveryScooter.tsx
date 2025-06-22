@@ -20,6 +20,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
   const buildingColor2 = "#E2E8F0"; // gray.300
   const buildingColor3 = "#BEE3F8"; // blue.200 - for a bit of variety
   const buildingTextColor = "hsl(var(--primary))"; // Red color from theme
+  const newPatternWidth = 220; // Increased width for the new buildings
 
   return (
     <svg
@@ -62,11 +63,11 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
               to { stroke-dashoffset: 40; } /* Animate by length of dash + gap (positive makes it move left) */
           }
           .buildings-scrolling {
-            animation: scrollBuildings 8s linear infinite;
+            animation: scrollBuildings 12s linear infinite;
           }
           @keyframes scrollBuildings {
             from { transform: translateX(0); }
-            to { transform: translateX(-140px); } /* Width of the building pattern */
+            to { transform: translateX(-${newPatternWidth}px); } /* Width of the new building pattern */
           }
         `}
       </style>
@@ -108,38 +109,64 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
                 <tspan x="120" dy="4">Wear</tspan>
             </text>
             
+            {/* New Buildings */}
+            <rect x="135" y="5" width="30" height="65" fill={buildingColor2} />
+             <text x="150" y="15" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="150" dy="0">Computer</tspan>
+                <tspan x="150" dy="4">Skill</tspan>
+                <tspan x="150" dy="4">Academy</tspan>
+            </text>
+            <rect x="170" y="25" width="35" height="45" fill={buildingColor1} />
+            <text x="187.5" y="35" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x="187.5" dy="0">Shiv Shakti</tspan>
+                <tspan x="187.5" dy="4">Creation</tspan>
+            </text>
+
             {/* Pattern 2 (repeat of pattern 1 for looping) */}
-            <rect x="140" y="30" width="20" height="40" fill={buildingColor1} />
-            <rect x="145" y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
-            <text x="150" y="40" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
-                <tspan x="150" dy="0">sandhya</tspan>
-                <tspan x="150" dy="4">sweets</tspan>
+            <rect x={0 + newPatternWidth} y="30" width="20" height="40" fill={buildingColor1} />
+            <rect x={5 + newPatternWidth} y="50" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <text x={10 + newPatternWidth} y="40" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={10 + newPatternWidth} dy="0">sandhya</tspan>
+                <tspan x={10 + newPatternWidth} dy="4">sweets</tspan>
             </text>
 
-            <rect x="165" y="20" width="15" height="50" fill={buildingColor2} />
-            <rect x="168" y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
-            <rect x="168" y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x={25 + newPatternWidth} y="20" width="15" height="50" fill={buildingColor2} />
+            <rect x={28 + newPatternWidth} y="30" width="9" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x={28 + newPatternWidth} y="40" width="9" height="5" fill={seatColor} opacity="0.5"/>
             
-            <rect x="185" y="40" width="25" height="30" fill={buildingColor3} />
-            <text x="197.5" y="50" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
-                <tspan x="197.5" dy="0">Prakash</tspan>
-                <tspan x="197.5" dy="4">Vastralaya</tspan>
+            <rect x={45 + newPatternWidth} y="40" width="25" height="30" fill={buildingColor3} />
+            <text x={57.5 + newPatternWidth} y="50" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={57.5 + newPatternWidth} dy="0">Prakash</tspan>
+                <tspan x={57.5 + newPatternWidth} dy="4">Vastralaya</tspan>
             </text>
 
-            <rect x="215" y="10" width="30" height="60" fill={buildingColor1} />
-            <rect x="218" y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
-            <rect x="218" y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
-            <text x="230" y="20" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
-                <tspan x="230" dy="0">City</tspan>
-                <tspan x="230" dy="4">Mega</tspan>
-                <tspan x="230" dy="4">Mart</tspan>
+            <rect x={75 + newPatternWidth} y="10" width="30" height="60" fill={buildingColor1} />
+            <rect x={78 + newPatternWidth} y="15" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x={78 + newPatternWidth} y="25" width="24" height="5" fill={seatColor} opacity="0.5"/>
+            <text x={90 + newPatternWidth} y="20" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={90 + newPatternWidth} dy="0">City</tspan>
+                <tspan x={90 + newPatternWidth} dy="4">Mega</tspan>
+                <tspan x={90 + newPatternWidth} dy="4">Mart</tspan>
             </text>
 
-            <rect x="250" y="35" width="20" height="35" fill={buildingColor2} />
-             <text x="260" y="45" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
-                <tspan x="260" dy="0">Google</tspan>
-                <tspan x="260" dy="4">Mens</tspan>
-                <tspan x="260" dy="4">Wear</tspan>
+            <rect x={110 + newPatternWidth} y="35" width="20" height="35" fill={buildingColor2} />
+             <text x={120 + newPatternWidth} y="45" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={120 + newPatternWidth} dy="0">Google</tspan>
+                <tspan x={120 + newPatternWidth} dy="4">Mens</tspan>
+                <tspan x={120 + newPatternWidth} dy="4">Wear</tspan>
+            </text>
+
+             {/* New Buildings - Repeated */}
+            <rect x={135 + newPatternWidth} y="5" width="30" height="65" fill={buildingColor2} />
+             <text x={150 + newPatternWidth} y="15" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={150 + newPatternWidth} dy="0">Computer</tspan>
+                <tspan x={150 + newPatternWidth} dy="4">Skill</tspan>
+                <tspan x={150 + newPatternWidth} dy="4">Academy</tspan>
+            </text>
+            <rect x={170 + newPatternWidth} y="25" width="35" height="45" fill={buildingColor1} />
+            <text x={187.5 + newPatternWidth} y="35" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
+                <tspan x={187.5 + newPatternWidth} dy="0">Shiv Shakti</tspan>
+                <tspan x={187.5 + newPatternWidth} dy="4">Creation</tspan>
             </text>
         </g>
       </g>
