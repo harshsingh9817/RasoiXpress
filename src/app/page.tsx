@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
-import Image from 'next/image';
 
 const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
@@ -63,28 +62,17 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative py-10 md:py-16 px-4 sm:px-6 lg:px-8 rounded-lg shadow-inner overflow-hidden">
-        <Image
-          src="https://placehold.co/1200x400.png"
-          alt="Delicious pizza and burgers"
-          layout="fill"
-          objectFit="cover"
-          className="z-0"
-          data-ai-hint="pizza burger collage"
-          priority
-        />
-        <div className="absolute inset-0 bg-black/60 z-10" />
-
-        <div className="relative z-20 flex flex-col md:flex-row items-center justify-between gap-8">
+      <section className="bg-primary text-primary-foreground py-10 md:py-16 px-4 sm:px-6 lg:px-8 rounded-lg shadow-xl">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
-              <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-3">
+              <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3">
                 Home Delivery In Nagra With <span className="text-accent">Rasoi Express</span>
               </h1>
-              <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto md:mx-0">
+              <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0">
                 Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
               </p>
           </div>
-          <div className="md:w-1/2 flex justify-center text-primary">
+          <div className="md:w-1/2 flex justify-center text-primary-foreground">
               <AnimatedDeliveryScooter className="w-full max-w-sm h-auto" />
           </div>
         </div>
