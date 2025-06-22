@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -311,7 +310,7 @@ const Header = () => {
             <Link href="/">
               <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                 <Home className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Restaurants</span>
+                <span className="hidden sm:inline">Menu</span>
               </Button>
             </Link>
 
