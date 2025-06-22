@@ -1,0 +1,38 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Menu items are public to read, but only admins can write.
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if request.auth.token.admin == true;
+    }
+
+    // Orders can be created by any authenticated user for themselves.
+    // They can be read by the user who owns it, or by an admin or delivery person.
+    // They can be updated by an admin or delivery person.
+    // A user can also update their own order to cancel it or add a review.
+    match /orders/{orderId} {
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      allow read: if request.auth.uid == resource.data.userId
+                   || request.auth.token.admin == true
+                   || request.auth.token.delivery == true;
+
+      // Admins and delivery can update status.
+      // Users can only update their own order to 'Cancelled' or to add/update a review.
+      allow update: if (request.auth.token.admin == true || request.auth.token.delivery == true)
+                    || (request.auth.uid == resource.data.userId && (
+                        (request.resource.data.status == 'Cancelled' && resource.data.status != 'Cancelled') || 
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly('review')
+                      ));
+    }
+
+    // User-specific data like addresses.
+    // Only the authenticated user can access their own documents.
+    match /users/{userId}/{document=**} {
+      allow read, write, delete: if request.auth.uid == userId;
+    }
+  }
+}
