@@ -10,10 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
-import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle } from 'lucide-react'; // Added CheckCircle
+import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
@@ -21,9 +20,9 @@ const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
   const router = useRouter();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -38,7 +37,8 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (getCartItemCount() === 0) {
+    // Redirect if cart is empty, but only if an order hasn't just been placed
+    if (getCartItemCount() === 0 && !orderPlaced) {
       router.replace('/');
     }
 
@@ -71,7 +71,7 @@ export default function CheckoutPage() {
         setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
       }
     }
-  }, [getCartItemCount, router]);
+  }, [getCartItemCount, router, orderPlaced]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,33 +139,54 @@ export default function CheckoutPage() {
       orders.unshift(newOrder);
       localStorage.setItem('rasoiExpressUserOrders', JSON.stringify(orders));
     }
-
-    toast({
-      title: (
-        <div className="flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-          <span>Order Confirmed!</span>
-        </div>
-      ),
-      description: 'Thank you for your order. We will process it shortly.',
-      variant: 'default',
-      duration: 5000,
-    });
+    
     clearCart();
-    router.push('/profile');
     setIsLoading(false);
+    setOrderPlaced(true);
+
+    // Redirect after a delay
+    setTimeout(() => {
+        router.push('/profile');
+    }, 4000);
   };
 
-  if (!isClient || getCartItemCount() === 0) {
+  if (!isClient) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {getCartItemCount() === 0 ? "Redirecting to homepage..." : "Loading checkout..."}
+          Loading checkout...
         </p>
       </div>
     );
   }
+
+  if (orderPlaced) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-20"></div>
+          <CheckCircle className="relative h-24 w-24 text-green-500" />
+        </div>
+        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Placed!</h1>
+        <p className="text-lg text-muted-foreground max-w-md">
+          Thank you for your purchase. You can track the status of your order on your profile page.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <Button onClick={() => router.push('/profile')} size="lg">
+                Go to My Orders
+            </Button>
+            <Button onClick={() => router.push('/')} variant="outline" size="lg">
+                Continue Shopping
+            </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-6">
+          You will be redirected to your profile automatically in a few seconds...
+        </p>
+      </div>
+    );
+  }
+
 
   const subTotal = getCartTotal();
   const deliveryFee = 49; // Example in Rupees
