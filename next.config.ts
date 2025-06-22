@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
         hostname: 'encrypted-tbn0.gstatic.com',
         port: '',
         pathname: '/**',
+      },
+      { // Added to fix image loading error
+        protocol: 'https',
+        hostname: 'www.dominos.co.in',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
