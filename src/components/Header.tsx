@@ -42,22 +42,17 @@ const Header = () => {
   const { toast } = useToast();
   const itemCount = getCartItemCount();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
+  
+  // Notification State
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
 
   // Location State
   const [currentLocation, setCurrentLocation] = useState<GeocodedLocation | null>(null);
   const [isLocationPopoverOpen, setIsLocationPopoverOpen] = useState(false);
   const [pinCodeInput, setPinCodeInput] = useState('');
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
-
-  const initialNotifications: AppNotification[] = [
-    { id: 1, title: "New Dish Alert at Pizza Palace!", message: "Try our new 'Spicy Dragon Noodles'. Limited time only!", read: false, type: 'new_dish', restaurantId: 'r1' },
-    { id: 2, title: "Order #ORD12345 Delivered", message: "Your recent order has been successfully delivered. Enjoy!", read: true, type: 'order_update', orderId: 'ORD12345', link: '/profile' },
-    { id: 3, title: "Weekend Special: 20% Off!", message: "Get 20% off on all burgers at Burger Barn this weekend!", read: false, type: 'offer', restaurantId: 'r2' },
-    { id: 4, title: "Welcome to Rasoi Xpress!", message: "Explore thousands of restaurants and dishes.", read: true, type: 'general' },
-  ];
-
-  const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
 
   useEffect(() => {
     // Load location from localStorage
@@ -78,6 +73,48 @@ const Header = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) return; // Don't fetch notifications if not logged in
+
+    const fetchRecommendations = async () => {
+      setIsLoadingNotifications(true);
+      try {
+        const response = await fetch('/api/recommend', { method: 'POST' });
+        if (!response.ok) {
+          console.error("Failed to fetch recommendations");
+          setNotifications([]);
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data?.recommendations) {
+          const newNotifications: AppNotification[] = data.recommendations.map((rec: any, index: number) => ({
+            id: Date.now() + index,
+            title: `You might love the ${rec.dishName}!`,
+            message: rec.reason,
+            read: false,
+            type: 'new_dish',
+            restaurantId: rec.restaurantId,
+            link: `/restaurants/${rec.restaurantId}`,
+          }));
+          setNotifications(newNotifications);
+        } else {
+           setNotifications([]);
+        }
+
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        setNotifications([]);
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [isAuthenticated]);
+
+
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
   const handleNotificationClick = (notificationId: number) => {
@@ -92,14 +129,8 @@ const Header = () => {
 
     if (clickedNotification.link) {
       router.push(clickedNotification.link);
-    } else if (clickedNotification.type === 'new_dish' && clickedNotification.restaurantId) {
-      router.push(`/restaurants/${clickedNotification.restaurantId}`);
-    } else if (clickedNotification.type === 'offer' && clickedNotification.restaurantId) {
-      router.push(`/restaurants/${clickedNotification.restaurantId}`);
-    } else if (clickedNotification.type === 'order_update' && clickedNotification.orderId) {
-      router.push('/profile');
     }
-    // setIsNotificationPanelOpen(false); // Optionally close popover
+    setIsNotificationPanelOpen(false); // Close popover on click
   };
 
   const handleConfirmLocation = async (e: FormEvent) => {
@@ -273,54 +304,66 @@ const Header = () => {
               </>
             )}
 
-            <Popover open={isNotificationPanelOpen} onOpenChange={setIsNotificationPanelOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="relative rounded-full"
-                  aria-label={`Open notifications with ${unreadNotificationCount} unread`}
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadNotificationCount > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                      aria-label={`${unreadNotificationCount} unread notifications`}
-                    >
-                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-4 font-medium border-b">Notifications</div>
-                {notifications.length > 0 ? (
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.map(notification => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
-                        onClick={() => handleNotificationClick(notification.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
-                      >
-                        <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
-                        <p className="text-xs text-muted-foreground">{notification.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="p-4 text-sm text-muted-foreground text-center">No new notifications.</p>
-                )}
-                <div className="p-2 border-t text-center">
-                  <Button variant="link" size="sm" className="text-primary" onClick={() => {/* Implement view all or clear */}}>
-                    View all notifications
+            {isAuthenticated && (
+              <Popover open={isNotificationPanelOpen} onOpenChange={setIsNotificationPanelOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="relative rounded-full"
+                    aria-label={`Open notifications with ${unreadNotificationCount} unread`}
+                  >
+                    <Bell className="h-5 w-5" />
+                    {isLoadingNotifications ? (
+                      <Loader2 className="absolute -right-1 -top-1 h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      unreadNotificationCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                          aria-label={`${unreadNotificationCount} unread notifications`}
+                        >
+                          {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                        </Badge>
+                      )
+                    )}
                   </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <div className="p-4 font-medium border-b">Notifications</div>
+                  {isLoadingNotifications ? (
+                     <div className="p-4 space-y-3">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                     </div>
+                  ) : notifications.length > 0 ? (
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.map(notification => (
+                        <div
+                          key={notification.id}
+                          className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
+                          onClick={() => handleNotificationClick(notification.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
+                        >
+                          <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
+                          <p className="text-xs text-muted-foreground">{notification.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="p-4 text-sm text-muted-foreground text-center">No new notifications.</p>
+                  )}
+                   <div className="p-2 border-t text-center">
+                    <Button variant="link" size="sm" className="text-primary" onClick={() => setNotifications(prev => prev.map(n => ({...n, read: true}))) }>
+                      Mark all as read
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
             <Button
               variant="outline"
