@@ -1,11 +1,19 @@
 
 import type { Metadata } from 'next';
+import { PT_Sans } from 'next/font/google'; // Import PT Sans
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import { CartProvider } from '@/contexts/CartContext';
-import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
+import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
+
+// Configure the font
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'], // Include weights you need
+  variable: '--font-pt-sans', // CSS variable for tailwind
+});
 
 export const metadata: Metadata = {
   title: 'Rasoi Xpress - Fast Food Delivery',
@@ -21,8 +29,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
       </head>
-      <body className="font-body antialiased">
-        <AuthProvider> {/* Wrap with AuthProvider */}
+      <body className={`${ptSans.variable} font-body antialiased`}>
+        <AuthProvider>
           <CartProvider>
             <Header />
             <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">

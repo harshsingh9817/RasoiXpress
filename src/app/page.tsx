@@ -80,7 +80,7 @@ export default function HomePage() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow">
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
             <SelectTrigger className="w-full md:w-[180px] bg-muted focus:bg-background" aria-label="Filter by cuisine">
               <SelectValue placeholder="Filter by Cuisine" />

@@ -103,10 +103,10 @@ export default function RestaurantDetailPage() {
           data-ai-hint={`${restaurant.name.split(" ")[0].toLowerCase()} restaurant interior`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-6 md:p-8">
+        <div className="absolute bottom-0 left-0 p-6 md:p-8 text-center md:text-left">
           <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-2">{restaurant.name}</h1>
           <p className="text-lg text-gray-200">{restaurant.cuisine}</p>
-          <div className="flex items-center space-x-4 mt-2">
+          <div className="flex items-center justify-center md:justify-start space-x-4 mt-2">
             <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
               <Star className="mr-1 h-4 w-4 text-accent fill-accent" /> {restaurant.rating.toFixed(1)}
             </Badge>
@@ -130,7 +130,7 @@ export default function RestaurantDetailPage() {
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center sticky top-16 bg-background py-4 z-10 -mx-4 px-4 border-b">
           <h2 className="text-3xl font-headline font-semibold">Menu</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="w-full md:w-[180px]" aria-label="Filter by category">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
@@ -156,7 +156,7 @@ export default function RestaurantDetailPage() {
             <Button 
               variant={showVegetarian ? "default" : "outline"} 
               onClick={() => setShowVegetarian(!showVegetarian)}
-              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white w-full md:w-auto" : "w-full md:w-auto"}
             >
               <Leaf className="mr-2 h-4 w-4" /> Vegetarian Only
             </Button>
@@ -179,4 +179,3 @@ export default function RestaurantDetailPage() {
     </div>
   );
 }
-
