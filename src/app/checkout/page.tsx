@@ -4,6 +4,7 @@
 import { useState, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
+  const { user } = useAuth(); // Get the authenticated user
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -103,12 +105,19 @@ export default function CheckoutPage() {
 
   const handleSubmitOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!user) {
+        // This case should ideally not happen due to route protection
+        console.error("User is not authenticated. Cannot place order.");
+        return;
+    }
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
+      userId: user.uid,
+      userEmail: user.email || 'N/A',
       date: new Date().toISOString().split('T')[0],
       status: 'Order Placed',
       total: getCartTotal() + 49 + (getCartTotal() * 0.05), // Example delivery and tax in Rupees
@@ -126,7 +135,8 @@ export default function CheckoutPage() {
     };
 
     if (typeof window !== 'undefined') {
-      const existingOrdersString = localStorage.getItem('rasoiExpressUserOrders');
+      // Use a global key for all orders to simulate a central DB for the delivery person feature
+      const existingOrdersString = localStorage.getItem('rasoiExpressAllOrders');
       let orders: Order[] = [];
       if (existingOrdersString) {
         try {
@@ -136,8 +146,8 @@ export default function CheckoutPage() {
           orders = [];
         }
       }
-      orders.unshift(newOrder);
-      localStorage.setItem('rasoiExpressUserOrders', JSON.stringify(orders));
+      orders.unshift(newOrder); // Add new order to the beginning of the list
+      localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(orders));
     }
     
     clearCart();
@@ -344,3 +354,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    

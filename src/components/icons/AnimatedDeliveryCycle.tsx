@@ -11,9 +11,9 @@ interface AnimatedDeliveryCycleProps {
 
 const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, width = "100%", height = "100%" }) => {
   // Define HSL colors based on common theme variables or fixed values
-  const backpackColor = "hsl(220, 75%, 55%)"; // A distinct blue
-  const backpackHighlightColor = "hsl(220, 75%, 65%)";
-  const helmetColor = "hsl(210, 20%, 30%)"; // Dark grey/blue
+  const backpackColor = "hsl(var(--primary))"; // Use primary color for backpack
+  const backpackHighlightColor = "hsl(var(--primary-foreground))"; // A light color for contrast
+  const helmetColor = "hsl(var(--accent))"; // Use accent for helmet
   const shirtColor = "hsl(200, 15%, 85%)"; // Light greyish blue
   const pantsColor = "hsl(210, 20%, 40%)"; // Medium grey/blue
   const skinColor = "hsl(35, 50%, 80%)"; // A light skin tone
@@ -180,3 +180,5 @@ const AnimatedDeliveryCycle: FC<AnimatedDeliveryCycleProps> = ({ className, widt
 };
 
 export default AnimatedDeliveryCycle;
+
+    

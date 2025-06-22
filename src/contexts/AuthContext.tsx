@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isDelivery: boolean; // Add delivery role
   login: (email?: string, password?: string) => Promise<void>;
   signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDelivery, setIsDelivery] = useState(false); // Add delivery state
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -44,42 +46,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const idTokenResult = await getIdTokenResult(currentUser, true);
           const isAdminClaim = !!idTokenResult.claims.admin;
+          const isDeliveryClaim = !!idTokenResult.claims.delivery;
           setIsAdmin(isAdminClaim);
+          setIsDelivery(isDeliveryClaim);
 
-          if (pathname === '/admin' && !isAdminClaim) {
-            router.replace('/'); // Redirect non-admins trying to access admin page
-          } else if ((pathname === '/login' || pathname === '/signup')) {
-            router.replace('/');
+          const isLoginPage = pathname === '/login' || pathname === '/signup';
+          const isDeliveryLoginPage = pathname === '/delivery/login';
+
+          // Redirect based on role
+          if (isDeliveryClaim) {
+            if (!pathname.startsWith('/delivery')) {
+              router.replace('/delivery/dashboard');
+            }
+          } else if (isAdminClaim) {
+            if (pathname === '/admin' && !isAdminClaim) {
+                router.replace('/');
+            } else if (isLoginPage || isDeliveryLoginPage) {
+                router.replace('/admin');
+            }
+          } else { // Regular user
+            if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+              router.replace('/');
+            } else if (isLoginPage) {
+              router.replace('/');
+            }
           }
+
         } catch (error) {
           console.error("Error getting user claims:", error);
           setIsAdmin(false);
-          if (pathname === '/admin') router.replace('/');
+          setIsDelivery(false);
+          // Fallback redirect if claims fail
+          if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+            router.replace('/');
+          }
         }
       } else {
+        // No user logged in
         setIsAdmin(false);
-        // All routes except login and signup are protected
-        const publicRoutes = ['/login', '/signup'];
-        if (!publicRoutes.includes(pathname)) {
-          router.replace('/login');
-        }
+        setIsDelivery(false);
+        const isProtectedUserRoute = !['/login', '/signup', '/delivery/login'].includes(pathname) && !pathname.startsWith('/admin') && !pathname.startsWith('/delivery');
+        const isProtectedAdminRoute = pathname.startsWith('/admin');
+        const isProtectedDeliveryRoute = pathname.startsWith('/delivery') && pathname !== '/delivery/login';
+        
+        if (isProtectedAdminRoute) router.replace('/login'); // Or a dedicated admin login
+        else if (isProtectedDeliveryRoute) router.replace('/delivery/login');
+        else if (isProtectedUserRoute) router.replace('/login');
+
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [router, pathname]);
+  }, []); // Removed router and pathname to prevent re-renders on navigation. Logic inside handles it now.
 
   const login = async (email?: string, password?: string) => {
-    setIsLoading(true);
+    // Note: We don't set isLoading here because onAuthStateChanged handles it, preventing flashes
     if (!email || !password) {
       toast({ title: 'Login Error', description: 'Email and password are required.', variant: 'destructive' });
-      setIsLoading(false);
       return;
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle routing and setting isAdmin
+      // onAuthStateChanged will handle routing and setting roles.
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -90,23 +119,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description = error.message;
       }
       toast({ title: 'Login Failed', description, variant: 'destructive' });
-      setIsLoading(false);
     }
   };
 
   const signup = async (email?: string, password?: string, fullName?: string) => {
-    setIsLoading(true);
      if (!email || !password || !fullName) {
       toast({ title: 'Signup Error', description: 'Full name, email and password are required.', variant: 'destructive' });
-      setIsLoading(false);
       return;
     }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
-        // Refresh token to ensure claims are up-to-date if any default claims were set or modified.
-        // Also helps if displayName is used in claims by custom logic (though not default).
         await userCredential.user.getIdToken(true);
       }
       // onAuthStateChanged will handle routing
@@ -126,29 +150,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           variant: 'destructive',
         });
       }
-      setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    setIsLoading(true);
+    const wasDelivery = isDelivery;
     try {
       await firebaseSignOut(auth);
-      // setIsAdmin(false); // This will be handled by onAuthStateChanged
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      router.push('/login'); // Redirect to login page after logout
+      // Redirect to the appropriate login page based on previous role
+      if (wasDelivery) {
+          router.push('/delivery/login');
+      } else {
+          router.push('/login');
+      }
     } catch (error: any) {
       console.error("Firebase logout error:", error);
       toast({ title: 'Logout Failed', description: error.message || 'Could not log out.', variant: 'destructive' });
-    } finally {
-      // setIsLoading(false); // onAuthStateChanged will set loading to false
     }
   };
 
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -161,3 +186,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    

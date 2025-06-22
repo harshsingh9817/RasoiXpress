@@ -77,6 +77,8 @@ const TAX_RATE = 0.05; // 5%
 const initialMockOrders: Order[] = [
   {
     id: 'ORDNEW001',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-25',
     status: 'Order Placed',
     total: 899.00 + DELIVERY_FEE + (899.00 * TAX_RATE),
@@ -90,6 +92,8 @@ const initialMockOrders: Order[] = [
   },
   {
     id: 'ORD12345',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-15',
     status: 'Delivered',
     total: 1299 + (875*2) + DELIVERY_FEE + ((1299 + (875*2)) * TAX_RATE),
@@ -103,6 +107,8 @@ const initialMockOrders: Order[] = [
   },
   {
     id: 'ORD67890',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-20',
     status: 'Preparing',
     total: 1600 + 400 + DELIVERY_FEE + ((1600+400) * TAX_RATE),
@@ -115,6 +121,8 @@ const initialMockOrders: Order[] = [
   },
    {
     id: 'ORD11223',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-22',
     status: 'Shipped',
     total: 1400 + DELIVERY_FEE + (1400 * TAX_RATE),
@@ -124,6 +132,8 @@ const initialMockOrders: Order[] = [
   },
   {
     id: 'ORDDELIVEREDNOREVIEW',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-23',
     status: 'Delivered',
     total: 920 + DELIVERY_FEE + (920*TAX_RATE),
@@ -133,6 +143,8 @@ const initialMockOrders: Order[] = [
   },
   {
     id: 'ORDCANCELED',
+    userId: 'mock-user-id',
+    userEmail: 'user@example.com',
     date: '2024-07-21',
     status: 'Cancelled',
     cancellationReason: "Ordered by mistake",
@@ -195,37 +207,29 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setIsClientRendered(true);
-    if (typeof window !== 'undefined') {
-      const storedOrdersString = localStorage.getItem('rasoiExpressUserOrders');
-      let loadedOrders: Order[] = initialMockOrders.map(order => ({
-        ...order,
-        items: order.items.map(item => ({
-          ...item,
-          imageUrl: item.imageUrl.includes('data-ai-hint')
-            ? item.imageUrl
-            : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
-        }))
-      }));
+    if (typeof window !== 'undefined' && firebaseUser) {
+      // Use the global key for all orders, then filter for the current user
+      const storedOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+      let allOrders: Order[] = [];
+      
       if (storedOrdersString) {
-        try {
-          const parsedOrders = JSON.parse(storedOrdersString) as Order[];
-          if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
-            loadedOrders = parsedOrders.map(order => ({
-              ...order,
-              items: order.items.map(item => ({
-                ...item,
-                imageUrl: item.imageUrl.includes('data-ai-hint')
-                  ? item.imageUrl
-                  : `${item.imageUrl.split('?')[0]}?data-ai-hint=${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`
-              }))
-            }));
+          try {
+              allOrders = JSON.parse(storedOrdersString) as Order[];
+          } catch(e) {
+              console.error("Failed to parse all orders from localStorage", e);
+              allOrders = [];
           }
-        } catch (e) {
-          console.error("Failed to parse orders from localStorage", e);
-        }
       }
-      setOrders(loadedOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
 
+      // If no stored orders, populate with mock orders for this user
+      if (allOrders.length === 0) {
+        allOrders = initialMockOrders.map(o => ({ ...o, userId: firebaseUser.uid, userEmail: firebaseUser.email || 'N/A' }));
+        localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
+      }
+      
+      const userOrders = allOrders.filter(o => o.userId === firebaseUser.uid);
+
+      setOrders(userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
 
       const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
       if (storedAddressesString) {
@@ -244,7 +248,7 @@ export default function ProfilePage() {
         setAddresses(initialMockAddresses);
       }
     }
-  }, []);
+  }, [isClientRendered, firebaseUser]);
 
   useEffect(() => {
     if (isClientRendered && !isAuthLoading && !isAuthenticated) {
@@ -258,12 +262,8 @@ export default function ProfilePage() {
     }
   }, [addresses, isClientRendered]);
   
-  useEffect(() => {
-    if (isClientRendered && typeof window !== 'undefined' && orders.length > 0) {
-        localStorage.setItem('rasoiExpressUserOrders', JSON.stringify(orders));
-    }
-  }, [orders, isClientRendered]);
-
+  // No longer need to save orders from here, as it's a global list modified elsewhere.
+  // A refresh is handled by the main useEffect.
 
   useEffect(() => {
     if (firebaseUser?.photoURL) {
@@ -424,7 +424,7 @@ export default function ProfilePage() {
   };
 
   const handleOpenCancelDialog = (order: Order) => {
-    if (order.status === 'Order Placed') {
+    if (order.status === 'Order Placed' || order.status === 'Confirmed') {
       setOrderToCancel(order);
       setSelectedCancelReason('');
       setIsCancelDialogOpen(true);
@@ -454,19 +454,30 @@ export default function ProfilePage() {
 
     const orderIdToCancel = orderToCancel.id;
     const reasonForCancellation = selectedCancelReason;
+    
+    // Update global list
+    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+    if (allOrdersString) {
+      let allOrders = JSON.parse(allOrdersString) as Order[];
+      const orderIndex = allOrders.findIndex(o => o.id === orderIdToCancel);
+      if (orderIndex !== -1) {
+          allOrders[orderIndex].status = 'Cancelled';
+          allOrders[orderIndex].cancellationReason = reasonForCancellation;
+          localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
 
-    setOrders(prevOrders =>
-      prevOrders.map(o =>
-        o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: reasonForCancellation } : o
-      )
-    );
-    setTimeout(() => {
-      toast({
-        title: 'Order Cancelled',
-        description: `Order ${orderIdToCancel} has been successfully cancelled. Reason: ${reasonForCancellation}`,
-        variant: 'default',
-      });
-    }, 0);
+          // Update local state for UI
+          setOrders(prevOrders => prevOrders.map(o => o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: reasonForCancellation } : o));
+          
+          setTimeout(() => {
+              toast({
+                  title: 'Order Cancelled',
+                  description: `Order ${orderIdToCancel} has been successfully cancelled.`,
+                  variant: 'default',
+              });
+          }, 0);
+      }
+    }
+
     setIsCancelDialogOpen(false);
     setOrderToCancel(null);
     setSelectedCancelReason('');
@@ -508,19 +519,24 @@ export default function ProfilePage() {
 
     const orderIdToReview = orderToReview.id;
 
-    setOrders(prevOrders =>
-      prevOrders.map(o =>
-        o.id === orderIdToReview ? { ...o, review: newReview } : o
-      )
-    );
-    
-    setTimeout(() => {
-      toast({
-        title: 'Review Submitted!',
-        description: 'Thank you for your feedback.',
-        variant: 'default',
-      });
-    }, 0);
+    // Update global list
+    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+    if (allOrdersString) {
+        let allOrders = JSON.parse(allOrdersString) as Order[];
+        const orderIndex = allOrders.findIndex(o => o.id === orderIdToReview);
+        if (orderIndex !== -1) {
+            allOrders[orderIndex].review = newReview;
+            localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
+            setOrders(prevOrders => prevOrders.map(o => o.id === orderIdToReview ? { ...o, review: newReview } : o));
+            setTimeout(() => {
+                toast({
+                    title: 'Review Submitted!',
+                    description: 'Thank you for your feedback.',
+                    variant: 'default',
+                });
+            }, 0);
+        }
+    }
 
     setIsReviewDialogOpen(false);
     setOrderToReview(null);
@@ -650,7 +666,7 @@ export default function ProfilePage() {
                             ))}
                             <span className="ml-2 text-xs text-muted-foreground">({order.review.rating}/5)</span>
                           </div>
-                          {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">{order.review.comment}</p>}
+                          {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">{`"${order.review.comment}"`}</p>}
                         </div>
                       )}
 
@@ -673,7 +689,7 @@ export default function ProfilePage() {
                           <FileText className="mr-2 h-4 w-4" />
                           View Bill
                         </Button>
-                        {order.status === 'Order Placed' && (
+                        {(order.status === 'Order Placed' || order.status === 'Confirmed') && (
                           <Button
                             variant="destructive"
                             size="sm"
@@ -1118,3 +1134,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

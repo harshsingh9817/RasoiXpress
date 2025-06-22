@@ -50,6 +50,8 @@ export interface Review {
 
 export interface Order {
   id: string;
+  userId: string; // Added to associate order with a user
+  userEmail: string; // Added for display on delivery dashboard
   date: string;
   status: OrderStatus;
   total: number; // This is the grand total
@@ -92,3 +94,5 @@ export interface AppNotification {
   link?: string;
   orderId?: string;
 }
+
+    
