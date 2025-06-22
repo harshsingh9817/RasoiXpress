@@ -104,13 +104,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
-        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
-        <div className="flex flex-row flex-wrap gap-2">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
+        <div className="w-full md:flex-1">
+          <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
+        </div>
+        <div className="flex w-full md:w-auto flex-row items-center gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full sm:w-auto min-w-[150px]" aria-label="Filter by category">
+              <SelectTrigger className="w-full" aria-label="Filter by category">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
-                <SelectValue placeholder="Filter by Category" />
+                <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 {uniqueCategories.map(category => (
@@ -119,9 +121,9 @@ export default function HomePage() {
               </SelectContent>
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full sm:w-auto min-w-[150px]" aria-label="Sort by">
+              <SelectTrigger className="w-full" aria-label="Sort by">
                  <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="popular">Popularity</SelectItem>
@@ -132,7 +134,7 @@ export default function HomePage() {
             <Button 
               variant={showVegetarian ? "default" : "outline"} 
               onClick={() => setShowVegetarian(!showVegetarian)}
-              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+              className={`whitespace-nowrap ${showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
             >
               <Leaf className="mr-2 h-4 w-4" /> Veg Only
             </Button>
