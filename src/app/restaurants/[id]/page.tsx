@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import CartSheet from '@/components/CartSheet';
 
 export default function RestaurantDetailPage() {
   const params = useParams(); 
@@ -175,7 +174,6 @@ export default function RestaurantDetailPage() {
           </div>
         )}
       </section>
-      <CartSheet />
     </div>
   );
 }

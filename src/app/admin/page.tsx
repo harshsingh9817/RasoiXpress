@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ShieldCheck, Sparkles } from 'lucide-react';
-import CartSheet from '@/components/CartSheet'; 
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -112,7 +111,6 @@ export default function AdminPage() {
             </CardContent>
         </Card>
       </div>
-      <CartSheet />
     </div>
   );
 }

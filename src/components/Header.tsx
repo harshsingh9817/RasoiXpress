@@ -4,10 +4,9 @@
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
+import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
 import RasoiXpressLogo from './icons/RasoiXpressLogo';
 import { Button } from './ui/button';
-import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
@@ -56,12 +55,10 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
 };
 
 const Header = () => {
-  const { getCartItemCount, setIsCartOpen } = useCart();
   const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
-  const itemCount = getCartItemCount();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   
   // Notification State
@@ -433,25 +430,6 @@ const Header = () => {
                 </PopoverContent>
               </Popover>
             )}
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative rounded-full"
-              onClick={() => setIsCartOpen(true)}
-              aria-label={`Open cart with ${itemCount} items`}
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {itemCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                  aria-label={`${itemCount} items in cart`}
-                >
-                  {itemCount}
-                </Badge>
-              )}
-            </Button>
           </nav>
         </div>
       </header>

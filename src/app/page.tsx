@@ -8,7 +8,6 @@ import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import CartSheet from '@/components/CartSheet'; 
 import { Utensils } from 'lucide-react'; 
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
@@ -118,7 +117,6 @@ export default function HomePage() {
           </Button>
         </div>
       )}
-      <CartSheet />
     </div>
   );
 }
