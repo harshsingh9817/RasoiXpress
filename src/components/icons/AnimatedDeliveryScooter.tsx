@@ -13,12 +13,14 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
   const wheelTireColor = "#2D3748"; // Dark Gray (Tailwind gray.800 - for tires)
   const wheelRimColor = "#E2E8F0"; // Light Gray (Tailwind gray.200 - for rims and handlebar grips)
   const riderAndBoxColor = "#2D3748"; // Dark Gray (Tailwind gray.800 - for rider and box silhouette)
+  const roadColor = "#4A5568"; // Tailwind gray.700 for asphalt
+  const roadLineColor = "#E2E8F0"; // Tailwind gray.200 for markings
 
   return (
     <svg
       width={width}
       height={height}
-      viewBox="0 0 100 75" // Adjusted viewBox for a wider aspect ratio
+      viewBox="0 0 100 85" // Increased height for road
       xmlns="http://www.w3.org/2000/svg"
       className={className} // Handles sizing and text color for currentColor (used by speed lines)
     >
@@ -45,8 +47,24 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
             70% { opacity: 0.2; transform: translateX(-15px); } 
             100% { opacity: 0; transform: translateX(-18px); }
           }
+          .road-line {
+            stroke-dasharray: 15 25; /* 15px dash, 25px gap */
+            stroke-linecap: round;
+            animation: dashAnim 0.8s linear infinite;
+          }
+          @keyframes dashAnim {
+              from { stroke-dashoffset: 0; }
+              to { stroke-dashoffset: -40; } /* Animate by length of dash + gap */
+          }
         `}
       </style>
+      
+      {/* Road */}
+      <g id="road">
+        <rect x="-5" y="70" width="110" height="15" fill={roadColor} />
+        <line className="road-line" x1="-5" y1="77.5" x2="105" y2="77.5" stroke={roadLineColor} strokeWidth="1.5" />
+      </g>
+      
       <g className="scooter-group">
         {/* Rider */}
         <g fill={riderAndBoxColor}>
