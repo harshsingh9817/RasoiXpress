@@ -1,44 +1,39 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { MenuItem } from '@/lib/types';
 import { getMenuItems } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Utensils, Leaf, Filter, TrendingUp } from 'lucide-react';
+import { Utensils, Leaf, Filter, TrendingUp, Loader2 } from 'lucide-react';
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
-  const [isClient, setIsClient] = useState(false);
-
-  const loadItems = useCallback(() => {
-    setMenuItems(getMenuItems());
-  }, []);
 
   useEffect(() => {
-    setIsClient(true);
-    loadItems();
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressAllMenuItems' || event.key === 'rasoiExpressAllRestaurants') {
-        loadItems();
+    const loadItems = async () => {
+      try {
+        setIsLoading(true);
+        const items = await getMenuItems();
+        setMenuItems(items);
+      } catch (error) {
+        console.error("Failed to fetch menu items:", error);
+        // Optionally set an error state to show a message to the user
+      } finally {
+        setIsLoading(false);
       }
     };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadItems]);
+    loadItems();
+  }, []);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));
@@ -77,10 +72,10 @@ export default function HomePage() {
   }, [menuItems, searchTerm, filterCategory, sortOption, showVegetarian]);
 
 
-  if (!isClient) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Utensils className="h-16 w-16 text-primary animate-bounce" />
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">Loading delicious food...</p>
       </div>
     );
@@ -108,9 +103,9 @@ export default function HomePage() {
         <div className="w-full md:flex-1">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
         </div>
-        <div className="flex w-full md:w-auto flex-row items-center gap-2">
+        <div className="flex w-full md:w-auto flex-col sm:flex-row items-center gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full" aria-label="Filter by category">
+              <SelectTrigger className="w-full sm:w-auto" aria-label="Filter by category">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -121,7 +116,7 @@ export default function HomePage() {
               </SelectContent>
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full" aria-label="Sort by">
+              <SelectTrigger className="w-full sm:w-auto" aria-label="Sort by">
                  <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
@@ -134,7 +129,7 @@ export default function HomePage() {
             <Button 
               variant={showVegetarian ? "default" : "outline"} 
               onClick={() => setShowVegetarian(!showVegetarian)}
-              className={`whitespace-nowrap ${showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+              className={`whitespace-nowrap w-full sm:w-auto ${showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
             >
               <Leaf className="mr-2 h-4 w-4" /> Veg Only
             </Button>

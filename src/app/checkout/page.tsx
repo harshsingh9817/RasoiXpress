@@ -4,7 +4,7 @@
 import { useState, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,15 +15,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
+import { placeOrder, getAddresses } from '@/lib/data';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
-  const { user } = useAuth(); // Get the authenticated user
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderDetails, setPlacedOrderDetails] = useState<Order | null>(null);
 
@@ -39,19 +39,21 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery'>('UPI');
 
   useEffect(() => {
-    setIsClient(true);
-    // Redirect if cart is empty, but only if an order hasn't just been placed
+    if (isAuthLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/login');
+      return;
+    }
+    
     if (getCartItemCount() === 0 && !orderPlaced) {
       router.replace('/');
     }
 
-    if (typeof window !== 'undefined') {
-      const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
-      if (storedAddressesString) {
-        try {
-          const addresses = JSON.parse(storedAddressesString) as AddressType[];
+    if (user) {
+        setFormData(prev => ({...prev, fullName: user.displayName || ''}));
+        const fetchAddresses = async () => {
+          const addresses = await getAddresses(user.uid);
           setSavedAddresses(addresses);
-
           const defaultAddress = addresses.find(addr => addr.isDefault);
           if (defaultAddress) {
             setSelectedAddressId(defaultAddress.id);
@@ -60,21 +62,13 @@ export default function CheckoutPage() {
               address: defaultAddress.street,
               city: defaultAddress.city,
               pinCode: defaultAddress.pinCode,
+              phone: defaultAddress.phone || '',
             }));
-          } else {
-             setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
           }
-        } catch (e) {
-          console.error("Failed to parse addresses from localStorage for checkout", e);
-          setSavedAddresses([]);
-          setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
-        }
-      } else {
-        setSavedAddresses([]);
-        setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
-      }
+        };
+        fetchAddresses();
     }
-  }, [getCartItemCount, router, orderPlaced]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, orderPlaced]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,6 +86,7 @@ export default function CheckoutPage() {
           address: selectedAddr.street,
           city: selectedAddr.city,
           pinCode: selectedAddr.pinCode,
+          phone: selectedAddr.phone || '',
         }));
       }
     } else {
@@ -100,6 +95,7 @@ export default function CheckoutPage() {
         address: '',
         city: '',
         pinCode: '',
+        phone: '',
       }));
     }
   };
@@ -107,21 +103,17 @@ export default function CheckoutPage() {
   const handleSubmitOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
-        // This case should ideally not happen due to route protection
         console.error("User is not authenticated. Cannot place order.");
         return;
     }
     setIsLoading(true);
-
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
     const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const newOrder: Order = {
-      id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
+    const newOrderData: Omit<Order, 'id'> = {
       userId: user.uid,
       userEmail: user.email || 'N/A',
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       status: 'Order Placed',
       total: getCartTotal() + 49 + (getCartTotal() * 0.05), // Example delivery and tax in Rupees
       items: cartItems.map(item => ({
@@ -139,23 +131,8 @@ export default function CheckoutPage() {
       deliveryConfirmationCode: confirmationCode,
     };
     
-    setPlacedOrderDetails(newOrder);
-
-    if (typeof window !== 'undefined') {
-      // Use a global key for all orders to simulate a central DB for the delivery person feature
-      const existingOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-      let orders: Order[] = [];
-      if (existingOrdersString) {
-        try {
-          orders = JSON.parse(existingOrdersString);
-        } catch (e) {
-          console.error("Failed to parse orders from localStorage", e);
-          orders = [];
-        }
-      }
-      orders.unshift(newOrder); // Add new order to the beginning of the list
-      localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(orders));
-    }
+    const placedOrder = await placeOrder(newOrderData);
+    setPlacedOrderDetails(placedOrder);
     
     clearCart();
     setIsLoading(false);
@@ -167,12 +144,12 @@ export default function CheckoutPage() {
     }, 8000);
   };
 
-  if (!isClient) {
+  if (isAuthLoading || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          Loading checkout...
+          {isAuthLoading ? "Loading..." : "Redirecting to login..."}
         </p>
       </div>
     );

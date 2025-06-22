@@ -13,6 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { updateOrderStatus } from '@/lib/data';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 
 // UPDATED: Added 'Order Placed' to allow delivery staff to confirm new orders
 type ActionableStatus = 'Order Placed' | 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
@@ -50,77 +53,54 @@ const statusIcons: Record<OrderStatus, React.ElementType> = {
 };
 
 export default function DeliveryDashboard() {
-  const { user, isDelivery, isLoading, logout } = useAuth();
+  const { user, isDelivery, isLoading: isAuthLoading, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null);
   const [enteredCode, setEnteredCode] = useState('');
 
-  const loadActiveOrders = useCallback(() => {
-    if (isDelivery && isClient) {
-      const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-      if (allOrdersString) {
-          try {
-              const allOrders = JSON.parse(allOrdersString) as Order[];
-              const filteredOrders = allOrders.filter(o => 
-                o.status === 'Order Placed' || 
-                o.status === 'Confirmed' || 
-                o.status === 'Preparing' || 
-                o.status === 'Shipped' || 
-                o.status === 'Out for Delivery'
-              );
-              setActiveOrders(filteredOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-          } catch(e) {
-              console.error("Failed to parse all orders from localStorage", e);
-          }
-      }
-    }
-  }, [isClient, isDelivery]);
-
   useEffect(() => {
-    setIsClient(true);
-    if (!isLoading && !isDelivery) {
+    if (!isAuthLoading && !isDelivery) {
       router.replace('/delivery/login');
     }
-  }, [isDelivery, isLoading, router]);
+  }, [isDelivery, isAuthLoading, router]);
   
   useEffect(() => {
-    loadActiveOrders();
-  }, [loadActiveOrders]);
+    if (isDelivery) {
+        setIsDataLoading(true);
+        const ordersRef = collection(db, "orders");
+        const q = query(ordersRef, 
+            where('status', 'in', ['Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery']),
+            orderBy('date', 'desc')
+        );
 
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressAllOrders') {
-        loadActiveOrders();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadActiveOrders]);
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+            setActiveOrders(ordersData);
+            setIsDataLoading(false);
+        }, (error) => {
+            console.error("Error fetching active orders: ", error);
+            toast({ title: "Error", description: "Could not fetch active orders.", variant: "destructive" });
+            setIsDataLoading(false);
+        });
 
-  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
-    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-    if (allOrdersString) {
-        let allOrders = JSON.parse(allOrdersString) as Order[];
-        const orderIndex = allOrders.findIndex(o => o.id === orderId);
+        return () => unsubscribe();
+    }
+  }, [isDelivery, toast]);
 
-        if (orderIndex !== -1) {
-            allOrders[orderIndex].status = newStatus;
-            localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
-
-            // Update local state to reflect the change immediately
-            loadActiveOrders();
-            
-            toast({
-                title: 'Order Updated!',
-                description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
-            });
-        }
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+        await updateOrderStatus(orderId, newStatus);
+        toast({
+            title: 'Order Updated!',
+            description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
+        });
+    } catch (error) {
+        console.error("Failed to update status", error);
+        toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
     }
   };
 
@@ -130,11 +110,11 @@ export default function DeliveryDashboard() {
     setIsConfirmDialogOpen(true);
   };
 
-  const handleConfirmDelivery = () => {
+  const handleConfirmDelivery = async () => {
     if (!orderToConfirm || !enteredCode) return;
 
     if (enteredCode === orderToConfirm.deliveryConfirmationCode) {
-      handleUpdateStatus(orderToConfirm.id, 'Delivered');
+      await handleUpdateStatus(orderToConfirm.id, 'Delivered');
       setIsConfirmDialogOpen(false);
       setOrderToConfirm(null);
       toast({
@@ -152,12 +132,12 @@ export default function DeliveryDashboard() {
   };
 
 
-  if (isLoading || !isClient || !isDelivery) {
+  if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {isLoading ? "Verifying delivery access..." : "Redirecting..."}
+          {isAuthLoading ? "Verifying delivery access..." : "Loading active orders..."}
         </p>
       </div>
     );

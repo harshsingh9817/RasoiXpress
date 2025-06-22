@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
@@ -17,6 +17,8 @@ import { Label } from '@/components/ui/label';
 import type { GeocodedLocation, AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const LocationMap = dynamic(() => import('@/components/LocationMap'), { 
   ssr: false,
@@ -55,7 +57,7 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
 };
 
 const Header = () => {
-  const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
+  const { user, isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -89,7 +91,7 @@ const Header = () => {
           setCurrentLocation(parsedValue as GeocodedLocation);
         } else {
           console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object with city, locality, or error. Removing item.`);
-          localStorage.removeItem('rasoiExpressUserLocation');
+          localStorage.removeItem('rasoiExpressUserLocation'); 
         }
       } catch (error) { 
         console.error(`Failed to parse location from localStorage (malformed JSON: "${savedLocationString}"):`, error);
@@ -98,85 +100,87 @@ const Header = () => {
     }
   }, [isClient]);
 
-  useEffect(() => {
-    if (!isClient || !isAuthenticated) {
+  const syncNotifications = useCallback(async () => {
+    if (!isAuthenticated || !user) {
         setNotifications([]);
         setIsLoadingNotifications(false);
         return;
     }
+    setIsLoadingNotifications(true);
 
-    const syncNotifications = async () => {
-        setIsLoadingNotifications(true);
+    // Fetch user's orders from Firestore
+    const ordersQuery = query(collection(db, 'orders'), where('userId', '==', user.uid));
+    const querySnapshot = await getDocs(ordersQuery);
+    const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
 
-        const storedOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-        const storedOrders: Order[] = storedOrdersString ? JSON.parse(storedOrdersString) : [];
+    const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
+    
+    const generatedNotifications: AppNotification[] = [];
 
-        const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
-        
-        const generatedNotifications: AppNotification[] = [];
+    // 1. Process Order Statuses to generate notifications
+    userOrders.forEach(order => {
+        const notificationId = `notif-${order.id}-${order.status}`;
+        const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
 
-        // 1. Process Order Statuses to generate notifications
-        storedOrders.forEach(order => {
-            const notificationId = `notif-${order.id}-${order.status}`;
-            const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
-
-            if (!hasNotif && orderStatusNotificationMap[order.status]) {
-                const details = orderStatusNotificationMap[order.status]!;
-                generatedNotifications.push({
-                    id: notificationId,
-                    timestamp: Date.now() + Math.random(), // Add jitter to maintain order
-                    title: `${details.title} (#${order.id.slice(-5)})`,
-                    message: details.message,
-                    read: false,
-                    type: 'order_update',
-                    orderId: order.id,
-                    link: '/profile',
-                });
-            }
-        });
-
-        // 2. Fetch AI Recommendations
-        let aiNotifications: AppNotification[] = [];
-        try {
-            const response = await fetch('/api/recommend', { method: 'POST' });
-            if (response.ok) {
-                const data = await response.json();
-                if (data?.recommendations) {
-                    aiNotifications = data.recommendations.map((rec: any, index: number) => ({
-                        id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
-                        timestamp: Date.now() - (index * 1000), // Stagger timestamps slightly
-                        title: `✨ You might love ${rec.dishName}!`,
-                        message: rec.reason,
-                        read: false,
-                        type: 'new_dish' as const,
-                        link: `/restaurants/${rec.restaurantId}`,
-                    }));
-                }
-            }
-        } catch (error) {
-            // Silently fail. The recommendation service might be down or not configured.
-            // The rest of the notification system should still work.
+        if (!hasNotif && orderStatusNotificationMap[order.status]) {
+            const details = orderStatusNotificationMap[order.status]!;
+            generatedNotifications.push({
+                id: notificationId,
+                timestamp: new Date(order.date).getTime() + Math.random(),
+                title: `${details.title} (#${order.id.slice(-5)})`,
+                message: details.message,
+                read: false,
+                type: 'order_update',
+                orderId: order.id,
+                link: '/profile',
+            });
         }
+    });
 
-        // 3. Combine, deduplicate, and save
-        const allNotifications = [
-            ...existingNotifications,
-            ...generatedNotifications,
-            ...aiNotifications,
-        ];
-        
-        const uniqueNotifications = Array.from(new Map(allNotifications.map(n => [n.id, n])).values())
-            .sort((a, b) => b.timestamp - a.timestamp)
-            .slice(0, 25); // Limit to 25 to avoid bloat
+    // 2. Fetch AI Recommendations (remains unchanged)
+    let aiNotifications: AppNotification[] = [];
+    try {
+        const response = await fetch('/api/recommend', { method: 'POST' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data?.recommendations) {
+                aiNotifications = data.recommendations.map((rec: any, index: number) => ({
+                    id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
+                    timestamp: Date.now() - (index * 1000),
+                    title: `✨ You might love ${rec.dishName}!`,
+                    message: rec.reason,
+                    read: false,
+                    type: 'new_dish' as const,
+                    link: `/`,
+                }));
+            }
+        }
+    } catch (error) {
+        console.warn("AI recommendation fetch failed, continuing without them.");
+    }
 
-        setNotifications(uniqueNotifications);
-        localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(uniqueNotifications));
+    // 3. Combine, deduplicate, and save
+    const allNotifications = [
+        ...existingNotifications,
+        ...generatedNotifications,
+        ...aiNotifications,
+    ];
+    
+    const uniqueNotifications = Array.from(new Map(allNotifications.map(n => [n.id, n])).values())
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 25); 
 
-        setIsLoadingNotifications(false);
-    };
+    setNotifications(uniqueNotifications);
+    localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(uniqueNotifications));
 
+    setIsLoadingNotifications(false);
+  }, [isAuthenticated, user]);
+
+
+  useEffect(() => {
+    if (!isClient) return;
     syncNotifications();
-  }, [isAuthenticated, pathname, isClient]); // Re-sync on auth change and navigation
+  }, [isClient, pathname, syncNotifications]);
 
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
@@ -189,14 +193,13 @@ const Header = () => {
       n.id === notificationId ? { ...n, read: true } : n
     );
     setNotifications(updatedNotifications);
-    // Persist the change immediately so it's not lost on the next sync
     localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(updatedNotifications));
 
 
     if (clickedNotification.link) {
       router.push(clickedNotification.link);
     }
-    setIsNotificationPanelOpen(false); // Close popover on click
+    setIsNotificationPanelOpen(false);
   };
 
   const handleConfirmLocation = async (e: FormEvent) => {
@@ -437,7 +440,7 @@ const Header = () => {
                         localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(allRead));
                       }}
                     >
-                      Clear All Notifications
+                      Mark all as read
                     </Button>
                   </div>
                 </PopoverContent>

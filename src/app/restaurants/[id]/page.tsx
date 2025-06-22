@@ -3,11 +3,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { useParams, notFound, useSearchParams } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import { getMenuItems, getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
-import { Star, Clock, Leaf, Filter, Award, TrendingUp } from 'lucide-react';
+import { Star, Clock, Leaf, Filter, Award, TrendingUp, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,34 +21,39 @@ import { Separator } from '@/components/ui/separator';
 
 export default function RestaurantDetailPage() {
   const params = useParams(); 
-  const searchParams = useSearchParams(); 
   const id = params.id as string;
-  
-  // NOTE: This component is now effectively deprecated by making the homepage item-focused.
-  // It is kept here to prevent build errors from incoming links but should be considered for removal.
   
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-    // Attempt to find a restaurant, but since initial data is empty, this will likely fail.
-    const fetchedRestaurant = getRestaurantById(id);
-    if (fetchedRestaurant) {
-      setRestaurant(fetchedRestaurant);
-      setMenuItems(fetchedRestaurant.menu);
-    } else {
-       // Since restaurants are no longer the focus, we can load all menu items as a fallback.
-       setMenuItems(getMenuItems());
-    }
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const fetchedRestaurant = await getRestaurantById(id);
+            if (fetchedRestaurant) {
+                setRestaurant(fetchedRestaurant);
+                setMenuItems(fetchedRestaurant.menu);
+            } else {
+                // Fallback to all menu items if no specific restaurant is found
+                const allItems = await getMenuItems();
+                setMenuItems(allItems);
+            }
+        } catch (error) {
+            console.error("Failed to fetch restaurant details:", error);
+            // Optionally set an error state
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
   }, [id]);
 
   const uniqueCategories = useMemo(() => {
-    if (!restaurant && menuItems.length === 0) return ['All'];
     const itemsToCategorize = restaurant ? restaurant.menu : menuItems;
     const categories = new Set(itemsToCategorize.map(item => item.category));
     return ['All', ...Array.from(categories)];
@@ -82,21 +87,20 @@ export default function RestaurantDetailPage() {
     return items;
   }, [menuItems, filterCategory, sortOption, showVegetarian]);
 
-  if (!isClient) {
+  if (isLoading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-          <Star className="h-16 w-16 text-primary animate-ping" />
+          <Loader2 className="h-16 w-16 text-primary animate-spin" />
           <p className="mt-4 text-xl text-muted-foreground">Loading details...</p>
         </div>
       );
   }
 
-  // If no restaurant and no menu items, it's a true 404
+  // If loading is finished and still no restaurant/menu items, it's a true 404
   if (!restaurant && menuItems.length === 0) {
     notFound();
   }
   
-  // Use a generic header if no specific restaurant is found
   const pageTitle = restaurant ? restaurant.name : "Full Menu";
   const pageCuisine = restaurant ? restaurant.cuisine : "All available dishes";
   const pageImage = restaurant ? restaurant.imageUrl : "https://placehold.co/1280x320.png";

@@ -92,11 +92,11 @@ export default function MenuItemFormDialog({
     try {
       if (menuItem) {
         // Update existing item
-        updateMenuItem({ ...menuItem, ...data });
+        await updateMenuItem({ ...data, id: menuItem.id });
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
       } else {
         // Add new item
-        addMenuItem(data);
+        await addMenuItem(data);
         toast({ title: "Menu Item Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();

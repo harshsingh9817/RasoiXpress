@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { mockRestaurants, getPopularDishes, getCurrentTrends } from '@/lib/data';
+import { getMenuItems, getPopularDishes, getCurrentTrends } from '@/lib/data';
 
 // For this example, we'll use mock data as if it were a user's history.
 // In a real app, this would come from the user's session or a database.
@@ -27,8 +27,8 @@ export type RecommendDishesInput = z.infer<typeof RecommendDishesInputSchema>;
 
 const RecommendationSchema = z.object({
   dishName: z.string().describe('The name of the recommended dish.'),
-  restaurantName: z.string().describe('The name of the restaurant that serves this dish.'),
-  restaurantId: z.string().describe('The ID of the restaurant.'),
+  restaurantName: z.string().describe('The name of the restaurant that serves this dish. Since we are item-focused, this can be "Rasoi Xpress".'),
+  restaurantId: z.string().describe('The ID of the restaurant. Since we are item-focused, this can be a placeholder like "rasoi-xpress".'),
   reason: z.string().describe('A short, compelling reason why the user would like this dish.'),
   isNewToUser: z.boolean().describe('Set to true if this dish is something the user has not ordered before.'),
 });
@@ -46,7 +46,7 @@ export async function recommendDishes(input: RecommendDishesInput): Promise<Reco
 const prompt = ai.definePrompt({
   name: 'recommendDishesPrompt',
   input: { schema: z.object({
-    restaurants: z.string(),
+    menuItems: z.string(),
     popularDishes: z.string(),
     currentTrends: z.string(),
     userHistory: z.string(),
@@ -55,7 +55,7 @@ const prompt = ai.definePrompt({
   prompt: `You are a food recommendation expert for the food delivery app "Rasoi Xpress". Your goal is to provide personalized and exciting dish recommendations to a user.
 
 Analyze the provided data:
-1.  **Full Restaurant Menu Data**: A JSON object of all available restaurants and their menus.
+1.  **Full Menu Data**: A JSON object of all available menu items.
 2.  **User History**: A JSON object containing the user's favorite cuisines and a list of item IDs they have ordered before.
 3.  **Popular Dishes**: A list of dishes that are popular across the platform.
 4.  **Current Food Trends**: A list of current food trends to consider.
@@ -65,7 +65,7 @@ Your task is to generate exactly 3 recommendations for the user.
 **Instructions**:
 -   **Personalize**: Base your recommendations on the user's favorite cuisines.
 -   **Promote Discovery**: Heavily prioritize recommending dishes the user **has not ordered before**. Use the \`previouslyOrdered\` list to determine this and set the \`isNewToUser\` flag accordingly.
--   **Be Specific**: For each recommendation, you must provide the exact dish name, the restaurant name, and the restaurant ID.
+-   **Be Specific**: For each recommendation, you must provide the exact dish name. For restaurant name, use "Rasoi Xpress". For restaurant ID, use "rasoi-xpress".
 -   **Justify**: Provide a short, exciting, one-sentence reason for each recommendation. Make it sound appealing!
 -   **Format**: Your final output must be a JSON object that strictly adheres to the provided output schema.
 
@@ -86,9 +86,9 @@ Your task is to generate exactly 3 recommendations for the user.
 {{{currentTrends}}}
 \`\`\`
 
-**Full Restaurant Menu Data:**
+**Full Menu Data:**
 \`\`\`json
-{{{restaurants}}}
+{{{menuItems}}}
 \`\`\`
 
 **DATA END**
@@ -106,17 +106,17 @@ const recommendDishesFlow = ai.defineFlow(
     // In a real app, you would fetch user history based on input.userId
     // For now, we use mock data.
     const userHistory = mockUserHistory;
-    const popularDishes = getPopularDishes();
+    const popularDishes = await getPopularDishes();
     const trends = getCurrentTrends();
     
-    // We pass the full restaurant data to the model. In a larger system, you might pre-filter this.
-    const restaurants = mockRestaurants;
+    // We pass the full menu data to the model.
+    const menuItems = await getMenuItems();
 
     const { output } = await prompt({
         userHistory: JSON.stringify(userHistory, null, 2),
         popularDishes: JSON.stringify(popularDishes, null, 2),
         currentTrends: JSON.stringify(trends, null, 2),
-        restaurants: JSON.stringify(restaurants, null, 2),
+        menuItems: JSON.stringify(menuItems, null, 2),
     });
 
     if (!output) {
