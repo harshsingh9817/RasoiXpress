@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { addMenuItem, updateMenuItem } from "@/lib/data";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 const menuItemSchema = z.object({
@@ -58,6 +58,7 @@ export default function MenuItemFormDialog({
   menuItem,
 }: MenuItemFormDialogProps) {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<MenuItemFormValues>({
     resolver: zodResolver(menuItemSchema),
     defaultValues: {
@@ -66,7 +67,7 @@ export default function MenuItemFormDialog({
     },
   });
 
-  const { reset, formState: { isSubmitting } } = form;
+  const { reset } = form;
 
   useEffect(() => {
     if (isOpen) {
@@ -88,15 +89,16 @@ export default function MenuItemFormDialog({
     }
   }, [menuItem, reset, isOpen]);
 
-  const onSubmit = async (data: MenuItemFormValues) => {
+  const onSubmit = (data: MenuItemFormValues) => {
+    setIsSubmitting(true);
     try {
       if (menuItem) {
         // Update existing item
-        await updateMenuItem({ ...data, id: menuItem.id });
+        updateMenuItem({ ...data, id: menuItem.id });
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
       } else {
         // Add new item
-        await addMenuItem(data);
+        addMenuItem(data);
         toast({ title: "Menu Item Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();
@@ -108,6 +110,8 @@ export default function MenuItemFormDialog({
         description: "An error occurred while saving the menu item.",
         variant: "destructive",
       });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 

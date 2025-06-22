@@ -13,19 +13,16 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateOrderStatus } from '@/lib/data';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { updateOrderStatus, getAllOrders } from '@/lib/data';
 
-// UPDATED: Added 'Order Placed' to allow delivery staff to confirm new orders
 type ActionableStatus = 'Order Placed' | 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
 
 const getNextStatus = (currentStatus: ActionableStatus): OrderStatus | null => {
     const statusFlow: Record<ActionableStatus, OrderStatus> = {
-        'Order Placed': 'Confirmed',      // UPDATED: Added new step
+        'Order Placed': 'Confirmed',
         'Confirmed': 'Preparing',
         'Preparing': 'Shipped',
-        'Shipped': 'Out for Delivery',    // FIXED: Corrected status value
+        'Shipped': 'Out for Delivery',
         'Out for Delivery': 'Delivered',
     };
     return statusFlow[currentStatus] || null;
@@ -33,7 +30,7 @@ const getNextStatus = (currentStatus: ActionableStatus): OrderStatus | null => {
 
 const getActionText = (currentStatus: ActionableStatus): string => {
     const actionTextMap: Record<ActionableStatus, string> = {
-        'Order Placed': 'Confirm Order', // UPDATED: Added new action text
+        'Order Placed': 'Confirm Order',
         'Confirmed': 'Start Preparing',
         'Preparing': 'Mark as Shipped',
         'Shipped': 'Start Delivery',
@@ -68,36 +65,43 @@ export default function DeliveryDashboard() {
     }
   }, [isDelivery, isAuthLoading, router]);
   
-  useEffect(() => {
-    if (isDelivery) {
+  const loadActiveOrders = useCallback(() => {
+    if(isDelivery) {
         setIsDataLoading(true);
-        const ordersRef = collection(db, "orders");
-        const q = query(ordersRef, 
-            where('status', 'in', ['Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery']),
-            orderBy('date', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-            setActiveOrders(ordersData);
-            setIsDataLoading(false);
-        }, (error) => {
+        try {
+            const allOrders = getAllOrders();
+            const actionableStatuses: OrderStatus[] = ['Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery'];
+            const filteredOrders = allOrders.filter(order => actionableStatuses.includes(order.status));
+            setActiveOrders(filteredOrders);
+        } catch (error) {
             console.error("Error fetching active orders: ", error);
             toast({ title: "Error", description: "Could not fetch active orders.", variant: "destructive" });
+        } finally {
             setIsDataLoading(false);
-        });
-
-        return () => unsubscribe();
+        }
     }
   }, [isDelivery, toast]);
 
-  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
+  useEffect(() => {
+    loadActiveOrders();
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadActiveOrders();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadActiveOrders]);
+
+  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
     try {
-        await updateOrderStatus(orderId, newStatus);
+        updateOrderStatus(orderId, newStatus);
         toast({
             title: 'Order Updated!',
             description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
         });
+        // The storage event listener will handle the state update
     } catch (error) {
         console.error("Failed to update status", error);
         toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
@@ -110,11 +114,11 @@ export default function DeliveryDashboard() {
     setIsConfirmDialogOpen(true);
   };
 
-  const handleConfirmDelivery = async () => {
+  const handleConfirmDelivery = () => {
     if (!orderToConfirm || !enteredCode) return;
 
     if (enteredCode === orderToConfirm.deliveryConfirmationCode) {
-      await handleUpdateStatus(orderToConfirm.id, 'Delivered');
+      handleUpdateStatus(orderToConfirm.id, 'Delivered');
       setIsConfirmDialogOpen(false);
       setOrderToConfirm(null);
       toast({

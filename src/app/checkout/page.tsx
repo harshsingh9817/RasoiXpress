@@ -51,22 +51,19 @@ export default function CheckoutPage() {
 
     if (user) {
         setFormData(prev => ({...prev, fullName: user.displayName || ''}));
-        const fetchAddresses = async () => {
-          const addresses = await getAddresses(user.uid);
-          setSavedAddresses(addresses);
-          const defaultAddress = addresses.find(addr => addr.isDefault);
-          if (defaultAddress) {
-            setSelectedAddressId(defaultAddress.id);
-            setFormData(prev => ({
-              ...prev,
-              address: defaultAddress.street,
-              city: defaultAddress.city,
-              pinCode: defaultAddress.pinCode,
-              phone: defaultAddress.phone || '',
-            }));
-          }
-        };
-        fetchAddresses();
+        const addresses = getAddresses(user.uid);
+        setSavedAddresses(addresses);
+        const defaultAddress = addresses.find(addr => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+          setFormData(prev => ({
+            ...prev,
+            address: defaultAddress.street,
+            city: defaultAddress.city,
+            pinCode: defaultAddress.pinCode,
+            phone: defaultAddress.phone || '',
+          }));
+        }
     }
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, orderPlaced]);
 
@@ -100,7 +97,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSubmitOrder = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmitOrder = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
         console.error("User is not authenticated. Cannot place order.");
@@ -131,7 +128,7 @@ export default function CheckoutPage() {
       deliveryConfirmationCode: confirmationCode,
     };
     
-    const placedOrder = await placeOrder(newOrderData);
+    const placedOrder = placeOrder(newOrderData);
     setPlacedOrderDetails(placedOrder);
     
     clearCart();

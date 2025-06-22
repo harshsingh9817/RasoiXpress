@@ -6,9 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus } from "@/lib/data";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { updateOrderStatus, getAllOrders } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -69,22 +67,35 @@ export default function AdminOrdersPage() {
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router]);
 
-  useEffect(() => {
+  const loadOrders = useCallback(() => {
     if (isAuthenticated && isAdmin) {
-      const q = query(collection(db, "orders"), orderBy("date", "desc"));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const ordersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-        setOrders(ordersData);
-        setIsDataLoading(false);
-      }, (error) => {
-        console.error("Error fetching orders in real-time:", error);
+      setIsDataLoading(true);
+      try {
+        const allOrders = getAllOrders();
+        setOrders(allOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
         toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
+      } finally {
         setIsDataLoading(false);
-      });
-
-      return () => unsubscribe(); // Cleanup listener on component unmount
+      }
     }
   }, [isAuthenticated, isAdmin, toast]);
+
+  useEffect(() => {
+    loadOrders();
+    
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadOrders();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadOrders]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
@@ -99,13 +110,14 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     try {
-      await updateOrderStatus(orderId, newStatus);
+      updateOrderStatus(orderId, newStatus);
       toast({
         title: 'Order Status Updated',
         description: `Order #${orderId.slice(-6)} is now marked as ${newStatus}.`,
       });
+      loadOrders(); // Refresh state after update
     } catch (error) {
       console.error("Failed to update order status", error);
       toast({

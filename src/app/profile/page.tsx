@@ -19,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import {
@@ -40,6 +39,16 @@ import { useToast } from '@/hooks/use-toast';
 import { auth, storage } from '@/lib/firebase';
 import { updateProfile } from 'firebase/auth';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+  getAllOrders,
+  getAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+  cancelOrder,
+  submitOrderReview,
+} from '@/lib/data';
 
 
 const orderProgressSteps: OrderStatus[] = [
@@ -72,105 +81,6 @@ const CANCELLATION_REASONS = [
 
 const DELIVERY_FEE = 49.00;
 const TAX_RATE = 0.05; // 5%
-
-
-const initialMockOrders: Order[] = [
-  {
-    id: 'ORDNEW001',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-25',
-    status: 'Order Placed',
-    total: 899.00 + DELIVERY_FEE + (899.00 * TAX_RATE),
-    items: [
-      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 349, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
-      { id: 'm4', name: 'Veggie Burger', quantity: 1, price: 220, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=veggie%20burgers', category: 'Burgers', description: 'Yummy veggie burger' },
-      { id: 'm10', name: 'French Fries', quantity: 1, price: 120, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=french%20sides', category: 'Sides', description: 'Crispy fries' },
-    ],
-    shippingAddress: '777 New Order Ln, Fresh City',
-    paymentMethod: 'UPI',
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '1234',
-  },
-  {
-    id: 'ORD12345',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-15',
-    status: 'Delivered',
-    total: 1299 + (875*2) + DELIVERY_FEE + ((1299 + (875*2)) * TAX_RATE),
-    items: [
-      { id: 'm1', name: 'Margherita Pizza', quantity: 1, price: 1299, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=margherita%20pizza', category: 'Pizza', description: 'Classic pizza' },
-      { id: 'm3', name: 'Chicken Burger', quantity: 2, price: 875, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=chicken%20burgers', category: 'Burgers', description: 'Juicy burger' },
-    ],
-    shippingAddress: '123 Main St, Anytown, USA',
-    paymentMethod: 'UPI',
-    review: { rating: 5, comment: 'Excellent pizza, very fast delivery!', date: '2024-07-16' },
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '5678',
-  },
-  {
-    id: 'ORD67890',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-20',
-    status: 'Preparing',
-    total: 1600 + 400 + DELIVERY_FEE + ((1600+400) * TAX_RATE),
-    items: [
-      { id: 'm8', name: 'Butter Chicken', quantity: 1, price: 1600, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=butter%20indian', category: 'Indian', description: 'Creamy chicken' },
-      { id: 'm10', name: 'French Fries', quantity: 1, price: 400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=french%20sides', category: 'Sides', description: 'Crispy fries' },
-    ],
-    shippingAddress: '123 Main St, Anytown, USA',
-    paymentMethod: 'Cash on Delivery',
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '9012',
-  },
-   {
-    id: 'ORD11223',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-22',
-    status: 'Shipped',
-    total: 1400 + DELIVERY_FEE + (1400 * TAX_RATE),
-    items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=spaghetti%20pasta', category: 'Pasta', description: 'Creamy pasta' }],
-    shippingAddress: '456 Oak Ave, Anytown, USA',
-    paymentMethod: 'UPI',
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '3456',
-  },
-  {
-    id: 'ORDDELIVEREDNOREVIEW',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-23',
-    status: 'Delivered',
-    total: 920 + DELIVERY_FEE + (920*TAX_RATE),
-    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
-    shippingAddress: '789 Pine Ln, Anytown, USA',
-    paymentMethod: 'UPI',
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '7890',
-  },
-  {
-    id: 'ORDCANCELED',
-    userId: 'mock-user-id',
-    userEmail: 'user@example.com',
-    date: '2024-07-21',
-    status: 'Cancelled',
-    cancellationReason: "Ordered by mistake",
-    total: 920 + DELIVERY_FEE + (920*TAX_RATE),
-    items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
-    shippingAddress: '789 Pine Ln, Anytown, USA',
-    paymentMethod: 'UPI',
-    customerPhone: '9876543210',
-    deliveryConfirmationCode: '1122',
-  }
-];
-
-const initialMockAddresses: AddressType[] = [
-  { id: 'addr1', type: 'Home', street: '123 Main St', city: 'Foodville', pinCode: '12345', phone: '555-0101', alternatePhone: '555-0102', isDefault: true },
-  { id: 'addr2', type: 'Work', street: '456 Business Ave', city: 'Workville', pinCode: '67890', phone: '555-0201', isDefault: false },
-];
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
   type: 'Home',
@@ -216,83 +126,38 @@ export default function ProfilePage() {
   const [currentRating, setCurrentRating] = useState(0);
   const [currentReviewComment, setCurrentReviewComment] = useState('');
 
-  const loadUserOrders = useCallback(() => {
-    if (typeof window !== 'undefined' && firebaseUser) {
-      const storedOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-      let allOrders: Order[] = [];
-      
-      if (storedOrdersString) {
-          try {
-              allOrders = JSON.parse(storedOrdersString) as Order[];
-          } catch(e) {
-              console.error("Failed to parse all orders from localStorage", e);
-              allOrders = [];
-          }
-      }
-
-      if (allOrders.length === 0) {
-        allOrders = initialMockOrders.map(o => ({ ...o, userId: firebaseUser.uid, userEmail: firebaseUser.email || 'N/A' }));
-        localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
-      }
-      
+  const loadUserData = useCallback(() => {
+    if (firebaseUser) {
+      const allOrders = getAllOrders();
       const userOrders = allOrders.filter(o => o.userId === firebaseUser.uid);
-      setOrders(userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
+      setOrders(userOrders);
+      
+      const userAddresses = getAddresses(firebaseUser.uid);
+      setAddresses(userAddresses);
     }
   }, [firebaseUser]);
 
   useEffect(() => {
     setIsClientRendered(true);
-    if (typeof window !== 'undefined') {
-      loadUserOrders();
-
-      const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
-      if (storedAddressesString) {
-        try {
-          const parsedAddresses = JSON.parse(storedAddressesString) as AddressType[];
-          if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
-            setAddresses(parsedAddresses);
-          } else {
-             setAddresses(initialMockAddresses);
-          }
-        } catch (e) {
-          console.error("Failed to parse addresses from localStorage", e);
-          setAddresses(initialMockAddresses);
-        }
-      } else {
-        setAddresses(initialMockAddresses);
-      }
-    }
-  }, [isClientRendered, loadUserOrders]);
-
-  useEffect(() => {
     if (isClientRendered && !isAuthLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
 
   useEffect(() => {
-    if (isClientRendered && typeof window !== 'undefined' && addresses.length > 0) {
-      localStorage.setItem('rasoiExpressUserAddresses', JSON.stringify(addresses));
+    if (isClientRendered && isAuthenticated && firebaseUser) {
+      loadUserData();
+      const handleStorageChange = (event: StorageEvent) => {
+        if (event.key === 'rasoiExpressAllOrders' || event.key === `rasoiExpressUserAddresses_${firebaseUser.uid}`) {
+          loadUserData();
+        }
+      };
+      window.addEventListener('storage', handleStorageChange);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
     }
-  }, [addresses, isClientRendered]);
-
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressAllOrders') {
-        loadUserOrders();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadUserOrders]);
-
-  useEffect(() => {
-    if (firebaseUser?.photoURL) {
-      // console.log("ProfilePage: firebaseUser.photoURL updated to:", firebaseUser.photoURL);
-    }
-  }, [firebaseUser?.photoURL]);
+  }, [isClientRendered, isAuthenticated, firebaseUser, loadUserData]);
 
 
   const findAndDisplayOrderStatus = (idToTrack: string) => {
@@ -303,8 +168,7 @@ export default function ProfilePage() {
       setTrackOrderError('Please enter an order ID.');
       return;
     }
-    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-    const allOrders = allOrdersString ? JSON.parse(allOrdersString) : [];
+    const allOrders = getAllOrders();
     const foundOrder = allOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase() && o.userId === firebaseUser?.uid);
 
     if (foundOrder) {
@@ -339,16 +203,15 @@ export default function ProfilePage() {
   };
 
   const handleSetDefaultAddress = (addressId: string) => {
-    setAddresses(prevAddresses =>
-      prevAddresses.map(addr => ({
-        ...addr,
-        isDefault: addr.id === addressId,
-      }))
-    );
+    if (!firebaseUser) return;
+    setDefaultAddress(firebaseUser.uid, addressId);
+    loadUserData();
   };
 
   const handleDeleteAddress = (addressId: string) => {
-    setAddresses(prevAddresses => prevAddresses.filter(addr => addr.id !== addressId));
+    if (!firebaseUser) return;
+    deleteAddress(firebaseUser.uid, addressId);
+    loadUserData();
   };
 
   const handleOpenAddAddressDialog = () => {
@@ -381,20 +244,17 @@ export default function ProfilePage() {
 
   const handleAddressFormSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!firebaseUser) return;
     if (addressToEdit) {
-      setAddresses(prev =>
-        prev.map(addr =>
-          addr.id === addressToEdit.id ? { ...addressToEdit, ...currentAddressFormData } : addr
-        )
-      );
+      updateAddress(firebaseUser.uid, { ...addressToEdit, ...currentAddressFormData });
     } else {
-      const newAddress: AddressType = {
-        id: `addr${Date.now()}`,
+      const newAddressData: Omit<AddressType, 'id'> = {
         ...currentAddressFormData,
         isDefault: addresses.length === 0,
-      };
-      setAddresses(prev => [...prev, newAddress]);
+      }
+      addAddress(firebaseUser.uid, newAddressData);
     }
+    loadUserData();
     setIsAddressDialogOpen(false);
   };
 
@@ -477,30 +337,16 @@ export default function ProfilePage() {
       }, 0);
       return;
     }
-
-    const orderIdToCancel = orderToCancel.id;
-    const reasonForCancellation = selectedCancelReason;
     
-    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-    if (allOrdersString) {
-      let allOrders = JSON.parse(allOrdersString) as Order[];
-      const orderIndex = allOrders.findIndex(o => o.id === orderIdToCancel);
-      if (orderIndex !== -1) {
-          allOrders[orderIndex].status = 'Cancelled';
-          allOrders[orderIndex].cancellationReason = reasonForCancellation;
-          localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
+    cancelOrder(orderToCancel.id, selectedCancelReason);
 
-          loadUserOrders();
-          
-          setTimeout(() => {
-              toast({
-                  title: 'Order Cancelled',
-                  description: `Order ${orderIdToCancel} has been successfully cancelled.`,
-                  variant: 'default',
-              });
-          }, 0);
-      }
-    }
+    setTimeout(() => {
+        toast({
+            title: 'Order Cancelled',
+            description: `Order ${orderToCancel.id} has been successfully cancelled.`,
+            variant: 'default',
+        });
+    }, 0);
 
     setIsCancelDialogOpen(false);
     setOrderToCancel(null);
@@ -541,25 +387,15 @@ export default function ProfilePage() {
       date: new Date().toISOString().split('T')[0],
     };
 
-    const orderIdToReview = orderToReview.id;
-
-    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-    if (allOrdersString) {
-        let allOrders = JSON.parse(allOrdersString) as Order[];
-        const orderIndex = allOrders.findIndex(o => o.id === orderIdToReview);
-        if (orderIndex !== -1) {
-            allOrders[orderIndex].review = newReview;
-            localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
-            loadUserOrders();
-            setTimeout(() => {
-                toast({
-                    title: 'Review Submitted!',
-                    description: 'Thank you for your feedback.',
-                    variant: 'default',
-                });
-            }, 0);
-        }
-    }
+    submitOrderReview(orderToReview.id, newReview);
+    
+    setTimeout(() => {
+        toast({
+            title: 'Review Submitted!',
+            description: 'Thank you for your feedback.',
+            variant: 'default',
+        });
+    }, 0);
 
     setIsReviewDialogOpen(false);
     setOrderToReview(null);

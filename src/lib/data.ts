@@ -1,18 +1,10 @@
 
-import type { Restaurant, MenuItem, Order, Address } from './types';
-import { db } from './firebase';
-import {
-    collection,
-    getDocs,
-    doc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    writeBatch,
-    query,
-    orderBy
-} from 'firebase/firestore';
+import type { Restaurant, MenuItem, Order, Address, Review } from './types';
 
+// --- Key Constants ---
+const allMenuItemsKey = 'rasoiExpressMenuItems';
+const allOrdersKey = 'rasoiExpressAllOrders';
+const userAddressesKeyPrefix = 'rasoiExpressUserAddresses_';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [
@@ -117,131 +109,151 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [
   },
 ];
 
-
-// --- Menu Item Management ---
-const menuItemsCollection = collection(db, 'menuItems');
-
-async function seedInitialData() {
-    const snapshot = await getDocs(menuItemsCollection);
-    if (snapshot.empty) {
-        console.log("No menu items found. Seeding initial data...");
-        const batch = writeBatch(db);
-        initialMenuItems.forEach(item => {
-            const docRef = doc(menuItemsCollection); // Auto-generates an ID
-            batch.set(docRef, item);
-        });
-        await batch.commit();
-        console.log("Initial data seeded.");
+// --- Helper Functions ---
+function getFromStorage<T>(key: string, defaultValue: T): T {
+    if (typeof window === 'undefined') return defaultValue;
+    const stored = localStorage.getItem(key);
+    try {
+        return stored ? JSON.parse(stored) : defaultValue;
+    } catch (e) {
+        console.error(`Error parsing JSON from localStorage key "${key}":`, e);
+        return defaultValue;
     }
 }
 
-export async function getMenuItems(): Promise<MenuItem[]> {
-    await seedInitialData();
-    const q = query(menuItemsCollection, orderBy("name"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
-}
-
-export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
-    const docRef = await addDoc(menuItemsCollection, newItemData);
-    return { id: docRef.id, ...(newItemData as MenuItem) };
-}
-
-export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
-    const { id, ...itemData } = updatedItem;
-    const docRef = doc(db, 'menuItems', id);
-    await updateDoc(docRef, itemData);
-}
-
-export async function deleteMenuItem(itemId: string): Promise<void> {
-    const docRef = doc(db, 'menuItems', itemId);
-    await deleteDoc(docRef);
+function saveToStorage<T>(key: string, data: T) {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(data));
+    window.dispatchEvent(new StorageEvent('storage', { key }));
 }
 
 
-// --- Restaurant Data Management (Kept for compatibility, but not primary focus) ---
-export async function getRestaurants(): Promise<Restaurant[]> {
-    // In a real scenario, you'd fetch from a 'restaurants' collection.
-    // For now, returning an empty array as per the app's current focus.
-    return [];
+// --- Menu Item Management ---
+export function getMenuItems(): MenuItem[] {
+    let items = getFromStorage<MenuItem[]>(allMenuItemsKey, []);
+    if (items.length === 0) {
+        items = initialMenuItems.map((item, index) => ({
+            ...item,
+            id: `m${index + 1}`
+        }));
+        saveToStorage(allMenuItemsKey, items);
+    }
+    return items.sort((a,b) => a.name.localeCompare(b.name));
 }
 
-export async function getRestaurantById(id: string): Promise<Restaurant | undefined> {
-    const restaurants = await getRestaurants();
-    return restaurants.find(r => r.id === id);
+export function addMenuItem(newItemData: Omit<MenuItem, 'id'>): MenuItem {
+    const items = getMenuItems();
+    const newItem: MenuItem = {
+        ...newItemData,
+        id: `m${Date.now()}`,
+    };
+    saveToStorage(allMenuItemsKey, [...items, newItem]);
+    return newItem;
 }
 
+export function updateMenuItem(updatedItem: MenuItem): void {
+    let items = getMenuItems();
+    const index = items.findIndex(item => item.id === updatedItem.id);
+    if (index !== -1) {
+        items[index] = updatedItem;
+        saveToStorage(allMenuItemsKey, items);
+    }
+}
+
+export function deleteMenuItem(itemId: string): void {
+    let items = getMenuItems();
+    items = items.filter(item => item.id !== itemId);
+    saveToStorage(allMenuItemsKey, items);
+}
+
+// --- Restaurant Stubs ---
+export function getRestaurants(): Restaurant[] { return []; }
+export function getRestaurantById(id: string): Restaurant | undefined { return undefined; }
 
 // --- Order Management ---
-const ordersCollection = collection(db, 'orders');
-
-export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    const docRef = await addDoc(ordersCollection, orderData);
-    return { id: docRef.id, ...orderData };
+export function placeOrder(orderData: Omit<Order, 'id'>): Order {
+    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
+    const newOrder: Order = {
+        ...orderData,
+        id: `ORD${Date.now()}`,
+    };
+    saveToStorage(allOrdersKey, [...allOrders, newOrder]);
+    return newOrder;
 }
 
-export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status });
+export function updateOrderStatus(orderId: string, status: Order['status']): void {
+    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
+    const index = allOrders.findIndex(o => o.id === orderId);
+    if (index !== -1) {
+        allOrders[index].status = status;
+        saveToStorage(allOrdersKey, allOrders);
+    }
 }
 
-export async function cancelOrder(orderId: string, reason: string): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
+export function cancelOrder(orderId: string, reason: string): void {
+    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
+    const index = allOrders.findIndex(o => o.id === orderId);
+    if (index !== -1) {
+        allOrders[index].status = 'Cancelled';
+        allOrders[index].cancellationReason = reason;
+        saveToStorage(allOrdersKey, allOrders);
+    }
 }
 
-export async function submitOrderReview(orderId: string, review: Order['review']): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { review });
+export function submitOrderReview(orderId: string, review: Review): void {
+    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
+    const index = allOrders.findIndex(o => o.id === orderId);
+    if (index !== -1) {
+        allOrders[index].review = review;
+        saveToStorage(allOrdersKey, allOrders);
+    }
 }
 
-export async function getAllOrders(): Promise<Order[]> {
-    const q = query(ordersCollection, orderBy("date", "desc"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+export function getAllOrders(): Order[] {
+    return getFromStorage<Order[]>(allOrdersKey, []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // --- Address Management ---
-function getAddressesCollection(userId: string) {
-    return collection(db, 'users', userId, 'addresses');
+export function getAddresses(userId: string): Address[] {
+    return getFromStorage<Address[]>(`${userAddressesKeyPrefix}${userId}`, []);
 }
 
-export async function getAddresses(userId: string): Promise<Address[]> {
-    const snapshot = await getDocs(getAddressesCollection(userId));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Address));
+export function addAddress(userId: string, addressData: Omit<Address, 'id'>): Address {
+    const addresses = getAddresses(userId);
+    const newAddress: Address = {
+        ...addressData,
+        id: `addr${Date.now()}`
+    };
+    saveToStorage(`${userAddressesKeyPrefix}${userId}`, [...addresses, newAddress]);
+    return newAddress;
 }
 
-export async function addAddress(userId: string, addressData: Omit<Address, 'id'>): Promise<Address> {
-    const docRef = await addDoc(getAddressesCollection(userId), addressData);
-    return { id: docRef.id, ...addressData };
+export function updateAddress(userId: string, updatedAddress: Address): void {
+    let addresses = getAddresses(userId);
+    const index = addresses.findIndex(addr => addr.id === updatedAddress.id);
+    if (index !== -1) {
+        addresses[index] = updatedAddress;
+        saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
+    }
 }
 
-export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
-    const { id, ...addressData } = updatedAddress;
-    const docRef = doc(db, 'users', userId, 'addresses', id);
-    await updateDoc(docRef, addressData);
+export function deleteAddress(userId: string, addressId: string): void {
+    let addresses = getAddresses(userId);
+    addresses = addresses.filter(addr => addr.id !== addressId);
+    saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
 }
 
-export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', addressId);
-    await deleteDoc(docRef);
+export function setDefaultAddress(userId: string, addressIdToSetDefault: string): void {
+    const addresses = getAddresses(userId).map(addr => ({
+        ...addr,
+        isDefault: addr.id === addressIdToSetDefault
+    }));
+    saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
 }
-
-export async function setDefaultAddress(userId: string, addressIdToSetDefault: string): Promise<void> {
-    const addresses = await getAddresses(userId);
-    const batch = writeBatch(db);
-    addresses.forEach(addr => {
-        const docRef = doc(db, 'users', userId, 'addresses', addr.id);
-        batch.update(docRef, { isDefault: addr.id === addressIdToSetDefault });
-    });
-    await batch.commit();
-}
-
 
 // --- Other Data Functions ---
-export async function getPopularDishes(): Promise<string[]> {
-    const menuItems = await getMenuItems();
-    return menuItems.filter(item => item.isPopular).map(item => item.name);
+export function getPopularDishes(): string[] {
+    return getMenuItems().filter(item => item.isPopular).map(item => item.name);
 };
 
 export const getCurrentTrends = (): string[] => {

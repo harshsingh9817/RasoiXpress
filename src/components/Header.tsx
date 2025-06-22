@@ -17,8 +17,7 @@ import { Label } from '@/components/ui/label';
 import type { GeocodedLocation, AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { getAllOrders } from '@/lib/data';
 
 const LocationMap = dynamic(() => import('@/components/LocationMap'), { 
   ssr: false,
@@ -108,10 +107,8 @@ const Header = () => {
     }
     setIsLoadingNotifications(true);
 
-    // Fetch user's orders from Firestore
-    const ordersQuery = query(collection(db, 'orders'), where('userId', '==', user.uid));
-    const querySnapshot = await getDocs(ordersQuery);
-    const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    const allOrders = getAllOrders();
+    const userOrders = allOrders.filter(o => o.userId === user.uid);
 
     const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
     

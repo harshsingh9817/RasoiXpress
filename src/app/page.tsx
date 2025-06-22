@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { MenuItem } from '@/lib/types';
 import { getMenuItems } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
@@ -14,26 +14,33 @@ import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter'
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
 
-  useEffect(() => {
-    const loadItems = async () => {
-      try {
-        setIsLoading(true);
-        const items = await getMenuItems();
+  const loadItems = useCallback(() => {
+    try {
+        const items = getMenuItems();
         setMenuItems(items);
-      } catch (error) {
+    } catch (error) {
         console.error("Failed to fetch menu items:", error);
-        // Optionally set an error state to show a message to the user
-      } finally {
-        setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadItems();
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressMenuItems') {
+        loadItems();
       }
     };
-    loadItems();
-  }, []);
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    }
+  }, [loadItems]);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));
@@ -71,15 +78,6 @@ export default function HomePage() {
     return items;
   }, [menuItems, searchTerm, filterCategory, sortOption, showVegetarian]);
 
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Loading delicious food...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
