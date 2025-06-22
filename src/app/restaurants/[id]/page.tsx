@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react'; // Ensured React is imported
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { useParams, notFound, useSearchParams } from 'next/navigation'; // Added useSearchParams
-import { getRestaurantById } from '@/lib/data';
+import { useParams, notFound, useSearchParams } from 'next/navigation';
+import { getMenuItems, getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
-import { Star, Clock, Leaf, Filter, Award, TrendingUp } from 'lucide-react'; // Using TrendingUp for price sorting
+import { Star, Clock, Leaf, Filter, Award, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,9 @@ export default function RestaurantDetailPage() {
   const searchParams = useSearchParams(); 
   const id = params.id as string;
   
+  // NOTE: This component is now effectively deprecated by making the homepage item-focused.
+  // It is kept here to prevent build errors from incoming links but should be considered for removal.
+  
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -33,20 +36,23 @@ export default function RestaurantDetailPage() {
 
   useEffect(() => {
     setIsClient(true);
+    // Attempt to find a restaurant, but since initial data is empty, this will likely fail.
     const fetchedRestaurant = getRestaurantById(id);
     if (fetchedRestaurant) {
       setRestaurant(fetchedRestaurant);
       setMenuItems(fetchedRestaurant.menu);
     } else {
-       // Handled by returning notFound() if restaurant still null after client-side check
+       // Since restaurants are no longer the focus, we can load all menu items as a fallback.
+       setMenuItems(getMenuItems());
     }
   }, [id]);
 
   const uniqueCategories = useMemo(() => {
-    if (!restaurant) return ['All'];
-    const categories = new Set(restaurant.menu.map(item => item.category));
+    if (!restaurant && menuItems.length === 0) return ['All'];
+    const itemsToCategorize = restaurant ? restaurant.menu : menuItems;
+    const categories = new Set(itemsToCategorize.map(item => item.category));
     return ['All', ...Array.from(categories)];
-  }, [restaurant]);
+  }, [restaurant, menuItems]);
 
   const filteredAndSortedMenu = useMemo(() => {
     let items = [...menuItems];
@@ -66,12 +72,11 @@ export default function RestaurantDetailPage() {
       if (sortOption === 'priceHighLow') {
         return b.price - a.price;
       }
-      // Default to 'popular' or if item.isPopular is undefined
       if (sortOption === 'popular') {
         if (a.isPopular && !b.isPopular) return -1;
         if (!a.isPopular && b.isPopular) return 1;
       }
-      return 0; // Default sort if no other condition met
+      return 0;
     });
 
     return items;
@@ -81,48 +86,56 @@ export default function RestaurantDetailPage() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
           <Star className="h-16 w-16 text-primary animate-ping" />
-          <p className="mt-4 text-xl text-muted-foreground">Loading restaurant details...</p>
+          <p className="mt-4 text-xl text-muted-foreground">Loading details...</p>
         </div>
       );
   }
 
-  if (!restaurant) {
-    notFound(); // This will render the not-found.js file or a default Next.js 404 page
+  // If no restaurant and no menu items, it's a true 404
+  if (!restaurant && menuItems.length === 0) {
+    notFound();
   }
   
+  // Use a generic header if no specific restaurant is found
+  const pageTitle = restaurant ? restaurant.name : "Full Menu";
+  const pageCuisine = restaurant ? restaurant.cuisine : "All available dishes";
+  const pageImage = restaurant ? restaurant.imageUrl : "https://placehold.co/1280x320.png";
+
   return (
     <div className="space-y-8">
       <section className="relative h-64 md:h-80 w-full rounded-lg overflow-hidden shadow-lg">
         <Image
-          src={restaurant.imageUrl}
-          alt={restaurant.name}
+          src={pageImage}
+          alt={pageTitle}
           layout="fill"
           objectFit="cover"
           priority
-          data-ai-hint={`${restaurant.name.split(" ")[0].toLowerCase()} restaurant interior`}
+          data-ai-hint="restaurant food interior"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 p-6 md:p-8 text-center md:text-left">
-          <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-2 animate-fade-in-up">{restaurant.name}</h1>
-          <p className="text-lg text-gray-200 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{restaurant.cuisine}</p>
-          <div className="flex items-center justify-center md:justify-start space-x-4 mt-2">
-            <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
-              <Star className="mr-1 h-4 w-4 text-accent fill-accent" /> {restaurant.rating.toFixed(1)}
-            </Badge>
-            <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
-              <Clock className="mr-1 h-4 w-4" /> {restaurant.deliveryTime}
-            </Badge>
-          </div>
+          <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-2 animate-fade-in-up">{pageTitle}</h1>
+          <p className="text-lg text-gray-200 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{pageCuisine}</p>
+          {restaurant && (
+            <div className="flex items-center justify-center md:justify-start space-x-4 mt-2">
+              <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
+                <Star className="mr-1 h-4 w-4 text-accent fill-accent" /> {restaurant.rating.toFixed(1)}
+              </Badge>
+              <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
+                <Clock className="mr-1 h-4 w-4" /> {restaurant.deliveryTime}
+              </Badge>
+            </div>
+          )}
         </div>
       </section>
 
-      {restaurant.promotions && restaurant.promotions.length > 0 && (
+      {restaurant?.promotions && restaurant.promotions.length > 0 && (
         <section className="p-4 bg-accent/10 rounded-lg border border-accent/30">
             <p className="text-accent-foreground font-semibold"><Award className="inline mr-2 h-5 w-5 text-accent"/>{restaurant.promotions[0]}</p>
         </section>
       )}
 
-      <p className="text-md text-muted-foreground">{restaurant.address}</p>
+      {restaurant?.address && <p className="text-md text-muted-foreground">{restaurant.address}</p>}
       
       <Separator />
 

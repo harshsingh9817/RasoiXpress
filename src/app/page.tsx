@@ -1,60 +1,86 @@
-
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import type { Restaurant } from '@/lib/types';
-import { mockRestaurants } from '@/lib/data';
-import RestaurantCard from '@/components/RestaurantCard';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { MenuItem } from '@/lib/types';
+import { getMenuItems } from '@/lib/data';
+import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Utensils } from 'lucide-react'; 
+import { Utensils, Leaf, Filter, TrendingUp } from 'lucide-react';
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
-
-const cuisines = Array.from(new Set(mockRestaurants.flatMap(r => r.cuisine.split(',').map(c => c.trim()))));
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [sortBy, setSortBy] = useState('rating'); // 'rating', 'deliveryTime'
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
+  const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
   const [isClient, setIsClient] = useState(false);
+
+  const loadItems = useCallback(() => {
+    setMenuItems(getMenuItems());
+  }, []);
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    loadItems();
 
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllMenuItems' || event.key === 'rasoiExpressAllRestaurants') {
+        loadItems();
+      }
+    };
 
-  const filteredAndSortedRestaurants = useMemo(() => {
-    let restaurants = mockRestaurants.filter(restaurant =>
-      restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      restaurant.cuisine.toLowerCase().includes(searchTerm.toLowerCase())
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadItems]);
+
+  const uniqueCategories = useMemo(() => {
+    const allCategories = new Set(menuItems.map(item => item.category));
+    return ['All', ...Array.from(allCategories)];
+  }, [menuItems]);
+
+  const filteredAndSortedMenu = useMemo(() => {
+    let items = menuItems.filter(item =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (selectedCuisine !== 'All') {
-      restaurants = restaurants.filter(restaurant =>
-        restaurant.cuisine.split(',').map(c => c.trim()).includes(selectedCuisine)
-      );
+    if (showVegetarian) {
+      items = items.filter(item => item.isVegetarian);
     }
 
-    return [...restaurants].sort((a, b) => {
-      if (sortBy === 'rating') {
-        return b.rating - a.rating;
+    if (filterCategory !== 'All') {
+      items = items.filter(item => item.category === filterCategory);
+    }
+
+    items.sort((a, b) => {
+      if (sortOption === 'priceLowHigh') {
+        return a.price - b.price;
       }
-      if (sortBy === 'deliveryTime') {
-        // Assuming deliveryTime is "X-Y min", sort by the lower bound
-        const timeA = parseInt(a.deliveryTime.split('-')[0]);
-        const timeB = parseInt(b.deliveryTime.split('-')[0]);
-        return timeA - timeB;
+      if (sortOption === 'priceHighLow') {
+        return b.price - a.price;
       }
-      return 0;
+      if (sortOption === 'popular') {
+        if (a.isPopular && !b.isPopular) return -1;
+        if (!a.isPopular && b.isPopular) return 1;
+      }
+      return 0; // Default sort if no other condition met
     });
-  }, [searchTerm, selectedCuisine, sortBy]);
+
+    return items;
+  }, [menuItems, searchTerm, filterCategory, sortOption, showVegetarian]);
+
 
   if (!isClient) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Utensils className="h-16 w-16 text-primary animate-bounce" />
-        <p className="mt-4 text-xl text-muted-foreground">Loading restaurants...</p>
+        <p className="mt-4 text-xl text-muted-foreground">Loading delicious food...</p>
       </div>
     );
   }
@@ -65,10 +91,10 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
               <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
-                Home Delivery In Nagra With <span className="text-accent">Rasoi Xpress</span>
+                Delicious Food, Delivered <span className="text-accent">Fast</span>
               </h1>
               <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                Explore a world of flavors. Order from your favorite local restaurants, delivered fast.
+                Browse our menu of curated dishes and get your favorites delivered to your door.
               </p>
           </div>
           <div className="md:w-1/2 flex justify-center text-primary-foreground">
@@ -77,42 +103,51 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow">
-        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
-            <SelectTrigger className="w-full md:w-[180px] bg-muted focus:bg-background" aria-label="Filter by cuisine">
-              <SelectValue placeholder="Filter by Cuisine" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Cuisines</SelectItem>
-              {cuisines.map(cuisine => (
-                <SelectItem key={cuisine} value={cuisine}>{cuisine}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full md:w-[180px] bg-muted focus:bg-background" aria-label="Sort by">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="rating">Sort by Rating</SelectItem>
-              <SelectItem value="deliveryTime">Sort by Delivery Time</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
+        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by category">
+                <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
+                <SelectValue placeholder="Filter by Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueCategories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sortOption} onValueChange={setSortOption}>
+              <SelectTrigger className="w-full sm:w-[180px]" aria-label="Sort by">
+                 <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="popular">Popularity</SelectItem>
+                <SelectItem value="priceLowHigh">Price: Low to High</SelectItem>
+                <SelectItem value="priceHighLow">Price: High to Low</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant={showVegetarian ? "default" : "outline"} 
+              onClick={() => setShowVegetarian(!showVegetarian)}
+              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto" : "w-full sm:w-auto"}
+            >
+              <Leaf className="mr-2 h-4 w-4" /> Veg Only
+            </Button>
+          </div>
       </div>
 
-      {filteredAndSortedRestaurants.length > 0 ? (
+      {filteredAndSortedMenu.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSortedRestaurants.map(restaurant => (
-            <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+          {filteredAndSortedMenu.map(item => (
+            <MenuItemCard key={item.id} menuItem={item} />
           ))}
         </div>
       ) : (
         <div className="text-center py-10">
-          <p className="text-xl text-muted-foreground">No restaurants found matching your criteria.</p>
-          <Button variant="link" onClick={() => { setSearchTerm(''); setSelectedCuisine('All');}} className="mt-2 text-primary">
+          <p className="text-xl text-muted-foreground">No food items found.</p>
+          <Button variant="link" onClick={() => { setSearchTerm(''); setFilterCategory('All'); setShowVegetarian(false); }} className="mt-2 text-primary">
             Clear filters
           </Button>
         </div>
