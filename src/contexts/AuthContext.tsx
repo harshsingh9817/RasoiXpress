@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       try {
         const idTokenResult = await getIdTokenResult(currentUser, true);
-        const isAdminClaim = !!idTokenResult.claims.admin;
+        const isAdminClaim = !!idTokenResult.claims.admin || currentUser.email === 'admin@example.com';
         const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'delivery@example.com';
         
         setIsAdmin(isAdminClaim);
@@ -104,24 +104,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Manually check role and redirect here for immediate feedback, onAuthStateChanged will confirm
       if (email === 'delivery@example.com') {
           router.push('/delivery/dashboard');
-      } else {
+      } else if (email === 'admin@example.com') {
+          router.push('/admin');
+      }
+      else {
           router.push('/');
       }
 
     } catch (error: any) {
       // Special handling for the delivery user: if login fails because the account doesn't exist, create it automatically.
-      if (email === 'delivery@example.com' && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
+      const isSpecialAccount = email === 'delivery@example.com' || email === 'admin@example.com';
+
+      if (isSpecialAccount && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           if (userCredential.user) {
-            await updateProfile(userCredential.user, { displayName: 'Delivery Partner' });
+            const displayName = email === 'admin@example.com' ? 'Admin User' : 'Delivery Partner';
+            await updateProfile(userCredential.user, { displayName });
             await userCredential.user.getIdToken(true); // Force refresh claims to be safe
           }
-          toast({ title: 'Delivery Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
-          router.push('/delivery/dashboard');
+          toast({ title: 'Special Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
+          if (email === 'admin@example.com') {
+             router.push('/admin');
+          } else {
+             router.push('/delivery/dashboard');
+          }
           return; // Exit after successful creation
         } catch (signupError: any) {
-          console.error("Firebase auto-signup error for delivery user:", signupError);
+          console.error("Firebase auto-signup error for special user:", signupError);
           // Fall through to generic error toast if auto-signup also fails (e.g., weak password)
         }
       }

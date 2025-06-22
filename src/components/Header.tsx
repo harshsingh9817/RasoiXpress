@@ -101,7 +101,9 @@ const Header = () => {
     const syncNotifications = async () => {
         setIsLoadingNotifications(true);
 
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem('rasoiExpressUserOrders') || '[]');
+        const storedOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+        const storedOrders: Order[] = storedOrdersString ? JSON.parse(storedOrdersString) : [];
+
         const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
         
         const generatedNotifications: AppNotification[] = [];
