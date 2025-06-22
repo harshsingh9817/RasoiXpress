@@ -54,7 +54,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
           }
           @keyframes dashAnim {
               from { stroke-dashoffset: 0; }
-              to { stroke-dashoffset: -40; } /* Animate by length of dash + gap */
+              to { stroke-dashoffset: 40; } /* Animate by length of dash + gap (positive makes it move left) */
           }
         `}
       </style>
@@ -106,8 +106,24 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
           <line x1="71" y1="33" x2="73" y2="37" stroke={seatColor} strokeWidth="1.5" /> {/* Right lever */}
         </g>
 
-        {/* Package Box */}
-        <rect x="38" y="30" width="18" height="15" rx="1.5" ry="1.5" fill={riderAndBoxColor} />
+        {/* Package Box and Text */}
+        <g>
+          <rect x="38" y="30" width="18" height="15" rx="1.5" ry="1.5" fill={riderAndBoxColor} />
+          <text
+            x="47"
+            y="35.5"
+            fontFamily="Georgia, serif"
+            fontSize="4"
+            fontWeight="bold"
+            fill={wheelRimColor}
+            textAnchor="middle"
+          >
+            <tspan>Rasoi</tspan>
+            <tspan x="47" dy="4.5">
+              Xpress
+            </tspan>
+          </text>
+        </g>
         
         {/* Wheels */}
         {/* Back Wheel */}
