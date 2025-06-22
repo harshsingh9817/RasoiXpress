@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import type { Order, OrderItem } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,14 +28,33 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ClipboardList, PackageSearch, Eye } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+
+const ALL_ORDER_STATUSES: OrderStatus[] = [
+  'Order Placed',
+  'Confirmed',
+  'Preparing',
+  'Shipped',
+  'Out for Delivery',
+  'Delivered',
+  'Cancelled',
+];
 
 export default function AdminOrdersPage() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [isClient, setIsClient] = useState(false);
@@ -64,11 +83,33 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'Delivered':
       case 'Out for Delivery':
+      case 'Shipped':
         return 'default'; // This is primary color in badge variants
       case 'Cancelled':
         return 'destructive';
       default:
         return 'secondary';
+    }
+  };
+
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+    if (allOrdersString) {
+      let allOrders = JSON.parse(allOrdersString) as Order[];
+      const orderIndex = allOrders.findIndex(o => o.id === orderId);
+
+      if (orderIndex !== -1) {
+        allOrders[orderIndex].status = newStatus;
+        localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
+        
+        // Update local state to reflect the change immediately
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+        
+        toast({
+            title: 'Order Status Updated',
+            description: `Order #${orderId.slice(-6)} is now marked as ${newStatus}.`,
+        });
+      }
     }
   };
 
@@ -102,7 +143,7 @@ export default function AdminOrdersPage() {
                 <TableHead>Order ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-[200px]">Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-center">Details</TableHead>
               </TableRow>
@@ -115,7 +156,19 @@ export default function AdminOrdersPage() {
                     <TableCell>{order.userEmail}</TableCell>
                     <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                       <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                       <Select
+                         value={order.status}
+                         onValueChange={(newStatus: OrderStatus) => handleStatusChange(order.id, newStatus)}
+                       >
+                         <SelectTrigger className="w-full">
+                           <SelectValue placeholder="Update status" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {ALL_ORDER_STATUSES.map(status => (
+                             <SelectItem key={status} value={status}>{status}</SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
                     </TableCell>
                     <TableCell className="text-right">Rs.{order.total.toFixed(2)}</TableCell>
                     <TableCell className="text-center">
