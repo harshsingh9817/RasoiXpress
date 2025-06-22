@@ -35,6 +35,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
         {`
           .scooter-group {
             animation: scooterBounce 1.5s ease-in-out infinite;
+            transform: translateZ(0); /* Optimization: Promote to own layer */
           }
           @keyframes scooterBounce {
             0%, 100% { transform: translateY(0); }
@@ -44,6 +45,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
             stroke: currentColor; 
             stroke-width: 2.5;
             stroke-linecap: round;
+            will-change: transform, opacity; /* Optimization: Hint to browser */
           }
           .speed-line-1 { animation: speedLineAnim 1.2s linear infinite 0s; }
           .speed-line-2 { animation: speedLineAnim 1.2s linear infinite 0.2s; }
@@ -54,17 +56,21 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
             70% { opacity: 0.2; transform: translateX(-15px); } 
             100% { opacity: 0; transform: translateX(-18px); }
           }
-          .road-line {
-            stroke-dasharray: 15 25; /* 15px dash, 25px gap */
-            stroke-linecap: round;
+          
+          /* New Road Line Animation for better performance */
+          .road-lines-group {
             animation: dashAnim 0.8s linear infinite;
+            will-change: transform; /* Optimization: Hint to browser */
           }
           @keyframes dashAnim {
-              from { stroke-dashoffset: 0; }
-              to { stroke-dashoffset: 40; } /* Animate by length of dash + gap (positive makes it move left) */
+              from { transform: translateX(0); }
+              to { transform: translateX(-40px); } /* Animate with transform, not stroke-dashoffset */
           }
+
           .buildings-scrolling {
             animation: scrollBuildings 12s linear infinite;
+            will-change: transform; /* Optimization: Hint to browser */
+            transform: translateZ(0); /* Optimization: Promote to own layer */
           }
           @keyframes scrollBuildings {
             from { transform: translateX(0); }
@@ -181,7 +187,14 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
       {/* Road */}
       <g id="road">
         <rect x="-5" y="70" width="110" height="15" fill={roadColor} />
-        <line className="road-line" x1="-5" y1="77.5" x2="105" y2="77.5" stroke={roadLineColor} strokeWidth="1.5" />
+        {/* The road lines are now a group of lines that are moved with a CSS transform for better performance */}
+        <g className="road-lines-group" stroke={roadLineColor} strokeWidth="1.5" strokeLinecap="round">
+          {/* These lines repeat every 40 units to create a seamless loop */}
+          <line x1="-5" y1="77.5" x2="10" y2="77.5" />
+          <line x1="35" y1="77.5" x2="50" y2="77.5" />
+          <line x1="75" y1="77.5" x2="90" y2="77.5" />
+          <line x1="115" y1="77.5" x2="130" y2="77.5" />
+        </g>
       </g>
       
       <g className="scooter-group" transform="translate(12, 14) scale(0.8)">
