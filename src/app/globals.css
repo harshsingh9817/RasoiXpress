@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Dancing Script', cursive;
-}
-
 @layer base {
   :root {
     --background: 26 50% 97%; /* #F9F5F2 - Unchanged */

@@ -17,8 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['Dancing Script', 'cursive'],
-        headline: ['Dancing Script', 'cursive'],
+        body: ['Georgia', 'serif'],
+        headline: ['Georgia', 'serif'],
         code: ['monospace'],
       },
       colors: {
