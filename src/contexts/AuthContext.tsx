@@ -46,7 +46,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const idTokenResult = await getIdTokenResult(currentUser, true);
           const isAdminClaim = !!idTokenResult.claims.admin;
-          const isDeliveryClaim = !!idTokenResult.claims.delivery;
+          // For prototyping, we'll allow a specific email to act as a delivery person
+          const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'delivery@example.com';
+          
           setIsAdmin(isAdminClaim);
           setIsDelivery(isDeliveryClaim);
 
@@ -68,7 +70,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
               router.replace('/');
             } else if (isLoginPage) {
-              router.replace('/');
+              // Only redirect from login if not on a protected route already
+              // This prevents redirect loops if landing on a non-auth page while logged out
             }
           }
 
@@ -85,31 +88,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // No user logged in
         setIsAdmin(false);
         setIsDelivery(false);
-        const isProtectedUserRoute = !['/login', '/signup', '/delivery/login'].includes(pathname) && !pathname.startsWith('/admin') && !pathname.startsWith('/delivery');
+        const isProtectedRoute = !['/login', '/signup', '/delivery/login', '/'].includes(pathname) && !pathname.startsWith('/restaurants/');
         const isProtectedAdminRoute = pathname.startsWith('/admin');
         const isProtectedDeliveryRoute = pathname.startsWith('/delivery') && pathname !== '/delivery/login';
         
-        if (isProtectedAdminRoute) router.replace('/login'); // Or a dedicated admin login
+        if (isProtectedAdminRoute) router.replace('/login');
         else if (isProtectedDeliveryRoute) router.replace('/delivery/login');
-        else if (isProtectedUserRoute) router.replace('/login');
-
+        else if (isProtectedRoute) router.replace('/login');
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []); // Removed router and pathname to prevent re-renders on navigation. Logic inside handles it now.
+  }, []); 
 
   const login = async (email?: string, password?: string) => {
-    // Note: We don't set isLoading here because onAuthStateChanged handles it, preventing flashes
     if (!email || !password) {
       toast({ title: 'Login Error', description: 'Email and password are required.', variant: 'destructive' });
       return;
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle routing and setting roles.
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
+      
+      // Manually check role and redirect here for immediate feedback, onAuthStateChanged will confirm
+      if (email === 'delivery@example.com') {
+          router.push('/delivery/dashboard');
+      } else {
+          // You could add an admin check here too if needed, e.g. email === 'admin@example.com'
+          router.push('/');
+      }
+
     } catch (error: any) {
       console.error("Firebase login error:", error);
       let description = 'An unexpected error occurred during login. Please try again.';
@@ -133,8 +142,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await updateProfile(userCredential.user, { displayName: fullName });
         await userCredential.user.getIdToken(true);
       }
-      // onAuthStateChanged will handle routing
-      toast({ title: 'Signup Successful!', description: 'Welcome to Rasoi Express!', variant: 'default' });
+      toast({ title: 'Signup Successful!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
+      router.push('/');
     } catch (error: any) {
       console.error("Firebase signup error:", error);
       if (error.code === 'auth/email-already-in-use') {
@@ -158,7 +167,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await firebaseSignOut(auth);
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      // Redirect to the appropriate login page based on previous role
       if (wasDelivery) {
           router.push('/delivery/login');
       } else {
@@ -186,5 +194,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-    
