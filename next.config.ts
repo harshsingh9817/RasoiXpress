@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.dominos.co.in',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'assets.epicurious.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
