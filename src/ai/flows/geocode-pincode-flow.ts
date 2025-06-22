@@ -44,7 +44,7 @@ const geocodePincodeFlow = ai.defineFlow(
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'RasoiExpressApp/1.0 (for app location feature)',
+          'User-Agent': 'RasoiXpressApp/1.0 (for app location feature)',
         },
         signal: controller.signal, // Add abort signal
       });

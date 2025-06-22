@@ -66,7 +66,7 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
               <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3">
-                Home Delivery In Nagra With <span className="text-accent">Rasoi Express</span>
+                Home Delivery In Nagra With <span className="text-accent">Rasoi Xpress</span>
               </h1>
               <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0">
                 Explore a world of flavors. Order from your favorite local restaurants, delivered fast.

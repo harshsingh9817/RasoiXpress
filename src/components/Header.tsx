@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import RasoiExpressLogo from './icons/RasoiExpressLogo';
+import RasoiXpressLogo from './icons/RasoiXpressLogo';
 import { Button } from './ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,7 +54,7 @@ const Header = () => {
     { id: 1, title: "New Dish Alert at Pizza Palace!", message: "Try our new 'Spicy Dragon Noodles'. Limited time only!", read: false, type: 'new_dish', restaurantId: 'r1' },
     { id: 2, title: "Order #ORD12345 Delivered", message: "Your recent order has been successfully delivered. Enjoy!", read: true, type: 'order_update', orderId: 'ORD12345', link: '/profile' },
     { id: 3, title: "Weekend Special: 20% Off!", message: "Get 20% off on all burgers at Burger Barn this weekend!", read: false, type: 'offer', restaurantId: 'r2' },
-    { id: 4, title: "Welcome to Rasoi Express!", message: "Explore thousands of restaurants and dishes.", read: true, type: 'general' },
+    { id: 4, title: "Welcome to Rasoi Xpress!", message: "Explore thousands of restaurants and dishes.", read: true, type: 'general' },
   ];
 
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
@@ -165,8 +165,8 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/" aria-label="Rasoi Express Home">
-              <RasoiExpressLogo />
+            <Link href="/" aria-label="Rasoi Xpress Home">
+              <RasoiXpressLogo />
             </Link>
             
             <Popover open={isLocationPopoverOpen} onOpenChange={setIsLocationPopoverOpen}>

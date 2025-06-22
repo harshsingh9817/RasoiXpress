@@ -8,8 +8,8 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
 
 export const metadata: Metadata = {
-  title: 'Rasoi Express - Fast Food Delivery',
-  description: 'Order your favorite food online with Rasoi Express from the best restaurants near you.',
+  title: 'Rasoi Xpress - Fast Food Delivery',
+  description: 'Order your favorite food online with Rasoi Xpress from the best restaurants near you.',
 };
 
 export default function RootLayout({

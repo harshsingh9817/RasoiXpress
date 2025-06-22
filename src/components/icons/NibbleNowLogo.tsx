@@ -1,9 +1,9 @@
 
 import type { FC } from 'react';
 
-const RasoiExpressLogo: FC = () => {
+const RasoiXpressLogo: FC = () => {
   return (
-    <div className="flex items-center" aria-label="Rasoi Express logo - a plate with a fork and spoon, and the name Rasoi Express">
+    <div className="flex items-center" aria-label="Rasoi Xpress logo - a plate with a fork and spoon, and the name Rasoi Xpress">
       <svg
         width="40"
         height="40"
@@ -38,10 +38,10 @@ const RasoiExpressLogo: FC = () => {
         <path d="M42 84 Q50 87 58 84" stroke="hsl(var(--foreground))" strokeWidth="3" fill="none" strokeLinecap="round"/>
       </svg>
       <span className="text-2xl font-bold text-primary font-headline">
-        Rasoi Express
+        Rasoi Xpress
       </span>
     </div>
   );
 };
 
-export default RasoiExpressLogo;
+export default RasoiXpressLogo;
