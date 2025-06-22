@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Cinzel', serif;
+  font-family: 'Dancing Script', cursive;
 }
 
 @layer base {

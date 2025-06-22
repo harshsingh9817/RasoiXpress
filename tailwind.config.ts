@@ -17,8 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['Cinzel', 'serif'],
-        headline: ['Cinzel', 'serif'],
+        body: ['Dancing Script', 'cursive'],
+        headline: ['Dancing Script', 'cursive'],
         code: ['monospace'],
       },
       colors: {
