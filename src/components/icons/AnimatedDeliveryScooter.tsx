@@ -105,7 +105,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
         <line className="road-line" x1="-5" y1="77.5" x2="105" y2="77.5" stroke={roadLineColor} strokeWidth="1.5" />
       </g>
       
-      <g className="scooter-group">
+      <g className="scooter-group" transform="translate(12, 14) scale(0.8)">
         {/* Rider */}
         <g fill={riderAndBoxColor}>
           {/* Helmet */}
