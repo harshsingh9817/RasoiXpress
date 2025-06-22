@@ -92,7 +92,7 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
               <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
-                Delicious Food, Delivered <span className="text-accent">Fast</span>
+                Home Delivery In Nagra With <span className="text-accent">Rasoi Xpress</span>
               </h1>
               <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                 Browse our menu of curated dishes and get your favorites delivered to your door.
@@ -106,9 +106,9 @@ export default function HomePage() {
 
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
-        <div className="flex flex-row flex-wrap gap-2 w-full sm:w-auto">
+        <div className="flex flex-row flex-wrap gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="sm:w-[180px] min-w-[150px]" aria-label="Filter by category">
+              <SelectTrigger className="w-full sm:w-auto min-w-[150px]" aria-label="Filter by category">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Filter by Category" />
               </SelectTrigger>
@@ -119,7 +119,7 @@ export default function HomePage() {
               </SelectContent>
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="sm:w-[180px] min-w-[150px]" aria-label="Sort by">
+              <SelectTrigger className="w-full sm:w-auto min-w-[150px]" aria-label="Sort by">
                  <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
