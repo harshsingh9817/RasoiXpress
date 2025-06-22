@@ -118,65 +118,7 @@ const initialMenuItems: MenuItem[] = [
   },
 ];
 
-const initialRestaurants: Restaurant[] = [
-  {
-    id: 'r1',
-    name: 'Pizza Palace',
-    cuisine: 'Italian, Pizza',
-    rating: 4.5,
-    deliveryTime: '30-40 min',
-    imageUrl: 'https://placehold.co/600x400.png',
-    categories: ['Pizza', 'Italian', 'Fast Food'],
-    menu: [initialMenuItems[0], initialMenuItems[1], initialMenuItems[4], initialMenuItems[6]],
-    address: '123 Pizza St, Flavor Town',
-    promotions: ['20% off on orders above Rs.1000'],
-  },
-  {
-    id: 'r2',
-    name: 'Burger Barn',
-    cuisine: 'American, Burgers',
-    rating: 4.2,
-    deliveryTime: '25-35 min',
-    imageUrl: 'https://placehold.co/600x400.png',
-    categories: ['Burgers', 'American', 'Fast Food', 'Fries'],
-    menu: [initialMenuItems[2], initialMenuItems[3], initialMenuItems[9]],
-    address: '456 Burger Ave, Grillsville',
-  },
-  {
-    id: 'r3',
-    name: 'Curry House',
-    cuisine: 'Indian',
-    rating: 4.8,
-    deliveryTime: '40-50 min',
-    imageUrl: 'https://placehold.co/600x400.png',
-    categories: ['Indian', 'Curry', 'Vegetarian Options'],
-    menu: [initialMenuItems[7], initialMenuItems[8], initialMenuItems[4]], // Added m4 Caesar Salad as a side
-    address: '789 Spice Rd, Masala City',
-    promotions: ['Free Naan with every main course'],
-  },
-  {
-    id: 'r4',
-    name: 'Pasta Perfection',
-    cuisine: 'Italian, Pasta',
-    rating: 4.0,
-    deliveryTime: '35-45 min',
-    imageUrl: 'https://placehold.co/600x400.png',
-    categories: ['Pasta', 'Italian', 'Salads'],
-    menu: [initialMenuItems[5], initialMenuItems[4], initialMenuItems[6]],
-    address: '101 Noodle Ln, Roma',
-  },
-  {
-    id: 'r5',
-    name: 'Sweet Tooth Cafe',
-    cuisine: 'Desserts, Bakery',
-    rating: 4.6,
-    deliveryTime: '20-30 min',
-    imageUrl: 'https://placehold.co/600x400.png',
-    categories: ['Desserts', 'Cakes', 'Coffee', 'Bakery'],
-    menu: [initialMenuItems[6]],
-    address: '222 Sugar Rush St, Candyland',
-  },
-];
+const initialRestaurants: Restaurant[] = [];
 
 
 // --- Helper Functions to get data, initializing from localStorage if available ---
