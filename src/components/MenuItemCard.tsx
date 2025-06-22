@@ -4,10 +4,11 @@
 import type { FC } from 'react';
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import type { MenuItem } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Leaf, Info } from 'lucide-react';
+import { PlusCircle, Leaf, Info, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { Badge } from './ui/badge';
 import FoodItemDetailDialog from './FoodItemDetailDialog'; // Import the new dialog
@@ -18,10 +19,16 @@ interface MenuItemCardProps {
 
 const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
   const { addToCart } = useCart();
+  const router = useRouter();
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const handleOpenDetails = () => {
     setIsDetailDialogOpen(true);
+  };
+
+  const handleBuyNow = () => {
+    addToCart(menuItem);
+    router.push('/checkout');
   };
 
   return (
@@ -68,18 +75,17 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
           <div className="flex items-center gap-2 mt-2">
             <Button
               onClick={() => addToCart(menuItem)}
-              className="flex-grow bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
               aria-label={`Add ${menuItem.name} to cart`}
             >
-              <PlusCircle className="mr-2 h-5 w-5" /> Add to Cart
+              <PlusCircle className="mr-2 h-5 w-5" /> Add
             </Button>
             <Button
-              variant="outline"
-              size="icon"
-              onClick={handleOpenDetails}
-              aria-label={`View more details for ${menuItem.name}`}
+              onClick={handleBuyNow}
+              className="flex-1 bg-primary hover:bg-primary/90"
+              aria-label={`Buy ${menuItem.name} now`}
             >
-              <Info className="h-5 w-5" />
+              <ShoppingBag className="mr-2 h-5 w-5" /> Buy Now
             </Button>
           </div>
         </CardContent>

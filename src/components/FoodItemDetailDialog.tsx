@@ -3,6 +3,7 @@
 
 import type { FC } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import type { MenuItem } from '@/lib/types';
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Leaf, ShoppingCart, Tag, Weight, UtensilsCrossed, Info } from 'lucide-react'; // Changed UtensilsCross to UtensilsCrossed
+import { Leaf, ShoppingCart, Tag, Weight, UtensilsCrossed, Info, ShoppingBag } from 'lucide-react'; // Changed UtensilsCross to UtensilsCrossed
 import { useCart } from '@/contexts/CartContext';
 import { Separator } from './ui/separator';
 
@@ -27,12 +28,18 @@ interface FoodItemDetailDialogProps {
 
 const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen, onOpenChange }) => {
   const { addToCart } = useCart();
+  const router = useRouter();
 
   if (!menuItem) return null;
 
   const handleAddToCart = () => {
     addToCart(menuItem);
     onOpenChange(false); // Optionally close dialog after adding to cart
+  };
+
+  const handleBuyNow = () => {
+    addToCart(menuItem);
+    router.push('/checkout');
   };
 
   return (
@@ -92,14 +99,12 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
           )}
         </div>
 
-        <DialogFooter className="p-6 pt-4 border-t">
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Close
-            </Button>
-          </DialogClose>
-          <Button onClick={handleAddToCart} className="bg-primary hover:bg-primary/90">
+        <DialogFooter className="p-6 pt-4 border-t gap-2 sm:justify-start">
+          <Button onClick={handleAddToCart} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
             <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
+          </Button>
+          <Button onClick={handleBuyNow} className="flex-1 bg-primary hover:bg-primary/90">
+            <ShoppingBag className="mr-2 h-4 w-4" /> Buy Now
           </Button>
         </DialogFooter>
       </DialogContent>
