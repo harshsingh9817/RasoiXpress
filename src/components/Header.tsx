@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import RasoiXpressLogo from './icons/RasoiXpressLogo';
+import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from './ui/badge';
@@ -71,7 +72,14 @@ const Header = () => {
   const [pinCodeInput, setPinCodeInput] = useState('');
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
     // Load location from localStorage
     const savedLocationString = localStorage.getItem('rasoiExpressUserLocation');
     if (savedLocationString) {
@@ -88,10 +96,10 @@ const Header = () => {
         localStorage.removeItem('rasoiExpressUserLocation'); 
       }
     }
-  }, []);
+  }, [isClient]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isClient || !isAuthenticated) {
         setNotifications([]);
         setIsLoadingNotifications(false);
         return;
@@ -168,7 +176,7 @@ const Header = () => {
     };
 
     syncNotifications();
-  }, [isAuthenticated, pathname]); // Re-sync on auth change and navigation
+  }, [isAuthenticated, pathname, isClient]); // Re-sync on auth change and navigation
 
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
@@ -263,13 +271,13 @@ const Header = () => {
                 <Button variant="ghost" className="px-2 py-1 h-auto text-xs sm:text-sm text-muted-foreground hover:text-primary">
                   <MapPin className="h-4 w-4 sm:mr-1 text-primary" />
                   <div className="flex flex-col items-start">
-                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={displayLocation}>
-                       {isFetchingLocation ? "Fetching..." : displayLocation}
+                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={isClient ? displayLocation : 'Set Location'}>
+                       {isFetchingLocation ? "Fetching..." : (isClient ? displayLocation : "Set Location")}
                      </span>
                      <span className="text-xs text-muted-foreground hidden sm:inline leading-tight max-w-[100px] truncate">
-                       {isFetchingLocation ? "" : displayPin}
+                       {isFetchingLocation ? "" : (isClient ? displayPin : "Select Area")}
                      </span>
-                     <span className="sm:hidden text-primary">{isFetchingLocation ? "Fetching..." : (currentLocation?.locality || currentLocation?.city || "Location")}</span>
+                     <span className="sm:hidden text-primary">{isFetchingLocation ? "Fetching..." : (isClient ? (currentLocation?.locality || currentLocation?.city || "Location") : "Location")}</span>
                   </div>
                   <ChevronDown className="h-3 w-3 sm:ml-1 opacity-70" />
                 </Button>
@@ -294,12 +302,12 @@ const Header = () => {
                     </Button>
                   </div>
                 </form>
-                {currentLocation && currentLocation.lat && currentLocation.lng && !isFetchingLocation && (
+                {isClient && currentLocation && currentLocation.lat && currentLocation.lng && !isFetchingLocation && (
                   <div className="mt-4">
                     <LocationMap position={[currentLocation.lat, currentLocation.lng]} />
                   </div>
                 )}
-                 {currentLocation?.error && !isFetchingLocation && (
+                 {isClient && currentLocation?.error && !isFetchingLocation && (
                     <p className="mt-2 text-xs text-destructive">{currentLocation.error}</p>
                 )}
               </PopoverContent>
@@ -372,18 +380,22 @@ const Header = () => {
                     aria-label={`Open notifications with ${unreadNotificationCount} unread`}
                   >
                     <Bell className="h-5 w-5" />
-                    {isLoadingNotifications ? (
-                      <Loader2 className="absolute -right-1 -top-1 h-4 w-4 animate-spin text-primary" />
-                    ) : (
-                      unreadNotificationCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                          aria-label={`${unreadNotificationCount} unread notifications`}
-                        >
-                          {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                        </Badge>
-                      )
+                    {isClient && (
+                      <>
+                        {isLoadingNotifications ? (
+                          <Loader2 className="absolute -right-1 -top-1 h-4 w-4 animate-spin text-primary" />
+                        ) : (
+                          unreadNotificationCount > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                              aria-label={`${unreadNotificationCount} unread notifications`}
+                            >
+                              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                            </Badge>
+                          )
+                        )}
+                      </>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -440,4 +452,3 @@ const Header = () => {
 };
 
 export default Header;
-    
