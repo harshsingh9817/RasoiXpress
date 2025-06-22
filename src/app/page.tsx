@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -105,9 +106,9 @@ export default function HomePage() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
-        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
+        <div className="flex flex-row flex-wrap gap-2 w-full md:w-auto">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by category">
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px] min-w-[150px]" aria-label="Filter by category">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Filter by Category" />
               </SelectTrigger>
@@ -118,7 +119,7 @@ export default function HomePage() {
               </SelectContent>
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full sm:w-[180px]" aria-label="Sort by">
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px] min-w-[150px]" aria-label="Sort by">
                  <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -131,7 +132,7 @@ export default function HomePage() {
             <Button 
               variant={showVegetarian ? "default" : "outline"} 
               onClick={() => setShowVegetarian(!showVegetarian)}
-              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto" : "w-full sm:w-auto"}
+              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none" : "flex-1 sm:flex-none"}
             >
               <Leaf className="mr-2 h-4 w-4" /> Veg Only
             </Button>
