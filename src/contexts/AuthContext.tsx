@@ -41,66 +41,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setIsLoading(true);
-      setUser(currentUser);
-      if (currentUser) {
-        try {
-          const idTokenResult = await getIdTokenResult(currentUser, true);
-          const isAdminClaim = !!idTokenResult.claims.admin;
-          // For prototyping, we'll allow a specific email to act as a delivery person
-          const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'delivery@example.com';
-          
-          setIsAdmin(isAdminClaim);
-          setIsDelivery(isDeliveryClaim);
-
-          const isLoginPage = pathname === '/login' || pathname === '/signup';
-          const isDeliveryLoginPage = pathname === '/delivery/login';
-
-          // Redirect based on role
-          if (isDeliveryClaim) {
-            if (!pathname.startsWith('/delivery')) {
-              router.replace('/delivery/dashboard');
-            }
-          } else if (isAdminClaim) {
-            if (pathname === '/admin' && !isAdminClaim) {
-                router.replace('/');
-            } else if (isLoginPage || isDeliveryLoginPage) {
-                router.replace('/admin');
-            }
-          } else { // Regular user
-            if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
-              router.replace('/');
-            } else if (isLoginPage) {
-              // Only redirect from login if not on a protected route already
-              // This prevents redirect loops if landing on a non-auth page while logged out
-            }
-          }
-
-        } catch (error) {
-          console.error("Error getting user claims:", error);
-          setIsAdmin(false);
-          setIsDelivery(false);
-          // Fallback redirect if claims fail
-          if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
-            router.replace('/');
-          }
-        }
-      } else {
-        // No user logged in
+      if (!currentUser) {
         setIsAdmin(false);
         setIsDelivery(false);
-        const isProtectedRoute = !['/login', '/signup', '/delivery/login', '/'].includes(pathname) && !pathname.startsWith('/restaurants/');
+        setUser(null);
         const isProtectedAdminRoute = pathname.startsWith('/admin');
         const isProtectedDeliveryRoute = pathname.startsWith('/delivery') && pathname !== '/delivery/login';
+        const isAppProtectedRoute = !['/login', '/signup', '/delivery/login', '/'].includes(pathname) && !pathname.startsWith('/restaurants/');
+
+        if(isProtectedAdminRoute) router.replace('/login');
+        else if(isProtectedDeliveryRoute) router.replace('/delivery/login');
+        else if(isAppProtectedRoute) router.replace('/login');
         
-        if (isProtectedAdminRoute) router.replace('/login');
-        else if (isProtectedDeliveryRoute) router.replace('/delivery/login');
-        else if (isProtectedRoute) router.replace('/login');
+        setIsLoading(false);
+        return;
+      }
+
+      setUser(currentUser);
+      try {
+        const idTokenResult = await getIdTokenResult(currentUser, true);
+        const isAdminClaim = !!idTokenResult.claims.admin;
+        const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'delivery@example.com';
+        
+        setIsAdmin(isAdminClaim);
+        setIsDelivery(isDeliveryClaim);
+
+        const isLoginPage = pathname === '/login' || pathname === '/signup';
+        const isDeliveryLoginPage = pathname === '/delivery/login';
+
+        // Redirect based on role
+        if (isDeliveryClaim) {
+          if (!pathname.startsWith('/delivery')) router.replace('/delivery/dashboard');
+        } else if (isAdminClaim) {
+          if (isLoginPage || isDeliveryLoginPage) router.replace('/admin');
+        } else { // Regular user
+          if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) router.replace('/');
+        }
+
+      } catch (error) {
+        console.error("Error getting user claims:", error);
+        setIsAdmin(false);
+        setIsDelivery(false);
+        if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+          router.replace('/');
+        }
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []); 
+  }, [pathname, router]); 
 
   const login = async (email?: string, password?: string) => {
     if (!email || !password) {
@@ -115,11 +105,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (email === 'delivery@example.com') {
           router.push('/delivery/dashboard');
       } else {
-          // You could add an admin check here too if needed, e.g. email === 'admin@example.com'
           router.push('/');
       }
 
     } catch (error: any) {
+      // Special handling for the delivery user: if login fails because the account doesn't exist, create it automatically.
+      if (email === 'delivery@example.com' && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          if (userCredential.user) {
+            await updateProfile(userCredential.user, { displayName: 'Delivery Partner' });
+            await userCredential.user.getIdToken(true); // Force refresh claims to be safe
+          }
+          toast({ title: 'Delivery Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
+          router.push('/delivery/dashboard');
+          return; // Exit after successful creation
+        } catch (signupError: any) {
+          console.error("Firebase auto-signup error for delivery user:", signupError);
+          // Fall through to generic error toast if auto-signup also fails (e.g., weak password)
+        }
+      }
+
       console.error("Firebase login error:", error);
       let description = 'An unexpected error occurred during login. Please try again.';
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
