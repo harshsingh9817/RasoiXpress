@@ -49,8 +49,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <KeyRound className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl font-headline">Welcome Back!</CardTitle>
-          <CardDescription>Log in to access your Rasoi Xpress account.</CardDescription>
+          <CardTitle className="text-3xl font-headline animate-fade-in-up">Welcome Back!</CardTitle>
+          <CardDescription className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Log in to access your Rasoi Xpress account.</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-6">

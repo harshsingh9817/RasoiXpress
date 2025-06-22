@@ -168,8 +168,8 @@ export default function CheckoutPage() {
           <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-20"></div>
           <CheckCircle className="relative h-24 w-24 text-green-500" />
         </div>
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Placed!</h1>
-        <p className="text-lg text-muted-foreground max-w-md">
+        <h1 className="text-4xl font-headline font-bold text-primary mb-2 animate-fade-in-up">Order Placed!</h1>
+        <p className="text-lg text-muted-foreground max-w-md animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           Thank you for your purchase. You can track the status of your order on your profile page.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
@@ -196,8 +196,8 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <section className="text-center">
-        <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-2">Checkout</h1>
-        <p className="text-lg text-muted-foreground">
+        <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-2 animate-fade-in-up">Checkout</h1>
+        <p className="text-lg text-muted-foreground animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           Almost there! Please review your order and provide your details.
         </p>
       </section>

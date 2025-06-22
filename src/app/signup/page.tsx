@@ -48,8 +48,8 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <UserPlus className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl font-headline">Create Your Account</CardTitle>
-          <CardDescription>Join Rasoi Xpress and start ordering delicious food.</CardDescription>
+          <CardTitle className="text-3xl font-headline animate-fade-in-up">Create Your Account</CardTitle>
+          <CardDescription className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Join Rasoi Xpress and start ordering delicious food.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSignup}>
           <CardContent className="space-y-6">

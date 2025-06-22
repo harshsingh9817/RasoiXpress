@@ -566,7 +566,7 @@ export default function ProfilePage() {
           </Button>
         </div>
         <div className="text-center md:text-left flex-1">
-          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] animate-fade-in-up">
             {firebaseUser?.displayName || firebaseUser?.email || 'Welcome, User!'}
           </h1>
           {firebaseUser?.displayName && <p className="text-lg text-muted-foreground mb-2">{firebaseUser?.email}</p>}

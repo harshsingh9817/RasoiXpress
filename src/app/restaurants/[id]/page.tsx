@@ -103,8 +103,8 @@ export default function RestaurantDetailPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 p-6 md:p-8 text-center md:text-left">
-          <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-2">{restaurant.name}</h1>
-          <p className="text-lg text-gray-200">{restaurant.cuisine}</p>
+          <h1 className="text-4xl md:text-5xl font-headline font-bold text-white mb-2 animate-fade-in-up">{restaurant.name}</h1>
+          <p className="text-lg text-gray-200 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{restaurant.cuisine}</p>
           <div className="flex items-center justify-center md:justify-start space-x-4 mt-2">
             <Badge variant="secondary" className="bg-white/90 text-primary font-semibold">
               <Star className="mr-1 h-4 w-4 text-accent fill-accent" /> {restaurant.rating.toFixed(1)}
