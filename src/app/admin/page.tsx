@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
+import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -84,16 +84,20 @@ export default function AdminPage() {
           </Card>
         </Link>
 
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-xl md:text-2xl font-headline">View Orders</CardTitle>
-            <CardDescription>See current and past customer orders.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Order viewing interface will be here.</p>
-            {/* Placeholder for future components for viewing orders */}
-          </CardContent>
-        </Card>
+        <Link href="/admin/orders" className="block h-full">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+                <CardHeader>
+                <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                    <ClipboardList className="mr-2 h-6 w-6 text-primary" />
+                    View Orders
+                </CardTitle>
+                <CardDescription>See current and past customer orders.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Click here to browse all customer orders in the system.</p>
+                </CardContent>
+            </Card>
+        </Link>
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader>

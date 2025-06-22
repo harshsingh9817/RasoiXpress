@@ -1,0 +1,208 @@
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import type { Order, OrderItem } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, ClipboardList, PackageSearch, Eye } from "lucide-react";
+import Image from "next/image";
+import { Separator } from "@/components/ui/separator";
+
+export default function AdminOrdersPage() {
+  const { isAdmin, isLoading, isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isClient, setIsClient] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+      router.replace("/");
+    }
+    if (isClient) {
+      const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+      if (allOrdersString) {
+        try {
+          const allOrders = JSON.parse(allOrdersString) as Order[];
+          // Show newest orders first
+          setOrders(allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        } catch (e) {
+          console.error("Failed to parse orders from localStorage", e);
+        }
+      }
+    }
+  }, [isAdmin, isLoading, isAuthenticated, router, isClient]);
+  
+  const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
+    switch (status) {
+      case 'Delivered':
+      case 'Out for Delivery':
+        return 'default'; // This is primary color in badge variants
+      case 'Cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+
+  if (isLoading || !isClient || !isAuthenticated || !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="mt-4 text-xl text-muted-foreground">
+          {isLoading ? "Verifying access..." : "Access Denied. Redirecting..."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline flex items-center">
+            <ClipboardList className="mr-3 h-6 w-6 text-primary" /> All Customer Orders
+          </CardTitle>
+          <CardDescription>
+            View and manage all orders placed in the application.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-center">Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.length > 0 ? (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
+                    <TableCell>{order.userEmail}</TableCell>
+                    <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                       <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">Rs.{order.total.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">
+                       <Button variant="outline" size="icon" onClick={() => setSelectedOrder(order)}>
+                           <Eye className="h-4 w-4" />
+                           <span className="sr-only">View Details</span>
+                       </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
+                    No orders have been placed yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedOrder} onOpenChange={(isOpen) => { if (!isOpen) setSelectedOrder(null) }}>
+        <DialogContent className="sm:max-w-lg">
+            {selectedOrder && (
+                <>
+                <DialogHeader>
+                    <DialogTitle>Order Details: #{selectedOrder.id.slice(-6)}</DialogTitle>
+                    <DialogDescription>
+                        Placed by {selectedOrder.userEmail} on {new Date(selectedOrder.date).toLocaleDateString()}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">
+                        <div>
+                        <h4 className="font-semibold mb-2 text-sm">Items Ordered</h4>
+                        <div className="space-y-2">
+                            {selectedOrder.items.map((item: OrderItem) => (
+                                <div key={item.id} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-3">
+                                        <Image 
+                                            src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
+                                            alt={item.name} 
+                                            width={40} 
+                                            height={40} 
+                                            className="rounded-md object-cover" 
+                                            data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
+                                        />
+                                        <div>
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-xs text-muted-foreground">x {item.quantity}</p>
+                                        </div>
+                                    </div>
+                                    <p>Rs.{(item.price * item.quantity).toFixed(2)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <Separator />
+                        <div>
+                        <h4 className="font-semibold mb-2 text-sm">Order Summary</h4>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span>Status:</span>
+                                <Badge variant={getStatusVariant(selectedOrder.status)}>{selectedOrder.status}</Badge>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Payment Method:</span>
+                                <span>{selectedOrder.paymentMethod}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-base mt-2">
+                                <span>Grand Total:</span>
+                                <span className="text-primary">Rs.{selectedOrder.total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <Separator />
+                    <div>
+                        <h4 className="font-semibold mb-2 text-sm">Shipping Information</h4>
+                        <p className="text-sm text-muted-foreground">{selectedOrder.shippingAddress}</p>
+                        <p className="text-sm text-muted-foreground">Contact: {selectedOrder.customerPhone || 'N/A'}</p>
+                    </div>
+                </div>
+                </>
+            )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
