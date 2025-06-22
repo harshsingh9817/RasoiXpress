@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, type ReactNode, useRef } from 'react';
+import { useState, useEffect, type FormEvent, type ReactNode, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -216,11 +216,8 @@ export default function ProfilePage() {
   const [currentRating, setCurrentRating] = useState(0);
   const [currentReviewComment, setCurrentReviewComment] = useState('');
 
-
-  useEffect(() => {
-    setIsClientRendered(true);
+  const loadUserOrders = useCallback(() => {
     if (typeof window !== 'undefined' && firebaseUser) {
-      // Use the global key for all orders, then filter for the current user
       const storedOrdersString = localStorage.getItem('rasoiExpressAllOrders');
       let allOrders: Order[] = [];
       
@@ -233,15 +230,20 @@ export default function ProfilePage() {
           }
       }
 
-      // If no stored orders, populate with mock orders for this user
       if (allOrders.length === 0) {
         allOrders = initialMockOrders.map(o => ({ ...o, userId: firebaseUser.uid, userEmail: firebaseUser.email || 'N/A' }));
         localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
       }
       
       const userOrders = allOrders.filter(o => o.userId === firebaseUser.uid);
-
       setOrders(userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id) ));
+    }
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    setIsClientRendered(true);
+    if (typeof window !== 'undefined') {
+      loadUserOrders();
 
       const storedAddressesString = localStorage.getItem('rasoiExpressUserAddresses');
       if (storedAddressesString) {
@@ -260,7 +262,7 @@ export default function ProfilePage() {
         setAddresses(initialMockAddresses);
       }
     }
-  }, [isClientRendered, firebaseUser]);
+  }, [isClientRendered, loadUserOrders]);
 
   useEffect(() => {
     if (isClientRendered && !isAuthLoading && !isAuthenticated) {
@@ -273,9 +275,18 @@ export default function ProfilePage() {
       localStorage.setItem('rasoiExpressUserAddresses', JSON.stringify(addresses));
     }
   }, [addresses, isClientRendered]);
-  
-  // No longer need to save orders from here, as it's a global list modified elsewhere.
-  // A refresh is handled by the main useEffect.
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadUserOrders();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadUserOrders]);
 
   useEffect(() => {
     if (firebaseUser?.photoURL) {
@@ -292,7 +303,10 @@ export default function ProfilePage() {
       setTrackOrderError('Please enter an order ID.');
       return;
     }
-    const foundOrder = orders.find(o => o.id.toLowerCase() === idToTrack.toLowerCase());
+    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+    const allOrders = allOrdersString ? JSON.parse(allOrdersString) : [];
+    const foundOrder = allOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase() && o.userId === firebaseUser?.uid);
+
     if (foundOrder) {
       setTrackedOrderDetails(foundOrder);
     } else {
@@ -467,7 +481,6 @@ export default function ProfilePage() {
     const orderIdToCancel = orderToCancel.id;
     const reasonForCancellation = selectedCancelReason;
     
-    // Update global list
     const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
     if (allOrdersString) {
       let allOrders = JSON.parse(allOrdersString) as Order[];
@@ -477,8 +490,7 @@ export default function ProfilePage() {
           allOrders[orderIndex].cancellationReason = reasonForCancellation;
           localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
 
-          // Update local state for UI
-          setOrders(prevOrders => prevOrders.map(o => o.id === orderIdToCancel ? { ...o, status: 'Cancelled' as OrderStatus, cancellationReason: reasonForCancellation } : o));
+          loadUserOrders();
           
           setTimeout(() => {
               toast({
@@ -531,7 +543,6 @@ export default function ProfilePage() {
 
     const orderIdToReview = orderToReview.id;
 
-    // Update global list
     const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
     if (allOrdersString) {
         let allOrders = JSON.parse(allOrdersString) as Order[];
@@ -539,7 +550,7 @@ export default function ProfilePage() {
         if (orderIndex !== -1) {
             allOrders[orderIndex].review = newReview;
             localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
-            setOrders(prevOrders => prevOrders.map(o => o.id === orderIdToReview ? { ...o, review: newReview } : o));
+            loadUserOrders();
             setTimeout(() => {
                 toast({
                     title: 'Review Submitted!',
@@ -630,7 +641,7 @@ export default function ProfilePage() {
                         <div>
                           <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
                           <CardDescription>
-                            Date: {order.date} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
+                            Date: {new Date(order.date).toLocaleDateString()} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
                             {order.status === 'Cancelled' && order.cancellationReason && (
                                 <span className="text-xs block text-muted-foreground italic">Reason: {order.cancellationReason}</span>
                             )}
@@ -1056,7 +1067,7 @@ export default function ProfilePage() {
                 <FileText className="mr-2 h-5 w-5 text-primary" /> Order Bill: {orderForBillView.id}
               </DialogTitle>
               <DialogDescription>
-                Date: {orderForBillView.date}
+                Date: {new Date(orderForBillView.date).toLocaleDateString()}
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto pr-2 text-sm">

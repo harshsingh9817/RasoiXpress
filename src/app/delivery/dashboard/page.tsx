@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,27 @@ export default function DeliveryDashboard() {
   const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null);
   const [enteredCode, setEnteredCode] = useState('');
 
+  const loadActiveOrders = useCallback(() => {
+    if (isDelivery && isClient) {
+      const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+      if (allOrdersString) {
+          try {
+              const allOrders = JSON.parse(allOrdersString) as Order[];
+              const filteredOrders = allOrders.filter(o => 
+                o.status === 'Order Placed' || 
+                o.status === 'Confirmed' || 
+                o.status === 'Preparing' || 
+                o.status === 'Shipped' || 
+                o.status === 'Out for Delivery'
+              );
+              setActiveOrders(filteredOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+          } catch(e) {
+              console.error("Failed to parse all orders from localStorage", e);
+          }
+      }
+    }
+  }, [isClient, isDelivery]);
+
   useEffect(() => {
     setIsClient(true);
     if (!isLoading && !isDelivery) {
@@ -67,27 +88,20 @@ export default function DeliveryDashboard() {
   }, [isDelivery, isLoading, router]);
   
   useEffect(() => {
-    if (isDelivery && isClient) {
-      const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-      if (allOrdersString) {
-          try {
-              const allOrders = JSON.parse(allOrdersString) as Order[];
-              // UPDATED: Filter for orders that are actionable, now including 'Order Placed'
-              const filteredOrders = allOrders.filter(o => 
-                o.status === 'Order Placed' || 
-                o.status === 'Confirmed' || 
-                o.status === 'Preparing' || 
-                o.status === 'Shipped' || 
-                o.status === 'Out for Delivery'
-              );
-              // Show newest orders first
-              setActiveOrders(filteredOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-          } catch(e) {
-              console.error("Failed to parse all orders from localStorage", e);
-          }
+    loadActiveOrders();
+  }, [loadActiveOrders]);
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadActiveOrders();
       }
-    }
-  }, [isDelivery, isClient]);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadActiveOrders]);
 
   const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
     const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
@@ -100,11 +114,7 @@ export default function DeliveryDashboard() {
             localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
 
             // Update local state to reflect the change immediately
-            if (newStatus === 'Delivered') {
-                setActiveOrders(prev => prev.filter(o => o.id !== orderId));
-            } else {
-                setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-            }
+            loadActiveOrders();
             
             toast({
                 title: 'Order Updated!',
@@ -271,5 +281,3 @@ export default function DeliveryDashboard() {
     </div>
   );
 }
-
-    

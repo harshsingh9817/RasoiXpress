@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
@@ -60,24 +60,40 @@ export default function AdminOrdersPage() {
   const [isClient, setIsClient] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  const loadOrders = useCallback(() => {
+    const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
+    if (allOrdersString) {
+      try {
+        const allOrders = JSON.parse(allOrdersString) as Order[];
+        // Show newest orders first
+        setOrders(allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      } catch (e) {
+        console.error("Failed to parse orders from localStorage", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setIsClient(true);
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
       router.replace("/");
     }
     if (isClient) {
-      const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
-      if (allOrdersString) {
-        try {
-          const allOrders = JSON.parse(allOrdersString) as Order[];
-          // Show newest orders first
-          setOrders(allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        } catch (e) {
-          console.error("Failed to parse orders from localStorage", e);
-        }
-      }
+      loadOrders();
     }
-  }, [isAdmin, isLoading, isAuthenticated, router, isClient]);
+  }, [isAdmin, isLoading, isAuthenticated, router, isClient, loadOrders]);
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadOrders();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadOrders]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
@@ -103,7 +119,7 @@ export default function AdminOrdersPage() {
         localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
         
         // Update local state to reflect the change immediately
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+        loadOrders();
         
         toast({
             title: 'Order Status Updated',
