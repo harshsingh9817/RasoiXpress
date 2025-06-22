@@ -60,6 +60,8 @@ export interface Order {
   paymentMethod: 'UPI' | 'Cash on Delivery';
   cancellationReason?: string;
   review?: Review; // Added for review
+  customerPhone?: string;
+  deliveryConfirmationCode?: string;
   // The 'total' field should represent the final amount paid by the customer, including taxes and delivery.
   // We can calculate subtotal, taxes, and delivery fee on the fly for display if needed.
 }
@@ -94,5 +96,3 @@ export interface AppNotification {
   link?: string;
   orderId?: string;
 }
-
-    

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle } from 'lucide-react';
+import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [placedOrderDetails, setPlacedOrderDetails] = useState<Order | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -113,6 +114,8 @@ export default function CheckoutPage() {
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const newOrder: Order = {
       id: `ORD${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
@@ -132,7 +135,11 @@ export default function CheckoutPage() {
       })),
       shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`,
       paymentMethod: paymentMethod,
+      customerPhone: formData.phone,
+      deliveryConfirmationCode: confirmationCode,
     };
+    
+    setPlacedOrderDetails(newOrder);
 
     if (typeof window !== 'undefined') {
       // Use a global key for all orders to simulate a central DB for the delivery person feature
@@ -157,7 +164,7 @@ export default function CheckoutPage() {
     // Redirect after a delay
     setTimeout(() => {
         router.push('/profile');
-    }, 4000);
+    }, 8000);
   };
 
   if (!isClient) {
@@ -182,6 +189,23 @@ export default function CheckoutPage() {
         <p className="text-lg text-muted-foreground max-w-md animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           Thank you for your purchase. You can track the status of your order on your profile page.
         </p>
+        
+        {placedOrderDetails?.deliveryConfirmationCode && (
+           <Card className="mt-6 text-center animate-fade-in-up p-4 border-dashed border-primary" style={{ animationDelay: '0.4s' }}>
+              <CardHeader className="p-2">
+                <CardTitle className="flex items-center justify-center text-lg text-primary">
+                    <Shield className="mr-2 h-5 w-5"/> Your Delivery Code
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <p className="text-4xl font-bold tracking-widest text-primary">{placedOrderDetails.deliveryConfirmationCode}</p>
+                <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
+                    Please share this code with the delivery partner to confirm you have received your order.
+                </p>
+              </CardContent>
+           </Card>
+        )}
+
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
             <Button onClick={() => router.push('/profile')} size="lg">
                 Go to My Orders
@@ -354,5 +378,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    

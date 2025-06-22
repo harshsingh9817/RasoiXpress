@@ -6,10 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, Mail, MapPin, ClipboardList } from 'lucide-react';
+import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, PhoneCall, KeyRound, MapPin, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type ActionableStatus = 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
 
@@ -49,6 +52,9 @@ export default function DeliveryDashboard() {
   const { toast } = useToast();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null);
+  const [enteredCode, setEnteredCode] = useState('');
 
   useEffect(() => {
     setIsClient(true);
@@ -78,31 +84,55 @@ export default function DeliveryDashboard() {
     }
   }, [isDelivery, isClient]);
 
-  const handleUpdateStatus = (orderId: string, currentStatus: OrderStatus) => {
-    const nextStatus = getNextStatus(currentStatus as ActionableStatus);
-    if (!nextStatus) return;
-
+  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
     const allOrdersString = localStorage.getItem('rasoiExpressAllOrders');
     if (allOrdersString) {
         let allOrders = JSON.parse(allOrdersString) as Order[];
         const orderIndex = allOrders.findIndex(o => o.id === orderId);
 
         if (orderIndex !== -1) {
-            allOrders[orderIndex].status = nextStatus;
+            allOrders[orderIndex].status = newStatus;
             localStorage.setItem('rasoiExpressAllOrders', JSON.stringify(allOrders));
 
             // Update local state to reflect the change immediately
-            if (nextStatus === 'Delivered') {
+            if (newStatus === 'Delivered') {
                 setActiveOrders(prev => prev.filter(o => o.id !== orderId));
             } else {
-                setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus } : o));
+                setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             }
             
             toast({
                 title: 'Order Updated!',
-                description: `Order ${orderId.slice(-5)} is now marked as ${nextStatus}.`,
+                description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
             });
         }
+    }
+  };
+
+  const handleOpenConfirmDialog = (order: Order) => {
+    setOrderToConfirm(order);
+    setEnteredCode('');
+    setIsConfirmDialogOpen(true);
+  };
+
+  const handleConfirmDelivery = () => {
+    if (!orderToConfirm || !enteredCode) return;
+
+    if (enteredCode === orderToConfirm.deliveryConfirmationCode) {
+      handleUpdateStatus(orderToConfirm.id, 'Delivered');
+      setIsConfirmDialogOpen(false);
+      setOrderToConfirm(null);
+      toast({
+        title: 'Delivery Confirmed!',
+        description: `Order ${orderToConfirm.id.slice(-5)} marked as delivered.`,
+        variant: 'default',
+      });
+    } else {
+      toast({
+        title: 'Incorrect Code',
+        description: 'The confirmation code is incorrect. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -152,6 +182,17 @@ export default function DeliveryDashboard() {
                             <p className="font-semibold flex items-center"><User className="mr-2 h-4 w-4 text-muted-foreground"/>Customer:</p>
                             <p className="pl-6 text-muted-foreground">{order.userEmail}</p>
                         </div>
+                        {order.customerPhone && (
+                           <div className="space-y-1 text-sm">
+                              <p className="font-semibold flex items-center"><PhoneCall className="mr-2 h-4 w-4 text-muted-foreground"/>Contact:</p>
+                               <div className="pl-6 flex items-center justify-between">
+                                 <p className="text-muted-foreground">{order.customerPhone}</p>
+                                  <Button size="sm" variant="outline" asChild>
+                                      <a href={`tel:${order.customerPhone}`}>Call</a>
+                                  </Button>
+                               </div>
+                           </div>
+                        )}
                          <div className="space-y-1 text-sm">
                             <p className="font-semibold flex items-center"><MapPin className="mr-2 h-4 w-4 text-muted-foreground"/>Address:</p>
                             <p className="pl-6 text-muted-foreground">{order.shippingAddress}</p>
@@ -166,13 +207,23 @@ export default function DeliveryDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                       <Button 
-                        className="w-full" 
-                        onClick={() => handleUpdateStatus(order.id, order.status)}
-                        disabled={!getNextStatus(order.status as ActionableStatus)}
-                       >
-                         {getActionText(order.status as ActionableStatus)}
-                       </Button>
+                      {order.status === 'Out for Delivery' ? (
+                          <Button 
+                            className="w-full" 
+                            onClick={() => handleOpenConfirmDialog(order)}
+                          >
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Confirm Delivery
+                          </Button>
+                       ) : (
+                         <Button 
+                          className="w-full" 
+                          onClick={() => handleUpdateStatus(order.id, getNextStatus(order.status as ActionableStatus)!)}
+                          disabled={!getNextStatus(order.status as ActionableStatus)}
+                         >
+                           {getActionText(order.status as ActionableStatus)}
+                         </Button>
+                       )}
                     </CardFooter>
                 </Card>
             )
@@ -184,8 +235,34 @@ export default function DeliveryDashboard() {
             </div>
         )}
       </div>
+
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Confirm Delivery</DialogTitle>
+                <DialogDescription>
+                    Enter the 4-digit code provided by the customer to confirm that the order has been delivered.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="confirmation-code">Delivery Code</Label>
+                    <Input
+                        id="confirmation-code"
+                        value={enteredCode}
+                        onChange={(e) => setEnteredCode(e.target.value)}
+                        placeholder="1234"
+                        maxLength={4}
+                        className="text-center text-2xl tracking-[1rem]"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleConfirmDelivery} disabled={!enteredCode || enteredCode.length < 4}>Confirm</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    

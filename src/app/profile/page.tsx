@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
@@ -89,6 +89,8 @@ const initialMockOrders: Order[] = [
     ],
     shippingAddress: '777 New Order Ln, Fresh City',
     paymentMethod: 'UPI',
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '1234',
   },
   {
     id: 'ORD12345',
@@ -103,7 +105,9 @@ const initialMockOrders: Order[] = [
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'UPI',
-    review: { rating: 5, comment: 'Excellent pizza, very fast delivery!', date: '2024-07-16' }
+    review: { rating: 5, comment: 'Excellent pizza, very fast delivery!', date: '2024-07-16' },
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '5678',
   },
   {
     id: 'ORD67890',
@@ -118,6 +122,8 @@ const initialMockOrders: Order[] = [
     ],
     shippingAddress: '123 Main St, Anytown, USA',
     paymentMethod: 'Cash on Delivery',
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '9012',
   },
    {
     id: 'ORD11223',
@@ -129,6 +135,8 @@ const initialMockOrders: Order[] = [
     items: [ { id: 'm6', name: 'Spaghetti Carbonara', quantity: 1, price: 1400, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=spaghetti%20pasta', category: 'Pasta', description: 'Creamy pasta' }],
     shippingAddress: '456 Oak Ave, Anytown, USA',
     paymentMethod: 'UPI',
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '3456',
   },
   {
     id: 'ORDDELIVEREDNOREVIEW',
@@ -140,6 +148,8 @@ const initialMockOrders: Order[] = [
     items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '7890',
   },
   {
     id: 'ORDCANCELED',
@@ -152,6 +162,8 @@ const initialMockOrders: Order[] = [
     items: [{ id: 'm5', name: 'Caesar Salad', quantity: 1, price: 920, imageUrl: 'https://placehold.co/100x100.png?data-ai-hint=caesar%20salads', category: 'Salads', description: 'Crisp salad' }],
     shippingAddress: '789 Pine Ln, Anytown, USA',
     paymentMethod: 'UPI',
+    customerPhone: '9876543210',
+    deliveryConfirmationCode: '1122',
   }
 ];
 
@@ -669,6 +681,23 @@ export default function ProfilePage() {
                           {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">{`"${order.review.comment}"`}</p>}
                         </div>
                       )}
+                      
+                      {order.status !== 'Delivered' && order.status !== 'Cancelled' && order.deliveryConfirmationCode && (
+                        <div className="mt-4 pt-3 border-t">
+                            <div className="p-3 bg-blue-100/50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
+                                <p className="text-sm font-semibold flex items-center text-blue-800 dark:text-blue-300">
+                                    <ShieldCheck className="mr-2 h-4 w-4" />
+                                    <span>Delivery Confirmation Code</span>
+                                </p>
+                                <p className="text-center text-2xl font-bold tracking-[0.5rem] my-2 text-blue-900 dark:text-blue-200">
+                                    {order.deliveryConfirmationCode}
+                                </p>
+                                <p className="text-xs text-muted-foreground text-center">
+                                    Share this code with your delivery partner to complete the order.
+                                </p>
+                            </div>
+                        </div>
+                      )}
 
                       <div className="flex flex-col sm:flex-row flex-wrap gap-2 mt-3 pt-2 border-t border-border">
                         <Button
@@ -1134,5 +1163,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
