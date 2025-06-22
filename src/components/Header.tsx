@@ -154,8 +154,8 @@ const Header = () => {
 
         // 3. Combine, deduplicate, and save
         const allNotifications = [
-            ...generatedNotifications,
             ...existingNotifications,
+            ...generatedNotifications,
             ...aiNotifications,
         ];
         
@@ -179,11 +179,13 @@ const Header = () => {
     const clickedNotification = notifications.find(n => n.id === notificationId);
     if (!clickedNotification) return;
 
-    setNotifications(prevNotifications =>
-      prevNotifications.map(n =>
-        n.id === notificationId ? { ...n, read: true } : n
-      )
+    const updatedNotifications = notifications.map(n =>
+      n.id === notificationId ? { ...n, read: true } : n
     );
+    setNotifications(updatedNotifications);
+    // Persist the change immediately so it's not lost on the next sync
+    localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(updatedNotifications));
+
 
     if (clickedNotification.link) {
       router.push(clickedNotification.link);
@@ -395,18 +397,18 @@ const Header = () => {
                         <Skeleton className="h-10 w-full" />
                         <Skeleton className="h-10 w-full" />
                      </div>
-                  ) : notifications.length > 0 ? (
+                  ) : notifications.filter(n => !n.read).length > 0 ? (
                     <div className="max-h-80 overflow-y-auto">
-                      {notifications.map(notification => (
+                      {notifications.filter(n => !n.read).map(notification => (
                         <div
                           key={notification.id}
-                          className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
+                          className="p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer bg-primary/5"
                           onClick={() => handleNotificationClick(notification.id)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
                         >
-                          <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
+                          <p className="font-semibold text-sm text-primary">{notification.title}</p>
                           <p className="text-xs text-muted-foreground">{notification.message}</p>
                         </div>
                       ))}
@@ -415,8 +417,17 @@ const Header = () => {
                     <p className="p-4 text-sm text-muted-foreground text-center">No new notifications.</p>
                   )}
                    <div className="p-2 border-t text-center">
-                    <Button variant="link" size="sm" className="text-primary" onClick={() => setNotifications(prev => prev.map(n => ({...n, read: true}))) }>
-                      Mark all as read
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-primary"
+                      onClick={() => {
+                        const allRead = notifications.map(n => ({ ...n, read: true }));
+                        setNotifications(allRead);
+                        localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(allRead));
+                      }}
+                    >
+                      Clear All Notifications
                     </Button>
                   </div>
                 </PopoverContent>
