@@ -12,12 +12,14 @@ export async function POST(request: NextRequest) {
 
     const recommendations = await recommendDishes({}); // Pass an empty object or a userId
 
-    if (!recommendations || recommendations.recommendations.length === 0) {
+    if (!recommendations) {
+      // This is a fallback in case the flow returns null/undefined.
+      // The current flow implementation returns { recommendations: [] } on failure, so this may not be hit.
       return NextResponse.json({ error: 'Could not generate recommendations at this time.' }, { status: 500 });
     }
 
-    // In a real app, you would likely save these recommendations to a user-specific cache or database.
-    // For this demo, we just return them directly.
+    // It is not an error to have zero recommendations. The front-end is equipped to handle this case
+    // by showing a "No new notifications" message.
     return NextResponse.json(recommendations);
 
   } catch (error: any) {
