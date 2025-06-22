@@ -146,11 +146,10 @@ const Header = () => {
                         link: `/restaurants/${rec.restaurantId}`,
                     }));
                 }
-            } else {
-                console.error("Failed to fetch recommendations");
             }
         } catch (error) {
-            console.error("Error fetching AI recommendations:", error);
+            // Silently fail. The recommendation service might be down or not configured.
+            // The rest of the notification system should still work.
         }
 
         // 3. Combine, deduplicate, and save
