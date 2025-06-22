@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif; /* Updated from Inter */
+  font-family: 'Cinzel', serif;
 }
 
 @layer base {
