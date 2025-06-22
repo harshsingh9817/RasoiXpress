@@ -81,3 +81,14 @@ export interface GeocodedLocation {
   lat?: number;
   lng?: number;
 }
+
+export interface AppNotification {
+  id: string; // Unique key e.g., 'notif-ORD123-Delivered' or 'notif-rec-dishname'
+  timestamp: number;
+  title: string;
+  message: string;
+  read: boolean;
+  type: 'new_dish' | 'order_update';
+  link?: string;
+  orderId?: string;
+}

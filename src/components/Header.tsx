@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart, Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
 import RasoiXpressLogo from './icons/RasoiXpressLogo';
 import { Button } from './ui/button';
@@ -15,7 +15,7 @@ import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { GeocodedLocation } from '@/lib/types';
+import type { GeocodedLocation, AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
 
@@ -24,21 +24,42 @@ const LocationMap = dynamic(() => import('@/components/LocationMap'), {
   loading: () => <Skeleton className="h-[200px] w-full rounded-md" /> 
 });
 
-interface AppNotification {
-  id: number;
-  title: string;
-  message: string;
-  read: boolean;
-  type: 'new_dish' | 'order_update' | 'offer' | 'general';
-  link?: string;
-  restaurantId?: string;
-  orderId?: string;
-}
+const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
+  'Order Placed': {
+    title: 'Payment Successful!',
+    message: 'Your order has been placed. The restaurant will confirm it shortly.',
+  },
+  'Confirmed': {
+    title: 'Order Confirmed',
+    message: 'The restaurant is preparing your order.',
+  },
+  'Preparing': {
+    title: 'Order in the Kitchen',
+    message: 'Your meal is being freshly prepared by the chefs!',
+  },
+  'Shipped': {
+    title: 'Order Shipped',
+    message: 'Your order has been dispatched from the restaurant.',
+  },
+  'Out for Delivery': {
+    title: 'Out for Delivery',
+    message: 'Your delivery partner is on the way to your location!',
+  },
+  'Delivered': {
+    title: 'Order Delivered!',
+    message: 'We hope you enjoy your meal! You can now leave a review.',
+  },
+  'Cancelled': {
+    title: 'Order Cancelled',
+    message: 'Your order has been successfully cancelled.',
+  },
+};
 
 const Header = () => {
   const { getCartItemCount, setIsCartOpen } = useCart();
   const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const itemCount = getCartItemCount();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
@@ -74,50 +95,88 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return; // Don't fetch notifications if not logged in
-
-    const fetchRecommendations = async () => {
-      setIsLoadingNotifications(true);
-      try {
-        const response = await fetch('/api/recommend', { method: 'POST' });
-        if (!response.ok) {
-          console.error("Failed to fetch recommendations");
-          setNotifications([]);
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (data?.recommendations) {
-          const newNotifications: AppNotification[] = data.recommendations.map((rec: any, index: number) => ({
-            id: Date.now() + index,
-            title: `You might love the ${rec.dishName}!`,
-            message: rec.reason,
-            read: false,
-            type: 'new_dish',
-            restaurantId: rec.restaurantId,
-            link: `/restaurants/${rec.restaurantId}`,
-          }));
-          setNotifications(newNotifications);
-        } else {
-           setNotifications([]);
-        }
-
-      } catch (error) {
-        console.error("Error fetching recommendations:", error);
+    if (!isAuthenticated) {
         setNotifications([]);
-      } finally {
         setIsLoadingNotifications(false);
-      }
+        return;
+    }
+
+    const syncNotifications = async () => {
+        setIsLoadingNotifications(true);
+
+        const storedOrders: Order[] = JSON.parse(localStorage.getItem('rasoiExpressUserOrders') || '[]');
+        const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
+        
+        const generatedNotifications: AppNotification[] = [];
+
+        // 1. Process Order Statuses to generate notifications
+        storedOrders.forEach(order => {
+            const notificationId = `notif-${order.id}-${order.status}`;
+            const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+
+            if (!hasNotif && orderStatusNotificationMap[order.status]) {
+                const details = orderStatusNotificationMap[order.status]!;
+                generatedNotifications.push({
+                    id: notificationId,
+                    timestamp: Date.now() + Math.random(), // Add jitter to maintain order
+                    title: `${details.title} (#${order.id.slice(-5)})`,
+                    message: details.message,
+                    read: false,
+                    type: 'order_update',
+                    orderId: order.id,
+                    link: '/profile',
+                });
+            }
+        });
+
+        // 2. Fetch AI Recommendations
+        let aiNotifications: AppNotification[] = [];
+        try {
+            const response = await fetch('/api/recommend', { method: 'POST' });
+            if (response.ok) {
+                const data = await response.json();
+                if (data?.recommendations) {
+                    aiNotifications = data.recommendations.map((rec: any, index: number) => ({
+                        id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
+                        timestamp: Date.now() - (index * 1000), // Stagger timestamps slightly
+                        title: `✨ You might love ${rec.dishName}!`,
+                        message: rec.reason,
+                        read: false,
+                        type: 'new_dish' as const,
+                        link: `/restaurants/${rec.restaurantId}`,
+                    }));
+                }
+            } else {
+                console.error("Failed to fetch recommendations");
+            }
+        } catch (error) {
+            console.error("Error fetching AI recommendations:", error);
+        }
+
+        // 3. Combine, deduplicate, and save
+        const allNotifications = [
+            ...generatedNotifications,
+            ...existingNotifications,
+            ...aiNotifications,
+        ];
+        
+        const uniqueNotifications = Array.from(new Map(allNotifications.map(n => [n.id, n])).values())
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 25); // Limit to 25 to avoid bloat
+
+        setNotifications(uniqueNotifications);
+        localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(uniqueNotifications));
+
+        setIsLoadingNotifications(false);
     };
 
-    fetchRecommendations();
-  }, [isAuthenticated]);
+    syncNotifications();
+  }, [isAuthenticated, pathname]); // Re-sync on auth change and navigation
 
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
-  const handleNotificationClick = (notificationId: number) => {
+  const handleNotificationClick = (notificationId: string) => {
     const clickedNotification = notifications.find(n => n.id === notificationId);
     if (!clickedNotification) return;
 
