@@ -2,11 +2,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Loader2, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -68,16 +69,20 @@ export default function AdminPage() {
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-xl md:text-2xl font-headline">Manage Food Items</CardTitle>
-            <CardDescription>Add, edit, or remove food items from the menu.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Food item management will be here.</p>
-            {/* Placeholder for future components for adding/editing food items */}
-          </CardContent>
-        </Card>
+        <Link href="/admin/menu" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <Utensils className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Menu Items
+              </CardTitle>
+              <CardDescription>Add, edit, or remove food items from the menu.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to manage all food items available in the application.</p>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>

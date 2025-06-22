@@ -1,7 +1,12 @@
 
 import type { Restaurant, MenuItem } from './types';
 
-export const mockMenuItems: MenuItem[] = [
+// --- LocalStorage Keys ---
+const MENU_STORAGE_KEY = 'rasoiExpressAllMenuItems';
+const RESTAURANTS_STORAGE_KEY = 'rasoiExpressAllRestaurants';
+
+// --- Initial Data ---
+const initialMenuItems: MenuItem[] = [
   {
     id: 'm1',
     name: 'Margherita Pizza',
@@ -113,7 +118,7 @@ export const mockMenuItems: MenuItem[] = [
   },
 ];
 
-export const mockRestaurants: Restaurant[] = [
+const initialRestaurants: Restaurant[] = [
   {
     id: 'r1',
     name: 'Pizza Palace',
@@ -122,7 +127,7 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '30-40 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Pizza', 'Italian', 'Fast Food'],
-    menu: [mockMenuItems[0], mockMenuItems[1], mockMenuItems[4], mockMenuItems[6]],
+    menu: [initialMenuItems[0], initialMenuItems[1], initialMenuItems[4], initialMenuItems[6]],
     address: '123 Pizza St, Flavor Town',
     promotions: ['20% off on orders above Rs.1000'],
   },
@@ -134,7 +139,7 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '25-35 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Burgers', 'American', 'Fast Food', 'Fries'],
-    menu: [mockMenuItems[2], mockMenuItems[3], mockMenuItems[9]],
+    menu: [initialMenuItems[2], initialMenuItems[3], initialMenuItems[9]],
     address: '456 Burger Ave, Grillsville',
   },
   {
@@ -145,7 +150,7 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '40-50 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Indian', 'Curry', 'Vegetarian Options'],
-    menu: [mockMenuItems[7], mockMenuItems[8], mockMenuItems[4]], // Added m4 Caesar Salad as a side
+    menu: [initialMenuItems[7], initialMenuItems[8], initialMenuItems[4]], // Added m4 Caesar Salad as a side
     address: '789 Spice Rd, Masala City',
     promotions: ['Free Naan with every main course'],
   },
@@ -157,7 +162,7 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '35-45 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Pasta', 'Italian', 'Salads'],
-    menu: [mockMenuItems[5], mockMenuItems[4], mockMenuItems[6]],
+    menu: [initialMenuItems[5], initialMenuItems[4], initialMenuItems[6]],
     address: '101 Noodle Ln, Roma',
   },
   {
@@ -168,33 +173,124 @@ export const mockRestaurants: Restaurant[] = [
     deliveryTime: '20-30 min',
     imageUrl: 'https://placehold.co/600x400.png',
     categories: ['Desserts', 'Cakes', 'Coffee', 'Bakery'],
-    menu: [mockMenuItems[6]],
+    menu: [initialMenuItems[6]],
     address: '222 Sugar Rush St, Candyland',
   },
 ];
 
-export const getRestaurantById = (id: string): Restaurant | undefined => {
-  return mockRestaurants.find(r => r.id === id);
-};
 
+// --- Helper Functions to get data, initializing from localStorage if available ---
+function getData<T>(key: string, initialData: T): T {
+    if (typeof window === 'undefined') {
+        return initialData;
+    }
+    try {
+        const storedData = localStorage.getItem(key);
+        if (storedData) {
+            return JSON.parse(storedData);
+        }
+    } catch (error) {
+        console.error(`Error parsing data from localStorage for key "${key}":`, error);
+        localStorage.removeItem(key); // Clear corrupted data
+    }
+    // If no stored data or it's corrupted, set initial data and return it
+    localStorage.setItem(key, JSON.stringify(initialData));
+    return initialData;
+}
+
+
+// --- Menu Item Management ---
+export function getMenuItems(): MenuItem[] {
+    return getData(MENU_STORAGE_KEY, initialMenuItems);
+}
+
+export function addMenuItem(newItemData: Omit<MenuItem, 'id'>): MenuItem {
+    const newId = `m${Date.now()}`;
+    const newItem: MenuItem = { ...newItemData, id: newId };
+    
+    const currentItems = getMenuItems();
+    const updatedItems = [...currentItems, newItem];
+    localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(updatedItems));
+    
+    // Note: This doesn't add the item to any restaurant's menu automatically.
+    // That would require a separate UI flow which is beyond the scope of this feature.
+    return newItem;
+}
+
+export function updateMenuItem(updatedItem: MenuItem) {
+    // Update master list
+    const items = getMenuItems();
+    const itemIndex = items.findIndex(item => item.id === updatedItem.id);
+    if (itemIndex > -1) {
+        items[itemIndex] = updatedItem;
+        localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(items));
+    }
+    
+    // Update in any restaurant that has it
+    const restaurants = getRestaurants();
+    restaurants.forEach(restaurant => {
+        const menuItemIndexInRestaurant = restaurant.menu.findIndex(item => item.id === updatedItem.id);
+        if (menuItemIndexInRestaurant > -1) {
+            restaurant.menu[menuItemIndexInRestaurant] = updatedItem;
+        }
+    });
+    localStorage.setItem(RESTAURANTS_STORAGE_KEY, JSON.stringify(restaurants));
+}
+
+export function deleteMenuItem(itemId: string) {
+    // Delete from master list
+    const items = getMenuItems();
+    const updatedItems = items.filter(item => item.id !== itemId);
+    localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(updatedItems));
+
+    // Delete from any restaurant that has it
+    const restaurants = getRestaurants();
+    restaurants.forEach(restaurant => {
+        restaurant.menu = restaurant.menu.filter(item => item.id !== itemId);
+    });
+    localStorage.setItem(RESTAURANTS_STORAGE_KEY, JSON.stringify(restaurants));
+}
+
+
+// --- Restaurant Data Management ---
+export function getRestaurants(): Restaurant[] {
+    return getData(RESTAURANTS_STORAGE_KEY, initialRestaurants);
+}
+
+export function getRestaurantById(id: string): Restaurant | undefined {
+  const restaurants = getRestaurants();
+  // We now use the live version from localStorage (or initial data if not set)
+  return restaurants.find(r => r.id === id);
+}
+
+
+// --- Other Data Functions ---
 export const getPopularDishes = (): string[] => {
-  return mockMenuItems.filter(item => item.isPopular).map(item => item.name);
+  return getMenuItems().filter(item => item.isPopular).map(item => item.name);
 };
 
 export const getCurrentTrends = (): string[] => {
-  // Mock current trends
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
 
-// Add data-ai-hint to image URLs
-mockMenuItems.forEach(item => {
-  const imageName = item.name.split(" ")[0].toLowerCase();
-  const imageCategory = item.category.toLowerCase();
-  item.imageUrl = `${item.imageUrl.split('?')[0]}?data-ai-hint=${imageName} ${imageCategory}`;
+
+// Add data-ai-hint to image URLs on initial data
+[initialMenuItems, initialRestaurants.flatMap(r => r.menu)].flat().forEach(item => {
+  if (item && item.imageUrl && !item.imageUrl.includes('data-ai-hint')) {
+    const imageName = item.name.split(" ")[0].toLowerCase();
+    const imageCategory = item.category.toLowerCase();
+    item.imageUrl = `${item.imageUrl.split('?')[0]}?data-ai-hint=${imageName} ${imageCategory}`;
+  }
 });
 
-mockRestaurants.forEach(restaurant => {
-  const restaurantName = restaurant.name.split(" ")[0].toLowerCase();
-  const restaurantCuisine = restaurant.cuisine.split(",")[0].trim().toLowerCase();
-  restaurant.imageUrl = `${restaurant.imageUrl.split('?')[0]}?data-ai-hint=${restaurantName} ${restaurantCuisine}`;
+initialRestaurants.forEach(restaurant => {
+  if (restaurant && restaurant.imageUrl && !restaurant.imageUrl.includes('data-ai-hint')) {
+    const restaurantName = restaurant.name.split(" ")[0].toLowerCase();
+    const restaurantCuisine = restaurant.cuisine.split(",")[0].trim().toLowerCase();
+    restaurant.imageUrl = `${restaurant.imageUrl.split('?')[0]}?data-ai-hint=${restaurantName} ${restaurantCuisine}`;
+  }
 });
+
+// Original mock data exports, for cases where initial state might be needed without side effects
+export const mockMenuItems: MenuItem[] = initialMenuItems;
+export const mockRestaurants: Restaurant[] = initialRestaurants;
