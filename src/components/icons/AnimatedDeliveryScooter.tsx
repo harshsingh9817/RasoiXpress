@@ -119,6 +119,8 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
                 <tspan x="150" dy="4">Academy</tspan>
             </text>
             <rect x="170" y="25" width="35" height="45" fill={buildingColor1} />
+            <rect x="175" y="35" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x="190" y="35" width="10" height="5" fill={seatColor} opacity="0.5"/>
             <text x="187.5" y="35" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
                 <tspan x="187.5" dy="0">Shiv Shakti</tspan>
                 <tspan x="187.5" dy="4">Creation</tspan>
@@ -167,6 +169,8 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
                 <tspan x={150 + newPatternWidth} dy="4">Academy</tspan>
             </text>
             <rect x={170 + newPatternWidth} y="25" width="35" height="45" fill={buildingColor1} />
+            <rect x={175 + newPatternWidth} y="35" width="10" height="5" fill={seatColor} opacity="0.5"/>
+            <rect x={190 + newPatternWidth} y="35" width="10" height="5" fill={seatColor} opacity="0.5"/>
             <text x={187.5 + newPatternWidth} y="35" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
                 <tspan x={187.5 + newPatternWidth} dy="0">Shiv Shakti</tspan>
                 <tspan x={187.5 + newPatternWidth} dy="4">Creation</tspan>
