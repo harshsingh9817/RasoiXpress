@@ -1,3 +1,4 @@
+
 import type { FC } from 'react';
 
 interface AnimatedDeliveryScooterProps {
@@ -111,6 +112,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
             
             {/* New Buildings */}
             <rect x="135" y="5" width="30" height="65" fill={buildingColor2} />
+            <rect x="140" y="12" width="20" height="16" fill={seatColor} opacity="0.3" rx="1"/>
              <text x="150" y="15" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
                 <tspan x="150" dy="0">Computer</tspan>
                 <tspan x="150" dy="4">Skill</tspan>
@@ -158,6 +160,7 @@ const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, 
 
              {/* New Buildings - Repeated */}
             <rect x={135 + newPatternWidth} y="5" width="30" height="65" fill={buildingColor2} />
+            <rect x={140 + newPatternWidth} y="12" width="20" height="16" fill={seatColor} opacity="0.3" rx="1"/>
              <text x={150 + newPatternWidth} y="15" fontFamily="Arial, sans-serif" fontSize="3" fontWeight="bold" fill={buildingTextColor} textAnchor="middle">
                 <tspan x={150 + newPatternWidth} dy="0">Computer</tspan>
                 <tspan x={150 + newPatternWidth} dy="4">Skill</tspan>
