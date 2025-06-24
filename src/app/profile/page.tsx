@@ -83,6 +83,7 @@ const DELIVERY_FEE = 49.00;
 const TAX_RATE = 0.05; // 5%
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
+  fullName: '',
   type: 'Home',
   street: '',
   city: '',
@@ -216,13 +217,14 @@ export default function ProfilePage() {
 
   const handleOpenAddAddressDialog = () => {
     setAddressToEdit(null);
-    setCurrentAddressFormData(defaultAddressFormData);
+    setCurrentAddressFormData({...defaultAddressFormData, fullName: firebaseUser?.displayName || ''});
     setIsAddressDialogOpen(true);
   };
 
   const handleOpenEditAddressDialog = (address: AddressType) => {
     setAddressToEdit(address);
     setCurrentAddressFormData({
+      fullName: address.fullName,
       type: address.type,
       street: address.street,
       city: address.city,
@@ -615,6 +617,7 @@ export default function ProfilePage() {
                         {address.type !== 'Home' && address.type !== 'Work' && <MapPin className="mr-2 h-4 w-4 text-primary" />}
                         {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
                       </h4>
+                       <p className="font-medium text-base text-foreground mb-1">{address.fullName || firebaseUser?.displayName}</p>
                       <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.pinCode}</p>
                       <p className="text-sm text-muted-foreground"><Phone className="inline mr-1 h-3 w-3" />{address.phone}
                         {address.alternatePhone && <span className="ml-2"><Smartphone className="inline mr-1 h-3 w-3" />{address.alternatePhone}</span>}
@@ -778,6 +781,17 @@ export default function ProfilePage() {
           </DialogHeader>
           <form onSubmit={handleAddressFormSubmit}>
             <div className="grid gap-4 py-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  value={currentAddressFormData.fullName}
+                  onChange={handleAddressFormChange}
+                  required
+                  placeholder="e.g., Jane Doe"
+                />
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="type">Type</Label>
                 <Select

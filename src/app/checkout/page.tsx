@@ -65,6 +65,7 @@ export default function CheckoutPage() {
           setSelectedAddressId(defaultAddress.id);
           setFormData(prev => ({
             ...prev,
+            fullName: defaultAddress.fullName || user.displayName || '',
             address: defaultAddress.street,
             city: defaultAddress.city,
             pinCode: defaultAddress.pinCode,
@@ -168,6 +169,7 @@ export default function CheckoutPage() {
       if (selectedAddr) {
         setFormData(prev => ({
           ...prev,
+          fullName: selectedAddr.fullName || '',
           address: selectedAddr.street,
           city: selectedAddr.city,
           pinCode: selectedAddr.pinCode,
@@ -177,6 +179,7 @@ export default function CheckoutPage() {
     } else {
       setFormData(prev => ({
         ...prev,
+        fullName: user?.displayName || '',
         address: '',
         city: '',
         pinCode: '',
@@ -336,7 +339,7 @@ export default function CheckoutPage() {
                       <SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address manually</SelectItem>
                       {savedAddresses.map(addr => (
                         <SelectItem key={addr.id} value={addr.id}>
-                          {`${addr.type}: ${addr.street}, ${addr.city}, ${addr.pinCode}${addr.isDefault ? " (Default)" : ""}`}
+                          {`${addr.fullName}: ${addr.street}, ${addr.city}${addr.isDefault ? " (Default)" : ""}`}
                         </SelectItem>
                       ))}
                     </SelectContent>

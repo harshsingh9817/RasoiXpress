@@ -70,6 +70,7 @@ export interface Order {
 
 export interface Address {
   id: string;
+  fullName: string;
   type: 'Home' | 'Work' | 'Other';
   street: string;
   city: string;
