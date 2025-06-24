@@ -291,24 +291,24 @@ const Header = () => {
                         <Skeleton className="h-10 w-full" />
                         <Skeleton className="h-10 w-full" />
                      </div>
-                  ) : notifications.filter(n => !n.read).length > 0 ? (
+                  ) : notifications.length > 0 ? (
                     <div className="max-h-80 overflow-y-auto">
-                      {notifications.filter(n => !n.read).map(notification => (
+                      {notifications.map(notification => (
                         <div
                           key={notification.id}
-                          className="p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer bg-primary/5"
+                          className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
                           onClick={() => handleNotificationClick(notification.id)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
                         >
-                          <p className="font-semibold text-sm text-primary">{notification.title}</p>
+                          <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
                           <p className="text-xs text-muted-foreground">{notification.message.length > 50 ? `${notification.message.substring(0, 50)}...` : notification.message}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="p-4 text-sm text-muted-foreground text-center">No new notifications.</p>
+                    <p className="p-4 text-sm text-muted-foreground text-center">No notifications found.</p>
                   )}
                    <div className="p-2 border-t text-center">
                     <Button
