@@ -55,7 +55,7 @@ const CartSheet = () => {
   return (
     <>
       {showFAB && (
-        <div className="fixed bottom-6 left-6 z-50">
+        <div className="fixed bottom-20 left-6 z-50">
           <Button
             variant="default"
             size="icon"
