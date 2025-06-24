@@ -90,6 +90,7 @@ export interface AppNotification {
   type: 'new_dish' | 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered';
   link?: string;
   orderId?: string;
+  orderStatus?: OrderStatus;
 }
 
 export interface HeroData {

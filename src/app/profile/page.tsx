@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck,
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck,
   Bell, BellOff
 } from 'lucide-react';
 import Image from 'next/image';
@@ -67,7 +67,7 @@ const stepIcons: Record<OrderStatus, React.ElementType> = {
   'Preparing': ChefHat,
   'Shipped': Truck,
   'Out for Delivery': Bike,
-  'Delivered': PackageCheckIcon,
+  'Delivered': PackageCheck,
   'Cancelled': XCircle,
 };
 

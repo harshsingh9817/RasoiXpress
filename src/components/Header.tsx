@@ -4,7 +4,10 @@
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2 } from 'lucide-react';
+import {
+  Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2,
+  Package, MessageSquare, Sparkles, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, XCircle,
+} from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +50,38 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
     message: 'Your order has been successfully cancelled.',
   },
 };
+
+const getNotificationIcon = (notification: AppNotification) => {
+    const iconClass = `h-5 w-5 flex-shrink-0 ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
+
+    switch (notification.type) {
+        case 'admin_new_order':
+            return <Package className={iconClass} />;
+        case 'admin_order_delivered':
+            return <PackageCheck className={iconClass} />;
+        case 'admin_message':
+            return <MessageSquare className={iconClass} />;
+        case 'new_dish':
+            return <Sparkles className={iconClass} />;
+        case 'order_update':
+            if (notification.orderStatus) {
+                switch (notification.orderStatus) {
+                    case 'Order Placed': return <PackagePlus className={iconClass} />;
+                    case 'Confirmed': return <ClipboardCheck className={iconClass} />;
+                    case 'Preparing': return <ChefHat className={iconClass} />;
+                    case 'Shipped': return <Truck className={iconClass} />;
+                    case 'Out for Delivery': return <Bike className={iconClass} />;
+                    case 'Delivered': return <PackageCheck className={iconClass} />;
+                    case 'Cancelled': return <XCircle className={iconClass} />;
+                    default: break;
+                }
+            }
+            return <Bell className={iconClass} />;
+        default:
+            return <Bell className={iconClass} />;
+    }
+}
+
 
 const Header = () => {
   const { user, isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
@@ -99,11 +134,12 @@ const Header = () => {
                     generatedNotifications.push({
                         id: notificationId,
                         timestamp: new Date(order.date).getTime(),
-                        title: `📦 New Order Placed!`,
+                        title: `New Order Placed!`,
                         message: `Order #${order.id.slice(-6)} from ${order.customerName} for Rs.${order.total.toFixed(2)}.`,
                         read: false,
                         type: 'admin_new_order',
                         orderId: order.id,
+                        orderStatus: order.status,
                         link: '/admin/orders',
                     });
                 }
@@ -117,11 +153,12 @@ const Header = () => {
                      generatedNotifications.push({
                         id: notificationId,
                         timestamp: new Date(order.date).getTime() + 1,
-                        title: `✅ Order Delivered`,
+                        title: `Order Delivered`,
                         message: `Order #${order.id.slice(-6)} to ${order.customerName} has been completed.`,
                         read: false,
                         type: 'admin_order_delivered',
                         orderId: order.id,
+                        orderStatus: order.status,
                         link: '/admin/orders',
                     });
                 }
@@ -144,6 +181,7 @@ const Header = () => {
                     read: false,
                     type: 'order_update',
                     orderId: order.id,
+                    orderStatus: order.status,
                     link: '/profile',
                 });
             }
@@ -346,14 +384,19 @@ const Header = () => {
                       {notifications.map(notification => (
                         <div
                           key={notification.id}
-                          className={`p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
+                          className={`flex items-start p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
                           onClick={() => handleNotificationClick(notification.id)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
                         >
-                          <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
-                          <p className="text-xs text-muted-foreground">{notification.message.length > 50 ? `${notification.message.substring(0, 50)}...` : notification.message}</p>
+                          <div className="flex-shrink-0 mr-3 mt-1">
+                            {getNotificationIcon(notification)}
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-semibold text-sm ${!notification.read ? 'text-primary' : ''}`}>{notification.title}</p>
+                            <p className="text-xs text-muted-foreground">{notification.message.length > 50 ? `${notification.message.substring(0, 50)}...` : notification.message}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
