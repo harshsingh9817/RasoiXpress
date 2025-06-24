@@ -168,7 +168,7 @@ export default function AdminOrdersPage() {
                 orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
-                    <TableCell>{order.userEmail}</TableCell>
+                    <TableCell>{order.customerName}</TableCell>
                     <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
                     <TableCell>
                        <Select
@@ -214,7 +214,7 @@ export default function AdminOrdersPage() {
                 <DialogHeader>
                     <DialogTitle>Order Details: #{selectedOrder.id.slice(-6)}</DialogTitle>
                     <DialogDescription>
-                        Placed by {selectedOrder.userEmail} on {new Date(selectedOrder.date).toLocaleDateString()}
+                        Placed by {selectedOrder.customerName} ({selectedOrder.userEmail}) on {new Date(selectedOrder.date).toLocaleDateString()}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">

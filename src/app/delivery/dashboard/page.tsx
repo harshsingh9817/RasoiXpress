@@ -179,7 +179,7 @@ export default function DeliveryDashboard() {
                     <CardContent className="space-y-3 flex-grow">
                         <div className="space-y-1 text-sm">
                             <p className="font-semibold flex items-center"><User className="mr-2 h-4 w-4 text-muted-foreground"/>Customer:</p>
-                            <p className="pl-6 text-muted-foreground">{order.userEmail}</p>
+                            <p className="pl-6 text-muted-foreground">{order.customerName}</p>
                         </div>
                         {order.customerPhone && (
                            <div className="space-y-1 text-sm">

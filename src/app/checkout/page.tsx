@@ -111,6 +111,7 @@ export default function CheckoutPage() {
     const newOrderData: Omit<Order, 'id'> = {
       userId: user.uid,
       userEmail: user.email || 'N/A',
+      customerName: formData.fullName,
       date: new Date().toISOString(),
       status: 'Order Placed',
       total: grandTotal,
