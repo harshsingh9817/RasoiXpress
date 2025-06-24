@@ -1,5 +1,6 @@
 
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData } from './types';
+
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef } from './types';
 
 // --- Key Constants ---
 const allMenuItemsKey = 'rasoiExpressMenuItems';
@@ -7,6 +8,7 @@ const allOrdersKey = 'rasoiExpressAllOrders';
 const userAddressesKeyPrefix = 'rasoiExpressUserAddresses_';
 const heroDataKey = 'rasoiExpressHeroData';
 const paymentSettingsKey = 'rasoiExpressPaymentSettings';
+const adminMessagesKey = 'rasoiExpressAdminMessages';
 
 
 // --- Initial Data ---
@@ -322,6 +324,36 @@ export function getAnalyticsData(): AnalyticsData {
         totalOrders,
         chartData,
     };
+}
+
+
+// --- Admin Messaging ---
+export function getAllUsers(): UserRef[] {
+    const orders = getAllOrders();
+    const usersMap = new Map<string, string>();
+    orders.forEach(order => {
+        if (order.userId && order.userEmail) {
+            usersMap.set(order.userId, order.userEmail);
+        }
+    });
+    return Array.from(usersMap.entries()).map(([id, email]) => ({ id, email }));
+}
+
+export function getAdminMessages(): AdminMessage[] {
+    return getFromStorage<AdminMessage[]>(adminMessagesKey, []);
+}
+
+export function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): void {
+    const messages = getAdminMessages();
+    const newMessage: AdminMessage = {
+        id: `msg-${Date.now()}`,
+        userId,
+        userEmail,
+        title,
+        message,
+        timestamp: Date.now(),
+    };
+    saveToStorage(adminMessagesKey, [...messages, newMessage]);
 }
 
 

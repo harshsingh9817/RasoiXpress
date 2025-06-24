@@ -87,7 +87,7 @@ export interface AppNotification {
   title: string;
   message: string;
   read: boolean;
-  type: 'new_dish' | 'order_update';
+  type: 'new_dish' | 'order_update' | 'admin_message';
   link?: string;
   orderId?: string;
 }
@@ -114,4 +114,18 @@ export interface AnalyticsData {
     totalProfit: number;
     totalOrders: number;
     chartData: DailyChartData[];
+}
+
+export interface AdminMessage {
+  id: string;
+  userId: string;
+  userEmail: string;
+  title: string;
+  message: string;
+  timestamp: number;
+}
+
+export interface UserRef {
+  id: string;
+  email: string;
 }

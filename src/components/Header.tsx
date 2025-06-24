@@ -12,9 +12,10 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getAllOrders } from '@/lib/data';
+import { getAllOrders, getAdminMessages } from '@/lib/data';
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': {
@@ -58,6 +59,7 @@ const Header = () => {
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+  const [viewingMessage, setViewingMessage] = useState<AppNotification | null>(null);
 
   const [isClient, setIsClient] = useState(false);
 
@@ -80,7 +82,7 @@ const Header = () => {
     
     const generatedNotifications: AppNotification[] = [];
 
-    // 1. Process Order Statuses to generate notifications
+    // 1. Process Order Statuses
     userOrders.forEach(order => {
         const notificationId = `notif-${order.id}-${order.status}`;
         const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
@@ -99,8 +101,26 @@ const Header = () => {
             });
         }
     });
+    
+    // 2. Process Admin Messages
+    const adminMessages = getAdminMessages().filter(m => m.userId === user.uid);
+    adminMessages.forEach(msg => {
+      const notificationId = `notif-${msg.id}`;
+      const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+      if (!hasNotif) {
+        generatedNotifications.push({
+          id: notificationId,
+          timestamp: msg.timestamp,
+          title: msg.title,
+          message: msg.message,
+          read: false,
+          type: 'admin_message',
+        });
+      }
+    });
 
-    // 2. Fetch AI Recommendations (remains unchanged)
+
+    // 3. Fetch AI Recommendations
     let aiNotifications: AppNotification[] = [];
     try {
         const response = await fetch('/api/recommend', { method: 'POST' });
@@ -122,7 +142,7 @@ const Header = () => {
         console.warn("AI recommendation fetch failed, continuing without them.");
     }
 
-    // 3. Combine, deduplicate, and save
+    // 4. Combine, deduplicate, and save
     const allNotifications = [
         ...existingNotifications,
         ...generatedNotifications,
@@ -158,9 +178,10 @@ const Header = () => {
     setNotifications(updatedNotifications);
     localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(updatedNotifications));
 
-
-    if (clickedNotification.link) {
-      router.push(clickedNotification.link);
+    if (clickedNotification.type === 'admin_message') {
+        setViewingMessage(clickedNotification);
+    } else if (clickedNotification.link) {
+        router.push(clickedNotification.link);
     }
     setIsNotificationPanelOpen(false);
   };
@@ -282,7 +303,7 @@ const Header = () => {
                           onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification.id)}
                         >
                           <p className="font-semibold text-sm text-primary">{notification.title}</p>
-                          <p className="text-xs text-muted-foreground">{notification.message}</p>
+                          <p className="text-xs text-muted-foreground">{notification.message.length > 50 ? `${notification.message.substring(0, 50)}...` : notification.message}</p>
                         </div>
                       ))}
                     </div>
@@ -310,6 +331,18 @@ const Header = () => {
         </div>
       </header>
       <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
+
+      <Dialog open={!!viewingMessage} onOpenChange={(isOpen) => !isOpen && setViewingMessage(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{viewingMessage?.title}</DialogTitle>
+                <DialogDescription>A message from the admin team.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 text-sm text-foreground whitespace-pre-wrap">
+                {viewingMessage?.message}
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
