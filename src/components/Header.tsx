@@ -83,96 +83,129 @@ const Header = () => {
     }
     setIsLoadingNotifications(true);
 
+    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
     const allOrders = getAllOrders();
-    const userOrders = allOrders.filter(o => o.userId === user.uid);
-
-    const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem('rasoiExpressUserNotifications') || '[]');
-    
+    const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const generatedNotifications: AppNotification[] = [];
 
-    // 1. Process Order Statuses
-    userOrders.forEach(order => {
-        const notificationId = `notif-${order.id}-${order.status}`;
-        const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
-
-        if (!hasNotif && orderStatusNotificationMap[order.status]) {
-            const details = orderStatusNotificationMap[order.status]!;
-            generatedNotifications.push({
-                id: notificationId,
-                timestamp: new Date(order.date).getTime() + Math.random(),
-                title: `${details.title} (#${order.id.slice(-5)})`,
-                message: details.message,
-                read: false,
-                type: 'order_update',
-                orderId: order.id,
-                link: '/profile',
-            });
-        }
-    });
-    
-    // 2. Process Admin Messages
-    const adminMessages = getAdminMessages().filter(m => m.userId === user.uid);
-    adminMessages.forEach(msg => {
-      const notificationId = `notif-${msg.id}`;
-      const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
-      if (!hasNotif) {
-        generatedNotifications.push({
-          id: notificationId,
-          timestamp: msg.timestamp,
-          title: msg.title,
-          message: msg.message,
-          read: false,
-          type: 'admin_message',
-        });
-      }
-    });
-
-
-    // 3. Fetch AI Recommendations
-    let aiNotifications: AppNotification[] = [];
-    try {
-        const response = await fetch('/api/recommend', { method: 'POST' });
-        if (response.ok) {
-            const data = await response.json();
-            if (data?.recommendations) {
-                aiNotifications = data.recommendations.map((rec: any, index: number) => ({
-                    id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
-                    timestamp: Date.now() - (index * 1000),
-                    title: `✨ You might love ${rec.dishName}!`,
-                    message: rec.reason,
-                    read: false,
-                    type: 'new_dish' as const,
-                    link: `/`,
-                }));
+    if (isAdmin) {
+        // --- ADMIN NOTIFICATION LOGIC ---
+        allOrders.forEach(order => {
+            // 1. New Order Notification
+            if (order.status === 'Order Placed') {
+                const notificationId = `notif-admin-new-order-${order.id}`;
+                const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+                if (!hasNotif) {
+                    generatedNotifications.push({
+                        id: notificationId,
+                        timestamp: new Date(order.date).getTime(),
+                        title: `📦 New Order Placed!`,
+                        message: `Order #${order.id.slice(-6)} from ${order.customerName} for Rs.${order.total.toFixed(2)}.`,
+                        read: false,
+                        type: 'admin_new_order',
+                        orderId: order.id,
+                        link: '/admin/orders',
+                    });
+                }
             }
-        }
-    } catch (error) {
-        console.warn("AI recommendation fetch failed, continuing without them.");
-    }
 
-    // 4. Trigger Push Notifications for new important items
+            // 2. Order Delivered Notification
+            if (order.status === 'Delivered') {
+                const notificationId = `notif-admin-delivered-${order.id}`;
+                const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+                if (!hasNotif) {
+                     generatedNotifications.push({
+                        id: notificationId,
+                        timestamp: new Date(order.date).getTime() + 1,
+                        title: `✅ Order Delivered`,
+                        message: `Order #${order.id.slice(-6)} to ${order.customerName} has been completed.`,
+                        read: false,
+                        type: 'admin_order_delivered',
+                        orderId: order.id,
+                        link: '/admin/orders',
+                    });
+                }
+            }
+        });
+    } else {
+        // --- REGULAR USER NOTIFICATION LOGIC ---
+        const userOrders = allOrders.filter(o => o.userId === user.uid);
+        
+        userOrders.forEach(order => {
+            const notificationId = `notif-${order.id}-${order.status}`;
+            const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+            if (!hasNotif && orderStatusNotificationMap[order.status]) {
+                const details = orderStatusNotificationMap[order.status]!;
+                generatedNotifications.push({
+                    id: notificationId,
+                    timestamp: new Date(order.date).getTime() + Math.random(),
+                    title: `${details.title} (#${order.id.slice(-5)})`,
+                    message: details.message,
+                    read: false,
+                    type: 'order_update',
+                    orderId: order.id,
+                    link: '/profile',
+                });
+            }
+        });
+        
+        const adminMessages = getAdminMessages().filter(m => m.userId === user.uid);
+        adminMessages.forEach(msg => {
+          const notificationId = `notif-${msg.id}`;
+          const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+          if (!hasNotif) {
+            generatedNotifications.push({
+              id: notificationId,
+              timestamp: msg.timestamp,
+              title: msg.title,
+              message: msg.message,
+              read: false,
+              type: 'admin_message',
+            });
+          }
+        });
+
+        let aiNotifications: AppNotification[] = [];
+        try {
+            const response = await fetch('/api/recommend', { method: 'POST' });
+            if (response.ok) {
+                const data = await response.json();
+                if (data?.recommendations) {
+                    aiNotifications = data.recommendations.map((rec: any, index: number) => ({
+                        id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
+                        timestamp: Date.now() - (index * 1000),
+                        title: `✨ You might love ${rec.dishName}!`,
+                        message: rec.reason,
+                        read: false,
+                        type: 'new_dish' as const,
+                        link: `/`,
+                    }));
+                }
+            }
+        } catch (error) {
+            console.warn("AI recommendation fetch failed, continuing without them.");
+        }
+        generatedNotifications.push(...aiNotifications);
+    }
+    
     generatedNotifications.forEach(n => {
-      if (n.type === 'order_update' || n.type === 'admin_message') {
+      if (
+        (isAdmin && (n.type === 'admin_new_order' || n.type === 'admin_order_delivered')) ||
+        (!isAdmin && (n.type === 'order_update' || n.type === 'admin_message'))
+      ) {
         showSystemNotification(n.title, { body: n.message, tag: n.id });
       }
     });
 
-    // 5. Combine, deduplicate, and save
-    const allNotifications = [
-        ...existingNotifications,
-        ...generatedNotifications,
-        ...aiNotifications,
-    ];
-    
+    const allNotifications = [...existingNotifications, ...generatedNotifications];
     const uniqueNotifications = Array.from(new Map(allNotifications.map(n => [n.id, n])).values())
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 25); 
+        .slice(0, 50);
 
     setNotifications(uniqueNotifications);
-    localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(uniqueNotifications));
-
+    localStorage.setItem(storageKey, JSON.stringify(uniqueNotifications));
     setIsLoadingNotifications(false);
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isAdmin]);
 
 
   useEffect(() => {
@@ -191,7 +224,9 @@ const Header = () => {
       n.id === notificationId ? { ...n, read: true } : n
     );
     setNotifications(updatedNotifications);
-    localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(updatedNotifications));
+    
+    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
+    localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
 
     if (clickedNotification.type === 'admin_message') {
         setViewingMessage(clickedNotification);
@@ -331,9 +366,10 @@ const Header = () => {
                       size="sm"
                       className="text-primary"
                       onClick={() => {
+                        const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
                         const allRead = notifications.map(n => ({ ...n, read: true }));
                         setNotifications(allRead);
-                        localStorage.setItem('rasoiExpressUserNotifications', JSON.stringify(allRead));
+                        localStorage.setItem(storageKey, JSON.stringify(allRead));
                       }}
                     >
                       Mark all as read

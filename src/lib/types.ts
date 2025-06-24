@@ -87,7 +87,7 @@ export interface AppNotification {
   title: string;
   message: string;
   read: boolean;
-  type: 'new_dish' | 'order_update' | 'admin_message';
+  type: 'new_dish' | 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered';
   link?: string;
   orderId?: string;
 }
