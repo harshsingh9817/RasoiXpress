@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
 import CartSheet from '@/components/CartSheet';
+import BottomNav from '@/components/BottomNav';
 
 // Configure the font
 const ptSans = PT_Sans({
@@ -33,11 +34,12 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <Header />
-            <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8">
               {children}
             </main>
             <Toaster />
             <CartSheet />
+            <BottomNav />
           </CartProvider>
         </AuthProvider>
       </body>

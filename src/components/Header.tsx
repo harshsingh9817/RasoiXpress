@@ -176,60 +176,62 @@ const Header = () => {
           </div>
 
           <nav className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
-            <Link href="/">
-              <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                <Home className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Menu</span>
+            <div className="hidden md:flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
+              <Link href="/">
+                <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                  <Home className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Menu</span>
+                </Button>
+              </Link>
+
+              <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => setIsHelpDialogOpen(true)}>
+                <HelpCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Help</span>
               </Button>
-            </Link>
 
-            <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => setIsHelpDialogOpen(true)}>
-              <HelpCircle className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Help</span>
-            </Button>
-
-            {isAuthLoading ? (
-              <div className="flex items-center space-x-2">
-                <Skeleton className="h-8 w-16 rounded-md" />
-              </div>
-            ) : (
-              <>
-                {isAuthenticated && (
-                  <>
-                    {isAdmin && (
-                      <Link href="/admin">
-                        <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
-                          <ShieldCheck className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Admin</span>
+              {isAuthLoading ? (
+                <div className="flex items-center space-x-2">
+                  <Skeleton className="h-8 w-16 rounded-md" />
+                </div>
+              ) : (
+                <>
+                  {isAuthenticated && (
+                    <>
+                      {isAdmin && (
+                        <Link href="/admin">
+                          <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
+                            <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Admin</span>
+                          </Button>
+                        </Link>
+                      )}
+                      <Link href="/profile">
+                        <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                          <User className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Profile</span>
                         </Button>
                       </Link>
-                    )}
-                    <Link href="/profile">
-                      <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                        <User className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Profile</span>
-                      </Button>
-                    </Link>
-                  </>
-                )}
-                {!isAuthenticated && (
-                   <>
-                    <Link href="/login">
-                      <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                        <LogIn className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Login</span>
-                      </Button>
-                    </Link>
-                    <Link href="/signup">
-                      <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
-                        <UserPlus className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Sign Up</span>
-                      </Button>
-                    </Link>
-                  </>
-                )}
-              </>
-            )}
+                    </>
+                  )}
+                  {!isAuthenticated && (
+                    <>
+                      <Link href="/login">
+                        <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                          <LogIn className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Login</span>
+                        </Button>
+                      </Link>
+                      <Link href="/signup">
+                        <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
+                          <UserPlus className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Sign Up</span>
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {isAuthenticated && (
               <Popover open={isNotificationPanelOpen} onOpenChange={setIsNotificationPanelOpen}>
