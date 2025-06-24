@@ -384,7 +384,7 @@ const Header = () => {
                     className="relative rounded-full"
                     aria-label={`Open notifications with ${unreadNotificationCount} unread`}
                   >
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-5 w-5 text-accent" />
                     {isClient && (
                       <>
                         {isLoadingNotifications ? (
@@ -392,8 +392,7 @@ const Header = () => {
                         ) : (
                           unreadNotificationCount > 0 && (
                             <Badge
-                              variant="destructive"
-                              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs bg-primary text-primary-foreground border-2 border-background"
                               aria-label={`${unreadNotificationCount} unread notifications`}
                             >
                               {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
@@ -404,7 +403,7 @@ const Header = () => {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="end">
+                <PopoverContent className="w-96 p-0 bg-secondary" align="end">
                   <div className="p-4 font-medium border-b">Notifications</div>
                   {isLoadingNotifications ? (
                      <div className="p-4 space-y-3">
