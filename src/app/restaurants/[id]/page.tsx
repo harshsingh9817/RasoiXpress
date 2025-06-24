@@ -18,6 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export default function RestaurantDetailPage() {
   const params = useParams(); 
@@ -146,37 +152,48 @@ export default function RestaurantDetailPage() {
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center sticky top-16 bg-background py-4 z-10 -mx-4 px-4 border-b">
           <h2 className="text-3xl font-headline font-semibold">Menu</h2>
-          <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full md:w-[180px]" aria-label="Filter by category">
-                <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
-                <SelectValue placeholder="Filter by Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {uniqueCategories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full md:w-[180px]" aria-label="Sort by">
-                 <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="popular">Popularity</SelectItem>
-                <SelectItem value="priceLowHigh">Price: Low to High</SelectItem>
-                <SelectItem value="priceHighLow">Price: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              variant={showVegetarian ? "default" : "outline"} 
-              onClick={() => setShowVegetarian(!showVegetarian)}
-              className={showVegetarian ? "bg-green-600 hover:bg-green-700 text-white w-full md:w-auto" : "w-full md:w-auto"}
-            >
-              <Leaf className="mr-2 h-4 w-4" /> Vegetarian Only
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex w-full md:w-auto flex-wrap justify-end items-center gap-2">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-auto" aria-label="Filter by category">
+                  <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueCategories.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-auto" aria-label="Sort by">
+                  <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="popular">Popularity</SelectItem>
+                  <SelectItem value="priceLowHigh">Price: Low to High</SelectItem>
+                  <SelectItem value="priceHighLow">Price: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant={showVegetarian ? "default" : "outline"} 
+                    onClick={() => setShowVegetarian(!showVegetarian)}
+                    size="icon"
+                    className={`shrink-0 ${showVegetarian ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+                  >
+                    <Leaf className="h-4 w-4" />
+                    <span className="sr-only">Vegetarian Only</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{showVegetarian ? 'Show all items' : 'Show vegetarian items only'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
 
         {filteredAndSortedMenu.length > 0 ? (
