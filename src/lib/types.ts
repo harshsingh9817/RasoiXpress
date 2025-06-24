@@ -104,3 +104,8 @@ export interface HeroData {
   subheadline: string;
   backgroundImageUrl?: string;
 }
+
+export interface PaymentSettings {
+  upiId: string;
+  qrCodeImageUrl: string;
+}

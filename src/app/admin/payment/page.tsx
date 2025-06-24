@@ -1,0 +1,196 @@
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { getPaymentSettings, updatePaymentSettings } from "@/lib/data";
+import type { PaymentSettings } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { CreditCard, Loader2, Save, QrCode } from "lucide-react";
+
+const paymentSettingsSchema = z.object({
+  upiId: z.string().min(3, "UPI ID must be at least 3 characters long.").regex(/@/, "Please enter a valid UPI ID."),
+  qrCodeImageUrl: z.string().url("Please enter a valid image URL."),
+});
+
+type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
+
+export default function PaymentSettingsPage() {
+  const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<PaymentSettingsFormValues>({
+    resolver: zodResolver(paymentSettingsSchema),
+    defaultValues: {
+      upiId: "",
+      qrCodeImageUrl: "",
+    },
+  });
+
+  const qrCodeUrl = form.watch("qrCodeImageUrl");
+
+  useEffect(() => {
+    if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
+      router.replace("/");
+      return;
+    }
+    if (isAuthenticated && isAdmin) {
+      const data = getPaymentSettings();
+      form.reset(data);
+    }
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
+  
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressPaymentSettings') {
+        const data = getPaymentSettings();
+        form.reset(data);
+        toast({
+          title: "Payment Settings Synced",
+          description: "Settings were updated in another tab and have been synced.",
+        });
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [form, toast]);
+
+
+  const onSubmit = (data: PaymentSettingsFormValues) => {
+    setIsSubmitting(true);
+    try {
+      updatePaymentSettings(data);
+      toast({
+        title: "Payment Settings Updated",
+        description: "The checkout payment details have been successfully updated.",
+      });
+    } catch (error) {
+      console.error("Failed to save payment settings", error);
+      toast({
+        title: "Update Failed",
+        description: "An error occurred while saving the payment settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline flex items-center">
+            <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment Settings
+          </CardTitle>
+          <CardDescription>
+            Configure the UPI ID and QR code image shown to customers at checkout.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-8">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="upiId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>UPI ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your-upi@oksbi" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="qrCodeImageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>QR Code Image URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com/qr.png" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" /> Save Changes
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg flex items-center">
+                <QrCode className="mr-2 h-5 w-5" />
+                QR Code Preview
+            </h3>
+            <div className="p-4 bg-muted rounded-lg border flex justify-center items-center">
+              {qrCodeUrl ? (
+                <Image
+                  src={qrCodeUrl}
+                  alt="QR Code Preview"
+                  width={200}
+                  height={200}
+                  className="rounded-md"
+                  onError={(e) => {
+                    e.currentTarget.src = "https://placehold.co/200x200.png?text=Invalid+URL";
+                  }}
+                  data-ai-hint="qr code"
+                />
+              ) : (
+                 <div className="h-[200px] w-[200px] bg-muted-foreground/20 rounded-md flex items-center justify-center text-sm text-muted-foreground">
+                    Enter a URL to see a preview
+                 </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

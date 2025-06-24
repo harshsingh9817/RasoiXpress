@@ -15,9 +15,10 @@ import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield, QrCode, ArrowLeft } from 'lucide-react';
-import type { Order, Address as AddressType } from '@/lib/types';
-import { placeOrder, getAddresses } from '@/lib/data';
+import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
+import { placeOrder, getAddresses, getPaymentSettings } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
@@ -31,6 +32,7 @@ export default function CheckoutPage() {
   const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment' | 'success'>('details');
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -70,6 +72,21 @@ export default function CheckoutPage() {
           }));
         }
     }
+    
+    const settings = getPaymentSettings();
+    setPaymentSettings(settings);
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressPaymentSettings') {
+        const data = getPaymentSettings();
+        setPaymentSettings(data);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep]);
 
   const subTotal = getCartTotal();
@@ -235,17 +252,21 @@ export default function CheckoutPage() {
                   </CardHeader>
                   <CardContent className="flex flex-col items-center gap-4">
                       <div className="p-4 bg-white rounded-lg border">
-                          <Image 
-                            src="https://placehold.co/250x250.png?text=Scan+to+Pay" 
-                            alt="UPI QR Code" 
-                            width={250} 
-                            height={250}
-                            data-ai-hint="qr code"
-                          />
+                          {paymentSettings ? (
+                            <Image 
+                              src={paymentSettings.qrCodeImageUrl}
+                              alt="UPI QR Code" 
+                              width={250} 
+                              height={250}
+                              data-ai-hint="qr code"
+                            />
+                          ) : <Skeleton className="h-[250px] w-[250px]" />}
                       </div>
                       <div className="text-center">
                           <p className="text-sm text-muted-foreground">Or pay to UPI ID:</p>
-                          <p className="font-semibold text-lg tracking-wider">rasoixpress@okbank</p>
+                          {paymentSettings ? (
+                            <p className="font-semibold text-lg tracking-wider">{paymentSettings.upiId}</p>
+                          ) : <Skeleton className="h-6 w-48 mt-1" />}
                       </div>
                       <Separator />
                       <div className="w-full text-center">

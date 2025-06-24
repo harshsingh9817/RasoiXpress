@@ -1,12 +1,13 @@
 
 
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings } from './types';
 
 // --- Key Constants ---
 const allMenuItemsKey = 'rasoiExpressMenuItems';
 const allOrdersKey = 'rasoiExpressAllOrders';
 const userAddressesKeyPrefix = 'rasoiExpressUserAddresses_';
 const heroDataKey = 'rasoiExpressHeroData';
+const paymentSettingsKey = 'rasoiExpressPaymentSettings';
 
 
 // --- Initial Data ---
@@ -115,6 +116,12 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [
 const defaultHeroData: HeroData = {
     headline: 'Home Delivery In Nagra With Rasoi Xpress',
     subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
+    backgroundImageUrl: 'https://placehold.co/1280x480.png'
+};
+
+const defaultPaymentSettings: PaymentSettings = {
+    upiId: 'rasoixpress@okbank',
+    qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay'
 };
 
 // --- Helper Functions ---
@@ -267,6 +274,16 @@ export function getHeroData(): HeroData {
 export function updateHeroData(data: HeroData): void {
     saveToStorage(heroDataKey, data);
 }
+
+// --- Payment Settings Management ---
+export function getPaymentSettings(): PaymentSettings {
+    return getFromStorage<PaymentSettings>(paymentSettingsKey, defaultPaymentSettings);
+}
+
+export function updatePaymentSettings(data: PaymentSettings): void {
+    saveToStorage(paymentSettingsKey, data);
+}
+
 
 // --- Other Data Functions ---
 export function getPopularDishes(): string[] {
