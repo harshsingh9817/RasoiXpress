@@ -95,12 +95,12 @@ export default function HomePage() {
       <section className="bg-primary text-primary-foreground py-10 md:py-16 px-4 sm:px-6 lg:px-8 rounded-lg shadow-xl">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
-              <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
+              <div role="heading" aria-level="1" className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
                 {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
-              </h1>
-              <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              </div>
+              <div className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                 {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
-              </p>
+              </div>
           </div>
           <div className="md:w-1/2 flex justify-center text-primary-foreground">
               <AnimatedDeliveryScooter className="w-full max-w-sm h-auto" />
