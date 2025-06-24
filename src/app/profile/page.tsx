@@ -310,7 +310,7 @@ export default function ProfilePage() {
   };
 
   const handleOpenCancelDialog = (order: Order) => {
-    if (order.status === 'Order Placed' || order.status === 'Confirmed') {
+    if (order.status === 'Order Placed') {
       setOrderToCancel(order);
       setSelectedCancelReason('');
       setIsCancelDialogOpen(true);
@@ -565,7 +565,7 @@ export default function ProfilePage() {
                           <FileText className="mr-2 h-4 w-4" />
                           View Bill
                         </Button>
-                        {(order.status === 'Order Placed' || order.status === 'Confirmed') && (
+                        {order.status === 'Order Placed' && (
                           <Button
                             variant="destructive"
                             size="sm"
