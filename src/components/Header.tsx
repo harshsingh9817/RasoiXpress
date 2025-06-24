@@ -67,6 +67,14 @@ const Header = () => {
     setIsClient(true);
   }, []);
 
+  const showSystemNotification = (title: string, options: NotificationOptions) => {
+    if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(title, options);
+      });
+    }
+  };
+
   const syncNotifications = useCallback(async () => {
     if (!isAuthenticated || !user) {
         setNotifications([]);
@@ -142,7 +150,14 @@ const Header = () => {
         console.warn("AI recommendation fetch failed, continuing without them.");
     }
 
-    // 4. Combine, deduplicate, and save
+    // 4. Trigger Push Notifications for new important items
+    generatedNotifications.forEach(n => {
+      if (n.type === 'order_update' || n.type === 'admin_message') {
+        showSystemNotification(n.title, { body: n.message, tag: n.id });
+      }
+    });
+
+    // 5. Combine, deduplicate, and save
     const allNotifications = [
         ...existingNotifications,
         ...generatedNotifications,

@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheckIcon, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck,
+  Bell, BellOff
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
@@ -107,6 +108,8 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [isClientRendered, setIsClientRendered] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
 
   // State for Address Dialog
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
@@ -141,6 +144,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setIsClientRendered(true);
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
     if (isClientRendered && !isAuthLoading && !isAuthenticated) {
       router.replace('/login');
     }
@@ -403,6 +409,26 @@ export default function ProfilePage() {
 
     setIsReviewDialogOpen(false);
     setOrderToReview(null);
+  };
+  
+  const handleRequestNotificationPermission = () => {
+    if (!('Notification' in window)) {
+      toast({
+        title: "Unsupported Browser",
+        description: "This browser does not support desktop notifications.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast({ title: 'Notifications Enabled!', description: 'You will now receive updates on your device.' });
+      } else if (permission === 'denied') {
+        toast({ title: 'Notifications Blocked', description: 'To enable them, please update your browser settings.', variant: 'destructive' });
+      }
+    });
   };
 
 
@@ -766,6 +792,31 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <Button variant="default" size="sm" className="mt-3 bg-primary hover:bg-primary/90">Save Preferences</Button>
+              </div>
+              <Separator />
+               <div>
+                <h4 className="font-medium mb-2">Push Notifications</h4>
+                <div className="flex items-center space-x-4">
+                  {notificationPermission === 'granted' ? (
+                    <Button variant="outline" disabled>
+                      <Bell className="mr-2 h-4 w-4" /> Enabled
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={handleRequestNotificationPermission}
+                      disabled={notificationPermission === 'denied'}
+                    >
+                      {notificationPermission === 'denied' ? <BellOff className="mr-2 h-4 w-4"/> : <Bell className="mr-2 h-4 w-4" />}
+                      Enable Notifications
+                    </Button>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {notificationPermission === 'default' && "Get updates on your order status on your device."}
+                    {notificationPermission === 'granted' && "You're all set to receive push notifications."}
+                    {notificationPermission === 'denied' && "You have blocked notifications in your browser settings."}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

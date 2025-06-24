@@ -1,3 +1,4 @@
+"use client";
 
 import type { Metadata } from 'next';
 import { PT_Sans } from 'next/font/google'; // Import PT Sans
@@ -8,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
 import CartSheet from '@/components/CartSheet';
 import BottomNav from '@/components/BottomNav';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 // Configure the font
 const ptSans = PT_Sans({
@@ -26,6 +28,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html lang="en">
       <head>
@@ -33,6 +36,7 @@ export default function RootLayout({
       <body className={`${ptSans.variable} font-body antialiased`}>
         <AuthProvider>
           <CartProvider>
+            <ServiceWorkerRegistrar />
             <Header />
             <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8">
               {children}
