@@ -1,10 +1,13 @@
 
-import type { Restaurant, MenuItem, Order, Address, Review } from './types';
+
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData } from './types';
 
 // --- Key Constants ---
 const allMenuItemsKey = 'rasoiExpressMenuItems';
 const allOrdersKey = 'rasoiExpressAllOrders';
 const userAddressesKeyPrefix = 'rasoiExpressUserAddresses_';
+const heroDataKey = 'rasoiExpressHeroData';
+
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [
@@ -108,6 +111,11 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [
     ingredients: 'Potatoes, Vegetable oil, Salt',
   },
 ];
+
+const defaultHeroData: HeroData = {
+    headline: 'Home Delivery In Nagra With Rasoi Xpress',
+    subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
+};
 
 // --- Helper Functions ---
 function getFromStorage<T>(key: string, defaultValue: T): T {
@@ -249,6 +257,15 @@ export function setDefaultAddress(userId: string, addressIdToSetDefault: string)
         isDefault: addr.id === addressIdToSetDefault
     }));
     saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
+}
+
+// --- Hero Section Management ---
+export function getHeroData(): HeroData {
+    return getFromStorage<HeroData>(heroDataKey, defaultHeroData);
+}
+
+export function updateHeroData(data: HeroData): void {
+    saveToStorage(heroDataKey, data);
 }
 
 // --- Other Data Functions ---

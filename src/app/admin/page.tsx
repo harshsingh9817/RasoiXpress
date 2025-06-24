@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList } from 'lucide-react';
+import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -97,6 +97,21 @@ export default function AdminPage() {
                     <p className="text-muted-foreground">Click here to browse all customer orders in the system.</p>
                 </CardContent>
             </Card>
+        </Link>
+
+        <Link href="/admin/hero" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <LayoutTemplate className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Hero Section
+              </CardTitle>
+              <CardDescription>Edit the headline and text of the homepage hero.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to update the main banner on the homepage.</p>
+            </CardContent>
+          </Card>
         </Link>
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">

@@ -2,14 +2,16 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { MenuItem } from '@/lib/types';
-import { getMenuItems } from '@/lib/data';
+import type { MenuItem, HeroData } from '@/lib/types';
+import { getMenuItems, getHeroData } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Utensils, Leaf, Filter, TrendingUp, Loader2 } from 'lucide-react';
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +19,7 @@ export default function HomePage() {
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
+  const [heroData, setHeroData] = useState<HeroData | null>(null);
 
   const loadItems = useCallback(() => {
     try {
@@ -27,12 +30,20 @@ export default function HomePage() {
     }
   }, []);
 
+  const loadHero = useCallback(() => {
+    setHeroData(getHeroData());
+  }, []);
+
   useEffect(() => {
     loadItems();
+    loadHero();
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'rasoiExpressMenuItems') {
         loadItems();
+      }
+      if (event.key === 'rasoiExpressHeroData') {
+        loadHero();
       }
     };
 
@@ -40,7 +51,7 @@ export default function HomePage() {
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     }
-  }, [loadItems]);
+  }, [loadItems, loadHero]);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));
@@ -85,10 +96,10 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left md:w-1/2 space-y-4">
               <h1 className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
-                Home Delivery In Nagra With <span className="text-accent">Rasoi Xpress</span>
+                {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
               </h1>
               <p className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                Browse our menu of curated dishes and get your favorites delivered to your door.
+                {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
               </p>
           </div>
           <div className="md:w-1/2 flex justify-center text-primary-foreground">

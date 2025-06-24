@@ -1,4 +1,5 @@
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -95,4 +96,9 @@ export interface AppNotification {
   type: 'new_dish' | 'order_update';
   link?: string;
   orderId?: string;
+}
+
+export interface HeroData {
+  headline: string;
+  subheadline: string;
 }
