@@ -62,6 +62,23 @@ export default function HeroManagementPage() {
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
 
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressHeroData') {
+        const data = getHeroData();
+        form.reset(data);
+        toast({
+          title: "Hero Content Synced",
+          description: "Content was updated in another tab and has been synced.",
+        });
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [form, toast]);
+
   const onSubmit = (data: HeroFormValues) => {
     setIsSubmitting(true);
     try {
