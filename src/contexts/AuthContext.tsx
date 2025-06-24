@@ -22,7 +22,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isDelivery: boolean; // Add delivery role
   login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string, fullName?: string) => Promise<boolean>;
+  signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -187,51 +187,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (email?: string, password?: string, fullName?: string): Promise<boolean> => {
+  const signup = async (email?: string, password?: string, fullName?: string): Promise<void> => {
     if (!email || !password || !fullName) {
       toast({
         title: 'Signup Error',
         description: 'Full name, email and password are required.',
         variant: 'destructive',
       });
-      return false;
+      return;
     }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
       }
-      // Toast moved to signup page to guide user to next step
-      return true;
+      toast({ title: 'Account Created!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
+      // The onAuthStateChanged listener will handle redirection.
+      // We can also push the user to the homepage for a faster response.
+      router.push('/');
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        // This email is already registered. Try to log the user in to continue the flow.
-        try {
-          await signInWithEmailAndPassword(auth, email, password);
-          toast({
-            title: 'Account Exists',
-            description: 'Logging you in to continue phone verification.',
-          });
-          return true; // Proceed with phone verification
-        } catch (loginError: any) {
-          console.error("Firebase login-after-signup-fail error:", loginError);
-          toast({
-            title: 'Login Failed',
-            description: 'This email is already registered, but the password was incorrect.',
-            variant: 'destructive',
-          });
-          return false;
-        }
-      }
-
-      // Handle other signup errors
       console.error("Firebase signup error:", error);
+      let description = 'Could not create account. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'This email address is already in use by another account.';
+      } else if (error.code === 'auth/weak-password') {
+        description = 'The password is too weak. Please use at least 6 characters.';
+      } else if (error.message) {
+        description = error.message;
+      }
       toast({
         title: 'Signup Failed',
-        description: error.message || 'Could not create account. Please try again.',
+        description,
         variant: 'destructive',
       });
-      return false;
     }
   };
 
