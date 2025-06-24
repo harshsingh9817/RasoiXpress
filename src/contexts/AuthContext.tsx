@@ -12,7 +12,8 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   getIdTokenResult,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,6 +26,7 @@ interface AuthContextType {
   signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  sendPasswordReset: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,6 +102,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   }, [pathname, router]); 
+
+  const sendPasswordReset = async (email: string) => {
+    if (!email) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: 'Check your inbox for a link to reset your password.',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error("Firebase password reset error:", error);
+      let description = 'Could not send password reset email. Please try again.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        description = 'This email is not registered. Please check the email address.';
+      }
+      toast({
+        title: 'Error Sending Email',
+        description,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const login = async (email?: string, password?: string) => {
     if (!email || !password) {
@@ -206,7 +238,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signup, logout, isLoading, sendPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

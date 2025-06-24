@@ -10,13 +10,25 @@ import { useRouter } from 'next/navigation';
 import { KeyRound, LogInIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: isAuthLoading, sendPasswordReset } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
 
   useEffect(() => {
@@ -32,6 +44,15 @@ export default function LoginPage() {
     // Navigation is handled by onAuthStateChanged in AuthContext or if login fails, user stays here
     setIsSubmitting(false);
   };
+  
+  const handleForgotPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSendingReset(true);
+    await sendPasswordReset(resetEmail);
+    setIsSendingReset(false);
+    setIsResetDialogOpen(false);
+    setResetEmail('');
+  };
 
   const pageLoading = isAuthLoading || (!isAuthLoading && isAuthenticated);
 
@@ -45,38 +66,88 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <KeyRound className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl font-headline animate-fade-in-up">Welcome Back!</CardTitle>
-          <CardDescription className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Log in to access your Rasoi Xpress account.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
-              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogInIcon className="mr-2 h-5 w-5" />}
-              {isSubmitting ? 'Logging In...' : 'Log In'}
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="font-semibold text-primary hover:underline">
-                Sign Up
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+    <>
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
+        <Card className="w-full max-w-md shadow-xl">
+          <CardHeader className="text-center">
+            <KeyRound className="mx-auto h-12 w-12 text-primary mb-2" />
+            <CardTitle className="text-3xl font-headline animate-fade-in-up">Welcome Back!</CardTitle>
+            <CardDescription className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Log in to access your Rasoi Xpress account.</CardDescription>
+          </CardHeader>
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input id="email" type="email" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-xs"
+                    onClick={() => setIsResetDialogOpen(true)}
+                  >
+                    Forgot Password?
+                  </Button>
+                </div>
+                <Input id="password" type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
+                {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogInIcon className="mr-2 h-5 w-5" />}
+                {isSubmitting ? 'Logging In...' : 'Log In'}
+              </Button>
+              <p className="text-sm text-muted-foreground text-center">
+                Don&apos;t have an account?{' '}
+                <Link href="/signup" className="font-semibold text-primary hover:underline">
+                  Sign Up
+                </Link>
+              </p>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
+
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Your Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword}>
+              <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email" className="sr-only">Email</Label>
+                    <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                    />
+                  </div>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild>
+                      <Button type="button" variant="outline" disabled={isSendingReset}>Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isSendingReset}>
+                  {isSendingReset ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
+                  ) : (
+                      "Send Reset Link"
+                  )}
+                  </Button>
+              </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
