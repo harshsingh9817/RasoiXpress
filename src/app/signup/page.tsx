@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Loader2, Phone, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent, useRef } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { RecaptchaVerifier, linkWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -30,8 +30,6 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     // Redirect if user is authenticated and is on the details step
     if (!isAuthLoading && isAuthenticated && step === 'details') {
@@ -39,36 +37,52 @@ export default function SignupPage() {
     }
   }, [isAuthenticated, isAuthLoading, router, step]);
   
-  const setupRecaptcha = () => {
-    return new Promise((resolve, reject) => {
-      if (!recaptchaContainerRef.current) return reject(new Error("reCAPTCHA container not found"));
-      
-      // Use window to store verifier to avoid re-rendering issues
-      if ((window as any).recaptchaVerifier) {
-         resolve((window as any).recaptchaVerifier);
-         return;
-      }
-
-      const recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
-        'size': 'invisible',
-        'callback': () => {
-          // This callback is called when reCAPTCHA is solved.
-          resolve(recaptchaVerifier);
-        },
-        'expired-callback': () => {
-          // Clean up if reCAPTCHA expires
-          toast({ title: "reCAPTCHA Expired", description: "Please try sending the code again.", variant: "destructive" });
-          if ((window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier.clear();
-            (window as any).recaptchaVerifier = undefined;
-          }
-          reject(new Error("reCAPTCHA expired"));
+  // This effect sets up the reCAPTCHA verifier when the component mounts.
+  // It ensures the container div exists before trying to render the reCAPTCHA.
+  useEffect(() => {
+    // If a verifier has already been initialized, we don't need to do it again.
+    // We just need to make sure we clean it up when the component unmounts.
+    if ((window as any).recaptchaVerifier) {
+      const verifier = (window as any).recaptchaVerifier;
+      return () => {
+        verifier.clear();
+        (window as any).recaptchaVerifier = undefined;
+      };
+    }
+    
+    // We add a small delay to ensure the DOM is fully ready.
+    // This is especially helpful in development environments with React's Strict Mode.
+    const timeoutId = setTimeout(() => {
+        try {
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+              'size': 'invisible',
+              'callback': () => {
+                // reCAPTCHA solved. This callback is mostly for show in invisible mode.
+              },
+              'expired-callback': () => {
+                toast({ title: "reCAPTCHA Expired", description: "Please try sending the code again.", variant: "destructive" });
+                // Clean up the expired verifier
+                if ((window as any).recaptchaVerifier) {
+                  (window as any).recaptchaVerifier.clear();
+                  (window as any).recaptchaVerifier = undefined;
+                }
+              }
+            });
+            (window as any).recaptchaVerifier = recaptchaVerifier;
+        } catch (error) {
+            console.error("Failed to initialize reCAPTCHA", error);
         }
-      });
-      (window as any).recaptchaVerifier = recaptchaVerifier;
-      recaptchaVerifier.render().catch(reject);
-    });
-  }
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if ((window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier.clear();
+        (window as any).recaptchaVerifier = undefined;
+      }
+    };
+  }, [toast]);
+
 
   const handleSignupAndSendOtp = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,14 +94,12 @@ export default function SignupPage() {
         return;
     }
 
-    // Step 1: Create user with email/password from context
     const signupSuccess = await signup(email, password, fullName);
     if (!signupSuccess) {
       setIsSubmitting(false);
-      return; // Context's signup function will show any specific error toasts
+      return; 
     }
 
-    // Give a moment for auth state to update
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (!auth.currentUser) {
@@ -97,10 +109,15 @@ export default function SignupPage() {
        return;
     }
     
-    // Step 2: Send OTP to the phone number for verification
     try {
-      const appVerifier = await setupRecaptcha() as RecaptchaVerifier;
+      const appVerifier = (window as any).recaptchaVerifier;
+      if (!appVerifier) {
+          throw new Error("reCAPTCHA verifier not initialized. Please wait a moment and try again.");
+      }
+
       const fullPhoneNumber = `+91${phoneNumber}`;
+      // Render the verifier before trying to link. This makes the invisible reCAPTCHA execute.
+      await appVerifier.render();
       const confirmation = await linkWithPhoneNumber(auth.currentUser, fullPhoneNumber, appVerifier);
       
       setConfirmationResult(confirmation);
@@ -227,8 +244,8 @@ export default function SignupPage() {
           </>
         )}
       </Card>
-      {/* This div is used by Firebase for the invisible reCAPTCHA */}
-      <div ref={recaptchaContainerRef}></div>
+      {/* This div is used by Firebase for the invisible reCAPTCHA and must be in the DOM */}
+      <div id="recaptcha-container"></div>
     </div>
   );
 }
