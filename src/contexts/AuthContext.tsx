@@ -45,13 +45,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAdmin(false);
         setIsDelivery(false);
         setUser(null);
-        const isProtectedAdminRoute = pathname.startsWith('/admin');
-        const isProtectedDeliveryRoute = pathname.startsWith('/delivery') && pathname !== '/delivery/login';
-        const isAppProtectedRoute = !['/login', '/signup', '/delivery/login', '/'].includes(pathname) && !pathname.startsWith('/restaurants/');
+        
+        // Define all public paths. Everything else requires authentication.
+        const publicPaths = ['/login', '/signup', '/delivery/login'];
+        
+        // Check if the current path is public.
+        const isPublicPath = publicPaths.includes(pathname);
 
-        if(isProtectedAdminRoute) router.replace('/login');
-        else if(isProtectedDeliveryRoute) router.replace('/delivery/login');
-        else if(isAppProtectedRoute) router.replace('/login');
+        // Redirect if the current path is not public.
+        if (!isPublicPath) {
+            // Delivery personnel should be redirected to their specific login page.
+            if (pathname.startsWith('/delivery')) {
+                router.replace('/delivery/login');
+            } else {
+                router.replace('/login');
+            }
+        }
         
         setIsLoading(false);
         return;
