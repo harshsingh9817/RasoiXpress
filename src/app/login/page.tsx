@@ -131,6 +131,9 @@ export default function LoginPage() {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground px-1">
+                      When email not found check your Spam message
+                    </p>
                   </div>
               </div>
               <DialogFooter>
