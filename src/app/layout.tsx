@@ -1,5 +1,3 @@
-"use client";
-
 import type { Metadata } from 'next';
 import { PT_Sans } from 'next/font/google'; // Import PT Sans
 import './globals.css';
