@@ -50,11 +50,13 @@ export default function AnalyticsPage() {
   
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
+      // The analytics data is derived from orders. We listen for changes to this specific
+      // data to ensure the dashboard is always up-to-date with the latest sales information.
       if (event.key === 'rasoiExpressAllOrders') {
         loadAnalytics();
         toast({
           title: "Analytics Synced",
-          description: "Order data has changed, analytics have been updated.",
+          description: "App data has been updated, analytics are now in sync.",
         });
       }
     };
