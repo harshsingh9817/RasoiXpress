@@ -23,7 +23,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isDelivery: boolean; // Add delivery role
   login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
+  signup: (email?: string, password?: string, fullName?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isLoading: boolean;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isPublicPath = publicPaths.includes(pathname);
 
         // Redirect if the current path is not public.
-        if (!isPublicPath) {
+        if (!isPublicPath && !pathname.startsWith('/restaurants')) {
             // Delivery personnel should be redirected to their specific login page.
             if (pathname.startsWith('/delivery')) {
                 router.replace('/delivery/login');
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await sendPasswordResetEmail(auth, email);
       toast({
         title: 'Password Reset Email Sent',
-        description: 'Check your inbox for a link to reset your password.',
+        description: 'Check your inbox for a link to reset your password. If not found, please check your spam folder.',
         variant: 'default',
       });
     } catch (error: any) {
@@ -188,19 +188,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (email?: string, password?: string, fullName?: string) => {
+  const signup = async (email?: string, password?: string, fullName?: string): Promise<boolean> => {
      if (!email || !password || !fullName) {
       toast({ title: 'Signup Error', description: 'Full name, email and password are required.', variant: 'destructive' });
-      return;
+      return false;
     }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
-        await userCredential.user.getIdToken(true);
       }
-      toast({ title: 'Signup Successful!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
-      router.push('/');
+      // Toast moved to signup page to guide user to next step
+      return true;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
       if (error.code === 'auth/email-already-in-use') {
@@ -216,6 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           variant: 'destructive',
         });
       }
+      return false;
     }
   };
 
