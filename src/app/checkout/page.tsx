@@ -3,6 +3,7 @@
 
 import { useState, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,10 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield } from 'lucide-react';
+import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield, QrCode, ArrowLeft } from 'lucide-react';
 import type { Order, Address as AddressType } from '@/lib/types';
 import { placeOrder, getAddresses } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
@@ -23,10 +25,13 @@ export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [orderPlaced, setOrderPlaced] = useState(false);
-  const [placedOrderDetails, setPlacedOrderDetails] = useState<Order | null>(null);
+  const { toast } = useToast();
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment' | 'success'>('details');
+  const [orderDetails, setOrderDetails] = useState<Order | null>(null);
+  const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
+  
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
@@ -45,7 +50,7 @@ export default function CheckoutPage() {
       return;
     }
     
-    if (getCartItemCount() === 0 && !orderPlaced) {
+    if (getCartItemCount() === 0 && checkoutStep !== 'success') {
       router.replace('/');
     }
 
@@ -65,8 +70,73 @@ export default function CheckoutPage() {
           }));
         }
     }
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, orderPlaced]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep]);
 
+  const subTotal = getCartTotal();
+  const deliveryFee = 49;
+  const estimatedTax = subTotal * 0.05;
+  const grandTotal = subTotal + deliveryFee + estimatedTax;
+
+  const finalizeOrder = (orderData: Omit<Order, 'id'>) => {
+    setIsLoading(true);
+
+    // Simulate payment verification delay for UPI
+    const isUpi = orderData.paymentMethod === 'UPI';
+    const delay = isUpi ? 2500 : 0;
+
+    setTimeout(() => {
+        const placedOrder = placeOrder(orderData);
+        setOrderDetails(placedOrder);
+        
+        clearCart();
+        setCheckoutStep('success');
+        setIsLoading(false);
+    
+        // Redirect after a delay
+        setTimeout(() => {
+            router.push('/profile');
+        }, 8000);
+    }, delay);
+  };
+
+  const handleProceedToPayment = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to place an order.", variant: "destructive"});
+        return;
+    }
+
+    const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    const newOrderData: Omit<Order, 'id'> = {
+      userId: user.uid,
+      userEmail: user.email || 'N/A',
+      date: new Date().toISOString(),
+      status: 'Order Placed',
+      total: grandTotal,
+      items: cartItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        imageUrl: item.imageUrl,
+        category: item.category,
+        description: item.description,
+      })),
+      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`,
+      paymentMethod: paymentMethod,
+      customerPhone: formData.phone,
+      deliveryConfirmationCode: confirmationCode,
+    };
+    
+    setPendingOrderData(newOrderData);
+
+    if (paymentMethod === 'UPI') {
+        setCheckoutStep('payment');
+    } else {
+        finalizeOrder(newOrderData);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -97,50 +167,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSubmitOrder = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user) {
-        console.error("User is not authenticated. Cannot place order.");
-        return;
-    }
-    setIsLoading(true);
-    
-    const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-    const newOrderData: Omit<Order, 'id'> = {
-      userId: user.uid,
-      userEmail: user.email || 'N/A',
-      date: new Date().toISOString(),
-      status: 'Order Placed',
-      total: getCartTotal() + 49 + (getCartTotal() * 0.05), // Example delivery and tax in Rupees
-      items: cartItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        category: item.category,
-        description: item.description,
-      })),
-      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`,
-      paymentMethod: paymentMethod,
-      customerPhone: formData.phone,
-      deliveryConfirmationCode: confirmationCode,
-    };
-    
-    const placedOrder = placeOrder(newOrderData);
-    setPlacedOrderDetails(placedOrder);
-    
-    clearCart();
-    setIsLoading(false);
-    setOrderPlaced(true);
-
-    // Redirect after a delay
-    setTimeout(() => {
-        router.push('/profile');
-    }, 8000);
-  };
-
   if (isAuthLoading || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -152,7 +178,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (orderPlaced) {
+  if (checkoutStep === 'success') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
         <div className="relative mb-6">
@@ -164,7 +190,7 @@ export default function CheckoutPage() {
           Thank you for your purchase. You can track the status of your order on your profile page.
         </p>
         
-        {placedOrderDetails?.deliveryConfirmationCode && (
+        {orderDetails?.deliveryConfirmationCode && (
            <Card className="mt-6 text-center animate-fade-in-up p-4 border-dashed border-primary" style={{ animationDelay: '0.4s' }}>
               <CardHeader className="p-2">
                 <CardTitle className="flex items-center justify-center text-lg text-primary">
@@ -172,7 +198,7 @@ export default function CheckoutPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-2">
-                <p className="text-4xl font-bold tracking-widest text-primary">{placedOrderDetails.deliveryConfirmationCode}</p>
+                <p className="text-4xl font-bold tracking-widest text-primary">{orderDetails.deliveryConfirmationCode}</p>
                 <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
                     Please share this code with the delivery partner to confirm you have received your order.
                 </p>
@@ -195,11 +221,62 @@ export default function CheckoutPage() {
     );
   }
 
-
-  const subTotal = getCartTotal();
-  const deliveryFee = 49; // Example in Rupees
-  const estimatedTax = subTotal * 0.05; // Example tax rate
-  const grandTotal = subTotal + deliveryFee + estimatedTax;
+  if (checkoutStep === 'payment') {
+      return (
+          <div className="max-w-md mx-auto">
+              <Card className="shadow-xl">
+                  <CardHeader>
+                      <CardTitle className="text-2xl font-headline flex items-center gap-2">
+                          <QrCode className="h-6 w-6 text-primary" />
+                          Complete Your Payment
+                      </CardTitle>
+                      <CardDescription>Scan the QR code with any UPI app to pay.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center gap-4">
+                      <div className="p-4 bg-white rounded-lg border">
+                          <Image 
+                            src="https://placehold.co/250x250.png?text=Scan+to+Pay" 
+                            alt="UPI QR Code" 
+                            width={250} 
+                            height={250}
+                            data-ai-hint="qr code"
+                          />
+                      </div>
+                      <div className="text-center">
+                          <p className="text-sm text-muted-foreground">Or pay to UPI ID:</p>
+                          <p className="font-semibold text-lg tracking-wider">rasoixpress@okbank</p>
+                      </div>
+                      <Separator />
+                      <div className="w-full text-center">
+                          <p className="text-muted-foreground">Amount to Pay</p>
+                          <p className="text-4xl font-bold text-primary">Rs.{grandTotal.toFixed(2)}</p>
+                      </div>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-4">
+                      <Button 
+                        onClick={() => finalizeOrder(pendingOrderData!)} 
+                        disabled={isLoading} 
+                        className="w-full text-lg py-6"
+                      >
+                          {isLoading ? (
+                              <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying Payment...</>
+                          ) : (
+                              <><CheckCircle className="mr-2 h-5 w-5"/> I Have Paid</>
+                          )}
+                      </Button>
+                       <Button 
+                        variant="outline" 
+                        onClick={() => setCheckoutStep('details')}
+                        disabled={isLoading}
+                        className="w-full"
+                       >
+                         <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+                       </Button>
+                  </CardFooter>
+              </Card>
+          </div>
+      )
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -216,7 +293,7 @@ export default function CheckoutPage() {
             <CardTitle className="text-xl md:text-2xl font-headline">Shipping & Payment</CardTitle>
             <CardDescription>Enter your shipping address and payment details.</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmitOrder}>
+          <form onSubmit={handleProceedToPayment}>
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
@@ -277,7 +354,7 @@ export default function CheckoutPage() {
                   >
                     <RadioGroupItem value="UPI" id="payment-upi" />
                     <CreditCard className="h-5 w-5 text-primary" />
-                    <span>UPI</span>
+                    <span>UPI / QR Code</span>
                   </Label>
                   <Label
                     htmlFor="payment-cod"
