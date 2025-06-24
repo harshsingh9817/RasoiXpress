@@ -54,6 +54,11 @@ export default function MessagingPage() {
 
   const form = useForm<MessageFormValues>({
     resolver: zodResolver(messageSchema),
+    defaultValues: {
+      userId: "",
+      title: "",
+      message: "",
+    },
   });
 
   useEffect(() => {
@@ -124,7 +129,7 @@ export default function MessagingPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Select User</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a user to message" />
