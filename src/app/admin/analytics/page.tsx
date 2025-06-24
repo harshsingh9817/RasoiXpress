@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { getAnalyticsData } from "@/lib/data";
@@ -22,13 +22,19 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart";
 import { Loader2, BarChart2, DollarSign, TrendingUp, ShoppingBag } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AnalyticsPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  const loadAnalytics = useCallback(() => {
+    const data = getAnalyticsData();
+    setAnalyticsData(data);
+  }, []);
 
   useEffect(() => {
     if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
@@ -37,11 +43,26 @@ export default function AnalyticsPage() {
     }
     if (isAuthenticated && isAdmin) {
       setIsDataLoading(true);
-      const data = getAnalyticsData();
-      setAnalyticsData(data);
+      loadAnalytics();
       setIsDataLoading(false);
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, loadAnalytics]);
+  
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'rasoiExpressAllOrders') {
+        loadAnalytics();
+        toast({
+          title: "Analytics Synced",
+          description: "Order data has changed, analytics have been updated.",
+        });
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadAnalytics, toast]);
   
   const chartConfig = {
     revenue: {
