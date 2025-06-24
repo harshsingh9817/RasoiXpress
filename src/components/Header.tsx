@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, MapPin, ChevronDown, Loader2 } from 'lucide-react';
+import { Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,17 +12,9 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import type { GeocodedLocation, AppNotification, Order, OrderStatus } from '@/lib/types';
+import type { AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import dynamic from 'next/dynamic';
 import { getAllOrders } from '@/lib/data';
-
-const LocationMap = dynamic(() => import('@/components/LocationMap'), { 
-  ssr: false,
-  loading: () => <Skeleton className="h-[200px] w-full rounded-md" /> 
-});
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': {
@@ -67,37 +59,11 @@ const Header = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
 
-  // Location State
-  const [currentLocation, setCurrentLocation] = useState<GeocodedLocation | null>(null);
-  const [isLocationPopoverOpen, setIsLocationPopoverOpen] = useState(false);
-  const [pinCodeInput, setPinCodeInput] = useState('');
-  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
-
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
-    // Load location from localStorage
-    const savedLocationString = localStorage.getItem('rasoiExpressUserLocation');
-    if (savedLocationString) {
-      try {
-        const parsedValue = JSON.parse(savedLocationString);
-        if (typeof parsedValue === 'object' && parsedValue !== null && (parsedValue.city || parsedValue.locality || parsedValue.error)) {
-          setCurrentLocation(parsedValue as GeocodedLocation);
-        } else {
-          console.warn(`Invalid location format in localStorage: "${savedLocationString}". Expected an object with city, locality, or error. Removing item.`);
-          localStorage.removeItem('rasoiExpressUserLocation'); 
-        }
-      } catch (error) { 
-        console.error(`Failed to parse location from localStorage (malformed JSON: "${savedLocationString}"):`, error);
-        localStorage.removeItem('rasoiExpressUserLocation'); 
-      }
-    }
-  }, [isClient]);
 
   const syncNotifications = useCallback(async () => {
     if (!isAuthenticated || !user) {
@@ -199,64 +165,6 @@ const Header = () => {
     setIsNotificationPanelOpen(false);
   };
 
-  const handleConfirmLocation = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!/^\d{6}$/.test(pinCodeInput.trim())) {
-      toast({
-        title: "Invalid Pin Code",
-        description: "Please enter a valid 6-digit pin code.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsFetchingLocation(true);
-    setCurrentLocation(null); 
-
-    try {
-      const response = await fetch('/api/geocode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pinCode: pinCodeInput.trim() }),
-      });
-
-      const data: GeocodedLocation = await response.json();
-
-      if (!response.ok || data.error) {
-        toast({
-          title: "Location Error",
-          description: data.error || "Could not fetch location data for this pin code.",
-          variant: "destructive",
-        });
-        setCurrentLocation({ error: data.error || "Could not fetch location." }); 
-      } else {
-        setCurrentLocation(data);
-        localStorage.setItem('rasoiExpressUserLocation', JSON.stringify(data));
-        setIsLocationPopoverOpen(false);
-        setPinCodeInput('');
-         toast({
-          title: "Location Set!",
-          description: `Serving ${data.locality || data.city || 'your area'}.`,
-          variant: "default",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch location:", error);
-      toast({
-        title: "Network Error",
-        description: "Failed to connect to location service. Please try again.",
-        variant: "destructive",
-      });
-      setCurrentLocation({ error: "Network error fetching location." });
-    } finally {
-      setIsFetchingLocation(false);
-    }
-  };
-
-  const displayLocation = currentLocation?.locality || currentLocation?.city || "Set Location";
-  const displayPin = currentLocation?.fullAddress?.match(/\b\d{6}\b/)?.[0] || (currentLocation?.error ? "Error" : "Select Area");
-
-
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
@@ -265,53 +173,6 @@ const Header = () => {
             <Link href="/" aria-label="Rasoi Xpress Home">
               <RasoiXpressLogo />
             </Link>
-            
-            <Popover open={isLocationPopoverOpen} onOpenChange={setIsLocationPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" className="px-2 py-1 h-auto text-xs sm:text-sm text-muted-foreground hover:text-primary">
-                  <MapPin className="h-4 w-4 sm:mr-1 text-primary" />
-                  <div className="flex flex-col items-start">
-                     <span className="font-semibold text-primary hidden sm:inline leading-tight max-w-[100px] truncate" title={isClient ? displayLocation : 'Set Location'}>
-                       {isFetchingLocation ? "Fetching..." : (isClient ? displayLocation : "Set Location")}
-                     </span>
-                     <span className="text-xs text-muted-foreground hidden sm:inline leading-tight max-w-[100px] truncate">
-                       {isFetchingLocation ? "" : (isClient ? displayPin : "Select Area")}
-                     </span>
-                     <span className="sm:hidden text-primary">{isFetchingLocation ? "Fetching..." : (isClient ? (currentLocation?.locality || currentLocation?.city || "Location") : "Location")}</span>
-                  </div>
-                  <ChevronDown className="h-3 w-3 sm:ml-1 opacity-70" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-4" align="start">
-                <form onSubmit={handleConfirmLocation}>
-                  <div className="space-y-3">
-                    <Label htmlFor="pinCode" className="font-medium">Enter Delivery Pin Code</Label>
-                    <Input
-                      id="pinCode"
-                      type="text"
-                      placeholder="e.g., 110001"
-                      value={pinCodeInput}
-                      onChange={(e) => setPinCodeInput(e.target.value)}
-                      maxLength={6}
-                      className="text-sm"
-                      disabled={isFetchingLocation}
-                    />
-                    <Button type="submit" size="sm" className="w-full bg-primary hover:bg-primary/90" disabled={isFetchingLocation}>
-                      {isFetchingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {isFetchingLocation ? "Confirming..." : "Confirm Location"}
-                    </Button>
-                  </div>
-                </form>
-                {isClient && currentLocation && currentLocation.lat && currentLocation.lng && !isFetchingLocation && (
-                  <div className="mt-4">
-                    <LocationMap position={[currentLocation.lat, currentLocation.lng]} />
-                  </div>
-                )}
-                 {isClient && currentLocation?.error && !isFetchingLocation && (
-                    <p className="mt-2 text-xs text-destructive">{currentLocation.error}</p>
-                )}
-              </PopoverContent>
-            </Popover>
           </div>
 
           <nav className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">

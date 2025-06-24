@@ -79,15 +79,6 @@ export interface Address {
   isDefault: boolean;
 }
 
-export interface GeocodedLocation {
-  city?: string;
-  locality?: string;
-  fullAddress?: string;
-  error?: string;
-  lat?: number;
-  lng?: number;
-}
-
 export interface AppNotification {
   id: string; // Unique key e.g., 'notif-ORD123-Delivered' or 'notif-rec-dishname'
   timestamp: number;
