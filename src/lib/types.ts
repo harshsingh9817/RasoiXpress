@@ -73,6 +73,7 @@ export interface Address {
   fullName: string;
   type: 'Home' | 'Work' | 'Other';
   street: string;
+  village?: string;
   city: string;
   pinCode: string; // Changed from postalCode
   phone: string; // Added

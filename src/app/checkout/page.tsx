@@ -37,6 +37,7 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
+    village: '',
     city: '',
     pinCode: '',
     phone: '',
@@ -67,6 +68,7 @@ export default function CheckoutPage() {
             ...prev,
             fullName: defaultAddress.fullName || user.displayName || '',
             address: defaultAddress.street,
+            village: defaultAddress.village || '',
             city: defaultAddress.city,
             pinCode: defaultAddress.pinCode,
             phone: defaultAddress.phone || '',
@@ -125,6 +127,7 @@ export default function CheckoutPage() {
     }
 
     const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const villagePart = formData.village ? `${formData.village}, ` : '';
 
     const newOrderData: Omit<Order, 'id'> = {
       userId: user.uid,
@@ -142,7 +145,7 @@ export default function CheckoutPage() {
         category: item.category,
         description: item.description,
       })),
-      shippingAddress: `${formData.address}, ${formData.city}, ${formData.pinCode}`,
+      shippingAddress: `${formData.address}, ${villagePart}${formData.city}, ${formData.pinCode}`,
       paymentMethod: paymentMethod,
       customerPhone: formData.phone,
       deliveryConfirmationCode: confirmationCode,
@@ -171,6 +174,7 @@ export default function CheckoutPage() {
           ...prev,
           fullName: selectedAddr.fullName || '',
           address: selectedAddr.street,
+          village: selectedAddr.village || '',
           city: selectedAddr.city,
           pinCode: selectedAddr.pinCode,
           phone: selectedAddr.phone || '',
@@ -181,6 +185,7 @@ export default function CheckoutPage() {
         ...prev,
         fullName: user?.displayName || '',
         address: '',
+        village: '',
         city: '',
         pinCode: '',
         phone: '',
@@ -350,6 +355,10 @@ export default function CheckoutPage() {
               <div className="space-y-2">
                 <Label htmlFor="address">Street Address</Label>
                 <Input id="address" name="address" value={formData.address} onChange={handleInputChange} placeholder="123 Main St" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="village">Village (Optional)</Label>
+                <Input id="village" name="village" value={formData.village} onChange={handleInputChange} placeholder="Kothrud" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">

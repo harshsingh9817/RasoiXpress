@@ -86,6 +86,7 @@ const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
   fullName: '',
   type: 'Home',
   street: '',
+  village: '',
   city: '',
   pinCode: '',
   phone: '',
@@ -227,6 +228,7 @@ export default function ProfilePage() {
       fullName: address.fullName,
       type: address.type,
       street: address.street,
+      village: address.village || '',
       city: address.city,
       pinCode: address.pinCode,
       phone: address.phone,
@@ -618,7 +620,7 @@ export default function ProfilePage() {
                         {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
                       </h4>
                        <p className="font-medium text-base text-foreground mb-1">{address.fullName || firebaseUser?.displayName}</p>
-                      <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.pinCode}</p>
+                      <p className="text-sm text-muted-foreground">{address.street}, {address.village && `${address.village}, `}{address.city}, {address.pinCode}</p>
                       <p className="text-sm text-muted-foreground"><Phone className="inline mr-1 h-3 w-3" />{address.phone}
                         {address.alternatePhone && <span className="ml-2"><Smartphone className="inline mr-1 h-3 w-3" />{address.alternatePhone}</span>}
                       </p>
@@ -817,6 +819,16 @@ export default function ProfilePage() {
                   value={currentAddressFormData.street}
                   onChange={handleAddressFormChange}
                   required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="village">Village (Optional)</Label>
+                <Input
+                  id="village"
+                  name="village"
+                  value={currentAddressFormData.village || ''}
+                  onChange={handleAddressFormChange}
+                  placeholder="e.g., Kothrud"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
