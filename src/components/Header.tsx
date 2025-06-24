@@ -6,7 +6,7 @@ import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2,
-  Package, MessageSquare, Sparkles, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, XCircle,
+  Package, MessageSquare, Sparkles, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, XCircle,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
@@ -58,11 +58,13 @@ const getNotificationIcon = (notification: AppNotification) => {
         case 'admin_new_order':
             return <Package className={iconClass} />;
         case 'admin_order_delivered':
-            return <PackageCheck className={iconClass} />;
+            return <DeliveredIcon className={iconClass} />;
         case 'admin_message':
             return <MessageSquare className={iconClass} />;
         case 'new_dish':
             return <Sparkles className={iconClass} />;
+        case 'delivery_assignment':
+            return <Bike className={iconClass} />;
         case 'order_update':
             if (notification.orderStatus) {
                 switch (notification.orderStatus) {
@@ -71,7 +73,7 @@ const getNotificationIcon = (notification: AppNotification) => {
                     case 'Preparing': return <ChefHat className={iconClass} />;
                     case 'Shipped': return <Truck className={iconClass} />;
                     case 'Out for Delivery': return <Bike className={iconClass} />;
-                    case 'Delivered': return <PackageCheck className={iconClass} />;
+                    case 'Delivered': return <DeliveredIcon className={iconClass} />;
                     case 'Cancelled': return <XCircle className={iconClass} />;
                     default: break;
                 }
@@ -84,7 +86,7 @@ const getNotificationIcon = (notification: AppNotification) => {
 
 
 const Header = () => {
-  const { user, isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
+  const { user, isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -118,7 +120,12 @@ const Header = () => {
     }
     setIsLoadingNotifications(true);
 
-    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
+    const storageKey = isAdmin 
+        ? 'rasoiExpressAdminNotifications' 
+        : isDelivery 
+        ? 'rasoiExpressDeliveryNotifications' 
+        : 'rasoiExpressUserNotifications';
+    
     const allOrders = getAllOrders();
     const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const generatedNotifications: AppNotification[] = [];
@@ -160,6 +167,27 @@ const Header = () => {
                         orderId: order.id,
                         orderStatus: order.status,
                         link: '/admin/orders',
+                    });
+                }
+            }
+        });
+    } else if (isDelivery) {
+        // --- DELIVERY NOTIFICATION LOGIC ---
+        allOrders.forEach(order => {
+            if (order.status === 'Out for Delivery') {
+                const notificationId = `notif-delivery-assign-${order.id}`;
+                const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
+                if (!hasNotif) {
+                    generatedNotifications.push({
+                        id: notificationId,
+                        timestamp: new Date(order.date).getTime() + Math.random(),
+                        title: `New Delivery: #${order.id.slice(-6)}`,
+                        message: `Order for ${order.customerName} is now out for delivery.`,
+                        read: false,
+                        type: 'delivery_assignment',
+                        orderId: order.id,
+                        orderStatus: order.status,
+                        link: '/delivery/dashboard',
                     });
                 }
             }
@@ -229,7 +257,8 @@ const Header = () => {
     generatedNotifications.forEach(n => {
       if (
         (isAdmin && (n.type === 'admin_new_order' || n.type === 'admin_order_delivered')) ||
-        (!isAdmin && (n.type === 'order_update' || n.type === 'admin_message'))
+        (!isAdmin && !isDelivery && (n.type === 'order_update' || n.type === 'admin_message')) ||
+        (isDelivery && n.type === 'delivery_assignment')
       ) {
         showSystemNotification(n.title, { body: n.message, tag: n.id });
       }
@@ -243,7 +272,7 @@ const Header = () => {
     setNotifications(uniqueNotifications);
     localStorage.setItem(storageKey, JSON.stringify(uniqueNotifications));
     setIsLoadingNotifications(false);
-  }, [isAuthenticated, user, isAdmin]);
+  }, [isAuthenticated, user, isAdmin, isDelivery]);
 
 
   useEffect(() => {
@@ -263,7 +292,11 @@ const Header = () => {
     );
     setNotifications(updatedNotifications);
     
-    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
+    const storageKey = isAdmin 
+        ? 'rasoiExpressAdminNotifications' 
+        : isDelivery 
+        ? 'rasoiExpressDeliveryNotifications' 
+        : 'rasoiExpressUserNotifications';
     localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
 
     if (clickedNotification.type === 'admin_message') {
@@ -409,7 +442,11 @@ const Header = () => {
                       size="sm"
                       className="text-primary"
                       onClick={() => {
-                        const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : 'rasoiExpressUserNotifications';
+                        const storageKey = isAdmin 
+                            ? 'rasoiExpressAdminNotifications' 
+                            : isDelivery 
+                            ? 'rasoiExpressDeliveryNotifications' 
+                            : 'rasoiExpressUserNotifications';
                         const allRead = notifications.map(n => ({ ...n, read: true }));
                         setNotifications(allRead);
                         localStorage.setItem(storageKey, JSON.stringify(allRead));
