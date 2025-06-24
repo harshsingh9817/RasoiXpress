@@ -1,6 +1,5 @@
 
-
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData } from './types';
 
 // --- Key Constants ---
 const allMenuItemsKey = 'rasoiExpressMenuItems';
@@ -116,7 +115,6 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [
 const defaultHeroData: HeroData = {
     headline: 'Home Delivery In Nagra With Rasoi Xpress',
     subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
-    backgroundImageUrl: 'https://placehold.co/1280x480.png'
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -282,6 +280,48 @@ export function getPaymentSettings(): PaymentSettings {
 
 export function updatePaymentSettings(data: PaymentSettings): void {
     saveToStorage(paymentSettingsKey, data);
+}
+
+// --- Analytics Data ---
+export function getAnalyticsData(): AnalyticsData {
+    const orders = getAllOrders();
+    const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+
+    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalProfit = totalRevenue * 0.30; // Assuming a 30% profit margin
+    const totalOrders = deliveredOrders.length;
+    
+    // Process data for the chart
+    const dailyData: Map<string, { revenue: number; profit: number }> = new Map();
+    
+    // Initialize data for the last 7 days to ensure they appear on the chart
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateString = d.toISOString().split('T')[0];
+        dailyData.set(dateString, { revenue: 0, profit: 0 });
+    }
+
+    deliveredOrders.forEach(order => {
+        const date = new Date(order.date).toISOString().split('T')[0];
+        if (dailyData.has(date)) {
+            const currentDay = dailyData.get(date)!;
+            currentDay.revenue += order.total;
+            currentDay.profit += order.total * 0.30;
+            dailyData.set(date, currentDay);
+        }
+    });
+    
+    const chartData: DailyChartData[] = Array.from(dailyData.entries())
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return {
+        totalRevenue,
+        totalProfit,
+        totalOrders,
+        chartData,
+    };
 }
 
 

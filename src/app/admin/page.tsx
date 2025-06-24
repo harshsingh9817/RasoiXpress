@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard } from 'lucide-react';
+import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -125,6 +125,21 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Click here to set your UPI ID and QR code image URL.</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/analytics" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <BarChart2 className="mr-2 h-6 w-6 text-primary"/>
+                  View Analytics
+              </CardTitle>
+              <CardDescription>See sales data, profits, and company growth.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to view the business analytics dashboard.</p>
             </CardContent>
           </Card>
         </Link>

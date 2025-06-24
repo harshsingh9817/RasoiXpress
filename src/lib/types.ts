@@ -109,3 +109,16 @@ export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
 }
+
+export interface DailyChartData {
+  date: string;
+  revenue: number;
+  profit: number;
+}
+
+export interface AnalyticsData {
+    totalRevenue: number;
+    totalProfit: number;
+    totalOrders: number;
+    chartData: DailyChartData[];
+}
