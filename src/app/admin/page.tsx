@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2 } from 'lucide-react';
+import { Loader2, LogOut, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
-  const { isAdmin, isLoading, isAuthenticated } = useAuth();
+  const { user, isAdmin, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isGeneratingRecs, setIsGeneratingRecs] = useState(false);
@@ -60,12 +60,16 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <section className="text-center">
-        <ShieldCheck className="mx-auto h-16 w-16 text-primary mb-4" />
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Admin Dashboard</h1>
-        <p className="text-lg text-muted-foreground">
-          Manage your application settings, food items, and orders.
-        </p>
+      <section className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-lg bg-card border">
+        <div className="text-center sm:text-left">
+            <h1 className="text-3xl font-headline font-bold text-primary mb-1">Admin Dashboard</h1>
+            <p className="text-md text-muted-foreground">
+                Welcome, {user?.displayName || user?.email}! Manage your application.
+            </p>
+        </div>
+        <Button onClick={logout} variant="outline" className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50">
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+        </Button>
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
