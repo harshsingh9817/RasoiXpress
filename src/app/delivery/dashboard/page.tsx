@@ -15,30 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateOrderStatus, getAllOrders } from '@/lib/data';
 
-type ActionableStatus = 'Order Placed' | 'Confirmed' | 'Preparing' | 'Shipped' | 'Out for Delivery';
-
-const getNextStatus = (currentStatus: ActionableStatus): OrderStatus | null => {
-    const statusFlow: Record<ActionableStatus, OrderStatus> = {
-        'Order Placed': 'Confirmed',
-        'Confirmed': 'Preparing',
-        'Preparing': 'Shipped',
-        'Shipped': 'Out for Delivery',
-        'Out for Delivery': 'Delivered',
-    };
-    return statusFlow[currentStatus] || null;
-};
-
-const getActionText = (currentStatus: ActionableStatus): string => {
-    const actionTextMap: Record<ActionableStatus, string> = {
-        'Order Placed': 'Confirm Order',
-        'Confirmed': 'Start Preparing',
-        'Preparing': 'Mark as Shipped',
-        'Shipped': 'Start Delivery',
-        'Out for Delivery': 'Mark as Delivered',
-    };
-    return actionTextMap[currentStatus] || 'Update Status';
-}
-
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
   'Confirmed': ChefHat,
@@ -70,9 +46,18 @@ export default function DeliveryDashboard() {
         setIsDataLoading(true);
         try {
             const allOrders = getAllOrders();
-            const actionableStatuses: OrderStatus[] = ['Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery'];
-            const filteredOrders = allOrders.filter(order => actionableStatuses.includes(order.status));
-            setActiveOrders(filteredOrders);
+            // Delivery personnel should only see orders that are shipped or out for delivery.
+            const deliveryStatuses: OrderStatus[] = ['Shipped', 'Out for Delivery'];
+            const filteredOrders = allOrders.filter(order => deliveryStatuses.includes(order.status));
+            
+            // Sort to show 'Out for Delivery' orders first, then by date
+            const sortedOrders = filteredOrders.sort((a, b) => {
+              if (a.status === 'Out for Delivery' && b.status !== 'Out for Delivery') return -1;
+              if (a.status !== 'Out for Delivery' && b.status === 'Out for Delivery') return 1;
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            });
+
+            setActiveOrders(sortedOrders);
         } catch (error) {
             console.error("Error fetching active orders: ", error);
             toast({ title: "Error", description: "Could not fetch active orders.", variant: "destructive" });
@@ -206,7 +191,16 @@ export default function DeliveryDashboard() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                      {order.status === 'Out for Delivery' ? (
+                       {order.status === 'Shipped' && (
+                          <Button
+                            className="w-full"
+                            onClick={() => handleUpdateStatus(order.id, 'Out for Delivery')}
+                          >
+                            <Bike className="mr-2 h-4 w-4" />
+                            Start Delivery
+                          </Button>
+                       )}
+                       {order.status === 'Out for Delivery' && (
                           <Button 
                             className="w-full" 
                             onClick={() => handleOpenConfirmDialog(order)}
@@ -214,14 +208,6 @@ export default function DeliveryDashboard() {
                             <KeyRound className="mr-2 h-4 w-4" />
                             Confirm Delivery
                           </Button>
-                       ) : (
-                         <Button 
-                          className="w-full" 
-                          onClick={() => handleUpdateStatus(order.id, getNextStatus(order.status as ActionableStatus)!)}
-                          disabled={!getNextStatus(order.status as ActionableStatus)}
-                         >
-                           {getActionText(order.status as ActionableStatus)}
-                         </Button>
                        )}
                     </CardFooter>
                 </Card>
