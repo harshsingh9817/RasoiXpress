@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { useRouter, usePathname }
-from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import {
   type User,
@@ -189,8 +188,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signup = async (email?: string, password?: string, fullName?: string): Promise<boolean> => {
-     if (!email || !password || !fullName) {
-      toast({ title: 'Signup Error', description: 'Full name, email and password are required.', variant: 'destructive' });
+    if (!email || !password || !fullName) {
+      toast({
+        title: 'Signup Error',
+        description: 'Full name, email and password are required.',
+        variant: 'destructive',
+      });
       return false;
     }
     try {
@@ -201,20 +204,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Toast moved to signup page to guide user to next step
       return true;
     } catch (error: any) {
-      console.error("Firebase signup error:", error);
       if (error.code === 'auth/email-already-in-use') {
-        toast({
-          title: 'Signup Failed',
-          description: 'This email address is already in use. Please try a different email or log in.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Signup Failed',
-          description: error.message || 'Could not create account. Please try again.',
-          variant: 'destructive',
-        });
+        // This email is already registered. Try to log the user in to continue the flow.
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          toast({
+            title: 'Account Exists',
+            description: 'Logging you in to continue phone verification.',
+          });
+          return true; // Proceed with phone verification
+        } catch (loginError: any) {
+          console.error("Firebase login-after-signup-fail error:", loginError);
+          toast({
+            title: 'Login Failed',
+            description: 'This email is already registered, but the password was incorrect.',
+            variant: 'destructive',
+          });
+          return false;
+        }
       }
+
+      // Handle other signup errors
+      console.error("Firebase signup error:", error);
+      toast({
+        title: 'Signup Failed',
+        description: error.message || 'Could not create account. Please try again.',
+        variant: 'destructive',
+      });
       return false;
     }
   };
