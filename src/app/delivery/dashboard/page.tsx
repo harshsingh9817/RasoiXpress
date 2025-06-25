@@ -158,7 +158,7 @@ export default function DeliveryDashboard() {
                              </Badge>
                         </CardTitle>
                         <CardDescription>
-                            Placed on: {new Date(order.date).toLocaleDateString()}
+                            Placed on: {new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 flex-grow">

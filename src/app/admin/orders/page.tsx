@@ -157,7 +157,7 @@ export default function AdminOrdersPage() {
               <TableRow>
                 <TableHead>Order ID</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Date & Time</TableHead>
                 <TableHead className="w-[200px]">Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-center">Details</TableHead>
@@ -169,7 +169,7 @@ export default function AdminOrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
-                    <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
                     <TableCell>
                        <Select
                          value={order.status}
@@ -214,7 +214,7 @@ export default function AdminOrdersPage() {
                 <DialogHeader>
                     <DialogTitle>Order Details: #{selectedOrder.id.slice(-6)}</DialogTitle>
                     <DialogDescription>
-                        Placed by {selectedOrder.customerName} ({selectedOrder.userEmail}) on {new Date(selectedOrder.date).toLocaleDateString()}
+                        Placed by {selectedOrder.customerName} ({selectedOrder.userEmail}) on {new Date(selectedOrder.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">

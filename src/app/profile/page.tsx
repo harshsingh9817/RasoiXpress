@@ -507,7 +507,7 @@ export default function ProfilePage() {
                         <div>
                           <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
                           <CardDescription>
-                            Date: {new Date(order.date).toLocaleDateString()} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
+                            Date: {new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span>
                             {order.status === 'Cancelled' && order.cancellationReason && (
                                 <span className="text-xs block text-muted-foreground italic">Reason: {order.cancellationReason}</span>
                             )}
@@ -980,7 +980,7 @@ export default function ProfilePage() {
                 <FileText className="mr-2 h-5 w-5 text-primary" /> Order Bill: {orderForBillView.id}
               </DialogTitle>
               <DialogDescription>
-                Date: {new Date(orderForBillView.date).toLocaleDateString()}
+                Date: {new Date(orderForBillView.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto pr-2 text-sm">
