@@ -148,7 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await firebaseSignOut(auth); // Log them out immediately
         toast({
           title: "Email Not Verified",
-          description: "A verification link was sent to your email upon signup. Please verify your email before logging in.",
+          description: "A verification link was sent to your email upon signup. Please check your inbox (and spam folder) to activate your account before logging in.",
           variant: "destructive",
           duration: 10000,
         });
@@ -215,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       toast({ 
         title: 'Account Created! Please Verify Your Email.', 
-        description: "We've sent a verification link to your email. Please click the link in the email to activate your account before logging in.", 
+        description: "We've sent a verification link to your email. Please check your inbox (and spam folder) to activate your account before logging in.", 
         variant: 'default',
         duration: 10000 // Give user time to read
       });
