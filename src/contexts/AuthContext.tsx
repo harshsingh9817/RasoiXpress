@@ -13,6 +13,7 @@ import {
   getIdTokenResult,
   updateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -138,21 +139,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Manually check role and redirect here for immediate feedback, onAuthStateChanged will confirm
-      if (email === 'delivery@example.com') {
-          router.push('/delivery/dashboard');
-      } else if (email === 'admin@example.com') {
-          router.push('/admin');
+      const isSpecialAccount = userCredential.user.email === 'admin@example.com' || userCredential.user.email === 'delivery@example.com';
+
+      // For regular users, check if their email is verified.
+      if (!userCredential.user.emailVerified && !isSpecialAccount) {
+        await firebaseSignOut(auth); // Log them out immediately
+        toast({
+          title: "Email Not Verified",
+          description: "A verification link was sent to your email upon signup. Please verify your email before logging in.",
+          variant: "destructive",
+          duration: 10000,
+        });
+        return; // Stop the login process
       }
-      else {
-          router.push('/');
-      }
+      
+      // onAuthStateChanged will handle UI updates and redirects.
+      toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
+      // Redirects will be handled by onAuthStateChanged.
 
     } catch (error: any) {
-      // Special handling for the delivery user: if login fails because the account doesn't exist, create it automatically.
       const isSpecialAccount = email === 'delivery@example.com' || email === 'admin@example.com';
 
       if (isSpecialAccount && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
@@ -161,7 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (userCredential.user) {
             const displayName = email === 'admin@example.com' ? 'Admin User' : 'Delivery Partner';
             await updateProfile(userCredential.user, { displayName });
-            await userCredential.user.getIdToken(true); // Force refresh claims to be safe
+            await userCredential.user.getIdToken(true); 
           }
           toast({ title: 'Special Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
           if (email === 'admin@example.com') {
@@ -169,10 +176,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
              router.push('/delivery/dashboard');
           }
-          return; // Exit after successful creation
+          return; 
         } catch (signupError: any) {
           console.error("Firebase auto-signup error for special user:", signupError);
-          // Fall through to generic error toast if auto-signup also fails (e.g., weak password)
         }
       }
 
@@ -200,11 +206,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
+        // Send verification email
+        await sendEmailVerification(userCredential.user);
       }
-      toast({ title: 'Account Created!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
-      // The onAuthStateChanged listener will handle redirection.
-      // We can also push the user to the homepage for a faster response.
-      router.push('/');
+      
+      // Log the user out so they must verify before logging in.
+      await firebaseSignOut(auth);
+      
+      toast({ 
+        title: 'Account Created! Please Verify Your Email.', 
+        description: "We've sent a verification link to your email. Please click the link in the email to activate your account before logging in.", 
+        variant: 'default',
+        duration: 10000 // Give user time to read
+      });
+      
+      // Redirect to login page after successful signup.
+      router.push('/login');
+
     } catch (error: any) {
       console.error("Firebase signup error:", error);
       let description = 'Could not create account. Please try again.';
