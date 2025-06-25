@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ClipboardList, PackageSearch, Eye } from "lucide-react";
+import { Loader2, ClipboardList, PackageSearch, Eye, PhoneCall } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -262,9 +262,24 @@ export default function AdminOrdersPage() {
                     </div>
                     <Separator />
                     <div>
-                        <h4 className="font-semibold mb-2 text-sm">Shipping Information</h4>
+                        <h4 className="font-semibold mb-2 text-sm">Shipping & Contact</h4>
                         <p className="text-sm text-muted-foreground">{selectedOrder.shippingAddress}</p>
-                        <p className="text-sm text-muted-foreground">Contact: {selectedOrder.customerPhone || 'N/A'}</p>
+                        
+                        {selectedOrder.customerPhone ? (
+                            <div className="mt-3 flex items-center justify-between rounded-md border p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    <PhoneCall className="inline-block mr-2 h-4 w-4 align-text-bottom" />
+                                    {selectedOrder.customerPhone}
+                                </p>
+                                <Button asChild size="sm">
+                                    <a href={`tel:${selectedOrder.customerPhone}`}>
+                                        Call Now
+                                    </a>
+                                </Button>
+                            </div>
+                        ) : (
+                            <p className="mt-2 text-sm text-muted-foreground">No contact phone provided.</p>
+                        )}
                     </div>
                 </div>
                 </>
