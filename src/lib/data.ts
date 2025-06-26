@@ -21,107 +21,7 @@ import { db } from './firebase';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef } from './types';
 
 // --- Initial Data ---
-const initialMenuItems: Omit<MenuItem, 'id'>[] = [
-  {
-    name: 'Margherita Pizza',
-    description: 'Classic delight with 100% real mozzarella cheese, fresh basil, and a tangy tomato sauce on a thin crust.',
-    price: 349.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=margherita%20pizza',
-    category: 'Pizza',
-    isVegetarian: true,
-    isPopular: true,
-    weight: 'Approx. 450g',
-    ingredients: 'Pizza dough, Mozzarella cheese, Tomato sauce, Fresh basil, Olive oil, Salt',
-  },
-  {
-    name: 'Pepperoni Pizza',
-    description: 'A classic American favorite with spicy pepperoni, mozzarella cheese, and our signature pizza sauce.',
-    price: 429.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=pepperoni%20pizza',
-    category: 'Pizza',
-    isPopular: true,
-    weight: 'Approx. 500g',
-    ingredients: 'Pizza dough, Mozzarella cheese, Pepperoni, Tomato sauce, Oregano',
-  },
-  {
-    name: 'Chicken Burger',
-    description: 'Juicy grilled chicken patty with fresh lettuce, ripe tomatoes, onions, and our secret sauce in a toasted bun.',
-    price: 249.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=chicken%20burgers',
-    category: 'Burgers',
-    weight: 'Approx. 280g',
-    ingredients: 'Chicken patty, Burger bun, Lettuce, Tomato, Onion, Secret sauce, Pickles',
-  },
-  {
-    name: 'Veggie Burger',
-    description: 'A delicious and hearty veggie patty made with mixed vegetables and spices, served with all the fixings.',
-    price: 220.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=veggie%20burgers',
-    category: 'Burgers',
-    isVegetarian: true,
-    weight: 'Approx. 260g',
-    ingredients: 'Veggie patty, Burger bun, Lettuce, Tomato, Onion, Mayonnaise',
-  },
-  {
-    name: 'Caesar Salad',
-    description: 'Crisp romaine lettuce, Parmesan cheese, crunchy croutons, and a creamy Caesar dressing.',
-    price: 275.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=caesar%20salads',
-    category: 'Salads',
-    isVegetarian: true,
-    weight: 'Approx. 300g',
-    ingredients: 'Romaine lettuce, Parmesan cheese, Croutons, Caesar dressing (contains anchovy extract for non-veg version)',
-  },
-  {
-    name: 'Spaghetti Carbonara',
-    description: 'Classic Italian pasta with creamy egg yolk sauce, Pecorino Romano cheese, pancetta, and black pepper.',
-    price: 399.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=spaghetti%20pasta',
-    category: 'Pasta',
-    weight: 'Approx. 350g',
-    ingredients: 'Spaghetti, Pancetta, Egg yolks, Pecorino Romano cheese, Black pepper',
-  },
-  {
-    name: 'Chocolate Lava Cake',
-    description: 'Warm, rich chocolate cake with a gooey, molten chocolate center. Served with a dusting of powdered sugar.',
-    price: 180.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=chocolate%20desserts',
-    category: 'Desserts',
-    isVegetarian: true,
-    weight: 'Approx. 150g',
-    ingredients: 'Dark chocolate, Butter, Eggs, Sugar, Flour, Cocoa powder',
-  },
-  {
-    name: 'Butter Chicken',
-    description: 'Tender pieces of tandoori chicken cooked in a rich, creamy tomato and butter sauce, flavored with spices.',
-    price: 450.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=butter%20indian',
-    category: 'Indian',
-    weight: 'Approx. 400g (with gravy)',
-    ingredients: 'Chicken, Tomato, Cream, Butter, Ginger, Garlic, Spices (Garam masala, Turmeric, Cumin, Coriander)',
-  },
-  {
-    name: 'Paneer Tikka Masala',
-    description: 'Grilled cubes of paneer (Indian cottage cheese) simmered in a flavorful and aromatic spiced curry sauce.',
-    price: 420.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=paneer%20indian',
-    category: 'Indian',
-    isVegetarian: true,
-    isPopular: true,
-    weight: 'Approx. 400g (with gravy)',
-    ingredients: 'Paneer, Tomato, Onion, Cream, Ginger, Garlic, Capsicum, Spices (Garam masala, Turmeric, Cumin, Coriander, Kasuri methi)',
-  },
-  {
-    name: 'French Fries',
-    description: 'Crispy golden french fries, lightly salted. Perfect as a side or a snack.',
-    price: 120.00,
-    imageUrl: 'https://placehold.co/300x200.png?data-ai-hint=french%20sides',
-    category: 'Sides',
-    isVegetarian: true,
-    weight: 'Approx. 150g',
-    ingredients: 'Potatoes, Vegetable oil, Salt',
-  },
-];
+const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 
 const defaultHeroData: HeroData = {
     headline: 'Home Delivery In Nagra With Rasoi Xpress',
@@ -167,7 +67,7 @@ export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
 }
 
 export async function deleteMenuItem(itemId: string): Promise<void> {
-    const docRef = doc(db, 'menuItems', itemId);
+    const docRef = doc(db, 'menuItems', id);
     await deleteDoc(docRef);
 }
 
@@ -205,8 +105,7 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 
 export async function getAllOrders(): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(query(ordersCol, orderBy('date', 'desc')));
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
 }
 
@@ -215,7 +114,8 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
     const q = query(ordersCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // --- Address Management ---
@@ -353,7 +253,8 @@ export async function getUserAdminMessages(userId: string): Promise<AdminMessage
     const messagesCol = collection(db, 'adminMessages');
     const q = query(messagesCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+    return messages.sort((a,b) => b.timestamp - a.timestamp);
 }
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
