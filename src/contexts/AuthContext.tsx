@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   type User,
   onAuthStateChanged,
@@ -14,16 +14,20 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  isDelivery: boolean; // Add delivery role
-  login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string, fullName?: string) => Promise<void>;
+  isDelivery: boolean;
+  login: (identifier?: string, password?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signup: (email?: string, password?: string, fullName?: string, mobileNumber?: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -31,10 +35,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const manageUserInFirestore = async (user: User, extraData: { mobileNumber?: string } = {}) => {
+    const userRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(userRef);
+    
+    if (!docSnap.exists()) {
+        await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: serverTimestamp(),
+            mobileNumber: extraData.mobileNumber || null,
+        });
+    } else {
+        const dataToUpdate: any = {
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+        };
+        if (extraData.mobileNumber) {
+            dataToUpdate.mobileNumber = extraData.mobileNumber;
+        }
+        await setDoc(userRef, dataToUpdate, { merge: true });
+    }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isDelivery, setIsDelivery] = useState(false); // Add delivery state
+  const [isDelivery, setIsDelivery] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -48,15 +77,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsDelivery(false);
         setUser(null);
         
-        // Define all public paths. Everything else requires authentication.
         const publicPaths = ['/login', '/signup', '/delivery/login'];
+        const isPublicPath = publicPaths.includes(pathname) || pathname === '/';
         
-        // Check if the current path is public.
-        const isPublicPath = publicPaths.includes(pathname);
-
-        // Redirect if the current path is not public.
         if (!isPublicPath && !pathname.startsWith('/restaurants')) {
-            // Delivery personnel should be redirected to their specific login page.
             if (pathname.startsWith('/delivery')) {
                 router.replace('/delivery/login');
             } else {
@@ -69,6 +93,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setUser(currentUser);
+      await manageUserInFirestore(currentUser);
+      
       try {
         const idTokenResult = await getIdTokenResult(currentUser, true);
         const isAdminClaim = !!idTokenResult.claims.admin || currentUser.email === 'admin@example.com';
@@ -80,12 +106,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isLoginPage = pathname === '/login' || pathname === '/signup';
         const isDeliveryLoginPage = pathname === '/delivery/login';
 
-        // Redirect based on role
         if (isDeliveryClaim) {
           if (!pathname.startsWith('/delivery')) router.replace('/delivery/dashboard');
         } else if (isAdminClaim) {
           if (isLoginPage || isDeliveryLoginPage) router.replace('/admin');
-        } else { // Regular user
+        } else {
           if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) router.replace('/');
         }
 
@@ -133,49 +158,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (email?: string, password?: string) => {
-    if (!email || !password) {
-      toast({ title: 'Login Error', description: 'Email and password are required.', variant: 'destructive' });
+  const login = async (identifier?: string, password?: string) => {
+    if (!identifier || !password) {
+      toast({ title: 'Login Error', description: 'Email/phone and password are required.', variant: 'destructive' });
       return;
     }
+
+    let emailToLogin = identifier;
+    const isPhoneNumber = /^\d{10,}$/.test(identifier);
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (isPhoneNumber) {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("mobileNumber", "==", identifier));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          throw new Error("Invalid credentials");
+        }
+        
+        const userDoc = querySnapshot.docs[0].data();
+        emailToLogin = userDoc.email;
+        if (!emailToLogin) {
+            throw new Error("Invalid credentials");
+        }
+      }
+
+      const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
       
       const isSpecialAccount = userCredential.user.email === 'admin@example.com' || userCredential.user.email === 'delivery@example.com';
 
-      // For regular users, check if their email is verified.
       if (!userCredential.user.emailVerified && !isSpecialAccount) {
-        await firebaseSignOut(auth); // Log them out immediately
+        await firebaseSignOut(auth);
         toast({
           title: "Email Not Verified",
           description: "A verification link was sent to your email upon signup. Please check your inbox (and spam folder) to activate your account before logging in.",
           variant: "destructive",
           duration: 10000,
         });
-        return; // Stop the login process
+        return;
       }
       
-      // onAuthStateChanged will handle UI updates and redirects.
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
-      // Redirects will be handled by onAuthStateChanged.
 
     } catch (error: any) {
-      const isSpecialAccount = email === 'delivery@example.com' || email === 'admin@example.com';
+      const isSpecialAccountEmail = identifier === 'delivery@example.com' || identifier === 'admin@example.com';
 
-      if (isSpecialAccount && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
+      if (isSpecialAccountEmail && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const userCredential = await createUserWithEmailAndPassword(auth, identifier, password);
           if (userCredential.user) {
-            const displayName = email === 'admin@example.com' ? 'Admin User' : 'Delivery Partner';
+            const displayName = identifier === 'admin@example.com' ? 'Admin User' : 'Delivery Partner';
             await updateProfile(userCredential.user, { displayName });
-            await userCredential.user.getIdToken(true); 
+            await manageUserInFirestore(userCredential.user);
           }
           toast({ title: 'Special Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
-          if (email === 'admin@example.com') {
-             router.push('/admin');
-          } else {
-             router.push('/delivery/dashboard');
-          }
           return; 
         } catch (signupError: any) {
           console.error("Firebase auto-signup error for special user:", signupError);
@@ -184,7 +221,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.error("Firebase login error:", error);
       let description = 'An unexpected error occurred during login. Please try again.';
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes('Invalid credentials')) {
         description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
       } else if (error.message) {
         description = error.message;
@@ -193,11 +230,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (email?: string, password?: string, fullName?: string): Promise<void> => {
-    if (!email || !password || !fullName) {
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const userCredential = await signInWithPopup(auth, provider);
+      await manageUserInFirestore(userCredential.user);
+      toast({ title: 'Logged In!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
+      router.push('/');
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+      toast({
+          title: 'Google Sign-In Failed',
+          description: error.message || 'Could not sign in with Google. Please try again.',
+          variant: 'destructive',
+      });
+    }
+  };
+
+  const signup = async (email?: string, password?: string, fullName?: string, mobileNumber?: string): Promise<void> => {
+    if (!email || !password || !fullName || !mobileNumber) {
       toast({
         title: 'Signup Error',
-        description: 'Full name, email and password are required.',
+        description: 'Full name, email, mobile number and password are required.',
         variant: 'destructive',
       });
       return;
@@ -206,21 +260,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
-        // Send verification email
         await sendEmailVerification(userCredential.user);
+        await manageUserInFirestore(userCredential.user, { mobileNumber });
       }
       
-      // Log the user out so they must verify before logging in.
       await firebaseSignOut(auth);
       
       toast({ 
         title: 'Account Created! Please Verify Your Email.', 
         description: "We've sent a verification link to your email. Please check your inbox (and spam folder) to activate your account before logging in.", 
         variant: 'default',
-        duration: 10000 // Give user time to read
+        duration: 10000
       });
       
-      // Redirect to login page after successful signup.
       router.push('/login');
 
     } catch (error: any) {
@@ -260,7 +312,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signup, logout, isLoading, sendPasswordReset }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signInWithGoogle, signup, logout, isLoading, sendPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

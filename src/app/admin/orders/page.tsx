@@ -67,11 +67,11 @@ export default function AdminOrdersPage() {
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router]);
 
-  const loadOrders = useCallback(() => {
+  const loadOrders = useCallback(async () => {
     if (isAuthenticated && isAdmin) {
       setIsDataLoading(true);
       try {
-        const allOrders = getAllOrders();
+        const allOrders = await getAllOrders();
         setOrders(allOrders);
       } catch (error) {
         console.error("Error fetching orders:", error);
@@ -84,17 +84,6 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-    
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressAllOrders') {
-        loadOrders();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, [loadOrders]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
@@ -110,14 +99,14 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      updateOrderStatus(orderId, newStatus);
+      await updateOrderStatus(orderId, newStatus);
       toast({
         title: 'Order Status Updated',
         description: `Order #${orderId.slice(-6)} is now marked as ${newStatus}.`,
       });
-      loadOrders(); // Refresh state after update
+      await loadOrders(); // Refresh state after update
     } catch (error) {
       console.error("Failed to update order status", error);
       toast({

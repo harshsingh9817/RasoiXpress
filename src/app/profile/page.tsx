@@ -107,7 +107,7 @@ export default function ProfilePage() {
   const [trackOrderError, setTrackOrderError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<AddressType[]>([]);
-  const [isClientRendered, setIsClientRendered] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
 
@@ -131,44 +131,41 @@ export default function ProfilePage() {
   const [currentRating, setCurrentRating] = useState(0);
   const [currentReviewComment, setCurrentReviewComment] = useState('');
 
-  const loadUserData = useCallback(() => {
-    if (firebaseUser) {
-      const allOrders = getAllOrders();
-      const userOrders = allOrders.filter(o => o.userId === firebaseUser.uid);
-      setOrders(userOrders);
-      
-      const userAddresses = getAddresses(firebaseUser.uid);
-      setAddresses(userAddresses);
+  const loadUserData = useCallback(async () => {
+    if (!firebaseUser) return;
+    setIsDataLoading(true);
+    try {
+        const [userOrders, userAddresses] = await Promise.all([
+            getAllOrders().then(allOrders => allOrders.filter(o => o.userId === firebaseUser.uid)),
+            getAddresses(firebaseUser.uid)
+        ]);
+        setOrders(userOrders);
+        setAddresses(userAddresses);
+    } catch (error) {
+        console.error("Failed to load user data:", error);
+        toast({ title: "Error", description: "Could not load your profile data.", variant: "destructive" });
+    } finally {
+        setIsDataLoading(false);
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, toast]);
 
   useEffect(() => {
-    setIsClientRendered(true);
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
-    if (isClientRendered && !isAuthLoading && !isAuthenticated) {
+    if (!isAuthLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isClientRendered, isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, router]);
 
   useEffect(() => {
-    if (isClientRendered && isAuthenticated && firebaseUser) {
+    if (isAuthenticated && firebaseUser) {
       loadUserData();
-      const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'rasoiExpressAllOrders' || event.key === `rasoiExpressUserAddresses_${firebaseUser.uid}`) {
-          loadUserData();
-        }
-      };
-      window.addEventListener('storage', handleStorageChange);
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-      };
     }
-  }, [isClientRendered, isAuthenticated, firebaseUser, loadUserData]);
+  }, [isAuthenticated, firebaseUser, loadUserData]);
 
 
-  const findAndDisplayOrderStatus = (idToTrack: string) => {
+  const findAndDisplayOrderStatus = async (idToTrack: string) => {
     setTrackedOrderDetails(null);
     setTrackOrderError(null);
 
@@ -176,7 +173,7 @@ export default function ProfilePage() {
       setTrackOrderError('Please enter an order ID.');
       return;
     }
-    const allOrders = getAllOrders();
+    const allOrders = await getAllOrders();
     const foundOrder = allOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase() && o.userId === firebaseUser?.uid);
 
     if (foundOrder) {
@@ -210,16 +207,16 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSetDefaultAddress = (addressId: string) => {
+  const handleSetDefaultAddress = async (addressId: string) => {
     if (!firebaseUser) return;
-    setDefaultAddress(firebaseUser.uid, addressId);
-    loadUserData();
+    await setDefaultAddress(firebaseUser.uid, addressId);
+    await loadUserData();
   };
 
-  const handleDeleteAddress = (addressId: string) => {
+  const handleDeleteAddress = async (addressId: string) => {
     if (!firebaseUser) return;
-    deleteAddress(firebaseUser.uid, addressId);
-    loadUserData();
+    await deleteAddress(firebaseUser.uid, addressId);
+    await loadUserData();
   };
 
   const handleOpenAddAddressDialog = () => {
@@ -252,19 +249,20 @@ export default function ProfilePage() {
     setCurrentAddressFormData(prev => ({ ...prev, type: value }));
   };
 
-  const handleAddressFormSubmit = (e: FormEvent) => {
+  const handleAddressFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!firebaseUser) return;
     if (addressToEdit) {
-      updateAddress(firebaseUser.uid, { ...addressToEdit, ...currentAddressFormData });
+      await updateAddress(firebaseUser.uid, { ...addressToEdit, ...currentAddressFormData });
     } else {
-      const newAddressData: Omit<AddressType, 'id'> = {
+      const addresses = await getAddresses(firebaseUser.uid);
+      const newAddressData: Omit<Address, 'id'> = {
         ...currentAddressFormData,
         isDefault: addresses.length === 0,
       }
-      addAddress(firebaseUser.uid, newAddressData);
+      await addAddress(firebaseUser.uid, newAddressData);
     }
-    loadUserData();
+    await loadUserData();
     setIsAddressDialogOpen(false);
   };
 
@@ -278,15 +276,11 @@ export default function ProfilePage() {
     }
     const file = event.target.files[0];
     if (!file.type.startsWith('image/')) {
-      setTimeout(() => {
-        toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
-      }, 0);
+      toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
       return;
     }
     if (!firebaseUser || !auth.currentUser) {
-      setTimeout(() => {
-        toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
-      }, 0);
+      toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
       return;
     }
 
@@ -299,18 +293,11 @@ export default function ProfilePage() {
       const downloadURL = await getDownloadURL(imageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      if (auth.currentUser) {
-        await auth.currentUser.getIdToken(true); 
-      }
       
-      setTimeout(() => {
-        toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
-      }, 0);
+      toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
     } catch (error: any) {
       console.error("Error uploading profile photo:", error);
-      setTimeout(() => {
-        toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
-      }, 0);
+      toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
     } finally {
       setIsUploadingPhoto(false);
       if(fileInputRef.current) {
@@ -325,39 +312,34 @@ export default function ProfilePage() {
       setSelectedCancelReason('');
       setIsCancelDialogOpen(true);
     } else {
-      setTimeout(() => {
-        toast({
-          title: 'Cancellation Not Allowed',
-          description: 'This order can no longer be cancelled.',
-          variant: 'destructive',
-        });
-      }, 0);
+      toast({
+        title: 'Cancellation Not Allowed',
+        description: 'This order can no longer be cancelled.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleConfirmCancellation = () => {
+  const handleConfirmCancellation = async () => {
     if (!orderToCancel) return;
     if (!selectedCancelReason) {
-      setTimeout(() => {
-        toast({
-          title: 'Reason Required',
-          description: 'Please select a reason for cancellation.',
-          variant: 'destructive',
-        });
-      }, 0);
+      toast({
+        title: 'Reason Required',
+        description: 'Please select a reason for cancellation.',
+        variant: 'destructive',
+      });
       return;
     }
     
-    cancelOrder(orderToCancel.id, selectedCancelReason);
+    await cancelOrder(orderToCancel.id, selectedCancelReason);
 
-    setTimeout(() => {
-        toast({
-            title: 'Order Cancelled',
-            description: `Order ${orderToCancel.id} has been successfully cancelled.`,
-            variant: 'default',
-        });
-    }, 0);
-
+    toast({
+        title: 'Order Cancelled',
+        description: `Order ${orderToCancel.id} has been successfully cancelled.`,
+        variant: 'default',
+    });
+    
+    await loadUserData();
     setIsCancelDialogOpen(false);
     setOrderToCancel(null);
     setSelectedCancelReason('');
@@ -379,15 +361,13 @@ export default function ProfilePage() {
     setIsReviewDialogOpen(true);
   };
 
-  const handleReviewSubmit = () => {
+  const handleReviewSubmit = async () => {
     if (!orderToReview || currentRating === 0) {
-      setTimeout(() => {
-        toast({
-          title: 'Rating Required',
-          description: 'Please select a star rating.',
-          variant: 'destructive',
-        });
-      }, 0);
+      toast({
+        title: 'Rating Required',
+        description: 'Please select a star rating.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -397,16 +377,15 @@ export default function ProfilePage() {
       date: new Date().toISOString().split('T')[0],
     };
 
-    submitOrderReview(orderToReview.id, newReview);
+    await submitOrderReview(orderToReview.id, newReview);
     
-    setTimeout(() => {
-        toast({
-            title: 'Review Submitted!',
-            description: 'Thank you for your feedback.',
-            variant: 'default',
-        });
-    }, 0);
+    toast({
+        title: 'Review Submitted!',
+        description: 'Thank you for your feedback.',
+        variant: 'default',
+    });
 
+    await loadUserData();
     setIsReviewDialogOpen(false);
     setOrderToReview(null);
   };
@@ -432,12 +411,12 @@ export default function ProfilePage() {
   };
 
 
-  if (!isClientRendered || isAuthLoading || (!isAuthenticated && isClientRendered)) {
+  if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {isAuthLoading || !isClientRendered ? "Loading profile..." : "Redirecting to login..."}
+          {isAuthLoading ? "Loading profile..." : "Fetching your data..."}
         </p>
       </div>
     );
@@ -921,7 +900,7 @@ export default function ProfilePage() {
                   id="alternatePhone"
                   name="alternatePhone"
                   type="tel"
-                  value={currentAddressFormData.alternatePhone}
+                  value={currentAddressFormData.alternatePhone || ''}
                   onChange={handleAddressFormChange}
                 />
               </div>

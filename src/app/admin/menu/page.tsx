@@ -53,22 +53,22 @@ export default function MenuManagementPage() {
   const { toast } = useToast();
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
 
-  const loadItems = useCallback(() => {
-    setIsAuthLoading(true);
+  const loadItems = useCallback(async () => {
+    setIsDataLoading(true);
     try {
-        const items = getMenuItems();
+        const items = await getMenuItems();
         setMenuItems(items);
     } catch (error) {
         console.error("Failed to load menu items", error);
         toast({ title: "Error", description: "Could not load menu items.", variant: "destructive" });
     } finally {
-        setIsAuthLoading(false);
+        setIsDataLoading(false);
     }
   }, [toast]);
 
@@ -81,18 +81,6 @@ export default function MenuManagementPage() {
         loadItems();
     }
   }, [isAdmin, isLoading, isAuthenticated, router, loadItems]);
-
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'rasoiExpressMenuItems') {
-            loadItems();
-        }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadItems]);
 
   const handleAddNew = () => {
     setSelectedItem(null);
@@ -109,12 +97,12 @@ export default function MenuManagementPage() {
     setIsDeleteDialogOpen(true);
   };
   
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (itemToDelete) {
         try {
-            deleteMenuItem(itemToDelete.id);
+            await deleteMenuItem(itemToDelete.id);
             toast({ title: "Item Deleted", description: `${itemToDelete.name} has been removed.`});
-            loadItems(); // Refresh list after delete
+            await loadItems(); // Refresh list after delete
         } catch (error) {
             console.error("Failed to delete item", error);
             toast({ title: "Delete Failed", description: "Could not delete the item.", variant: "destructive" });
@@ -124,12 +112,12 @@ export default function MenuManagementPage() {
     setItemToDelete(null);
   }
 
-  if (isLoading || (!isAuthenticated && !isLoading) || isAuthLoading) {
+  if (isLoading || (!isAuthenticated && !isLoading) || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {isLoading ? "Verifying access..." : isAuthLoading ? "Loading menu..." : "Access Denied. Redirecting..."}
+          {isLoading ? "Verifying access..." : isDataLoading ? "Loading menu..." : "Access Denied. Redirecting..."}
         </p>
       </div>
     );

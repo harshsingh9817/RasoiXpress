@@ -59,33 +59,18 @@ export default function PaymentSettingsPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      const data = getPaymentSettings();
-      form.reset(data);
+      const loadSettings = async () => {
+        const data = await getPaymentSettings();
+        form.reset(data);
+      }
+      loadSettings();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
-  
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressPaymentSettings') {
-        const data = getPaymentSettings();
-        form.reset(data);
-        toast({
-          title: "Payment Settings Synced",
-          description: "Settings were updated in another tab and have been synced.",
-        });
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [form, toast]);
 
-
-  const onSubmit = (data: PaymentSettingsFormValues) => {
+  const onSubmit = async (data: PaymentSettingsFormValues) => {
     setIsSubmitting(true);
     try {
-      updatePaymentSettings(data);
+      await updatePaymentSettings(data);
       toast({
         title: "Payment Settings Updated",
         description: "The checkout payment details have been successfully updated.",

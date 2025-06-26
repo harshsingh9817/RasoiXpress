@@ -45,13 +45,11 @@ export default function RestaurantDetailPage() {
                 setRestaurant(fetchedRestaurant);
                 setMenuItems(fetchedRestaurant.menu);
             } else {
-                // Fallback to all menu items if no specific restaurant is found
                 const allItems = await getMenuItems();
                 setMenuItems(allItems);
             }
         } catch (error) {
             console.error("Failed to fetch restaurant details:", error);
-            // Optionally set an error state
         } finally {
             setIsLoading(false);
         }
@@ -102,7 +100,6 @@ export default function RestaurantDetailPage() {
       );
   }
 
-  // If loading is finished and still no restaurant/menu items, it's a true 404
   if (!restaurant && menuItems.length === 0) {
     notFound();
   }

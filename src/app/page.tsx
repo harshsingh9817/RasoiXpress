@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -17,47 +16,36 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
   const [heroData, setHeroData] = useState<HeroData | null>(null);
 
-  const loadItems = useCallback(() => {
-    try {
-        const items = getMenuItems();
-        setMenuItems(items);
-    } catch (error) {
-        console.error("Failed to fetch menu items:", error);
-    }
-  }, []);
-
-  const loadHero = useCallback(() => {
-    setHeroData(getHeroData());
-  }, []);
-
   useEffect(() => {
-    loadItems();
-    loadHero();
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressMenuItems') {
-        loadItems();
-      }
-      if (event.key === 'rasoiExpressHeroData') {
-        loadHero();
-      }
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [items, hero] = await Promise.all([
+                getMenuItems(),
+                getHeroData()
+            ]);
+            setMenuItems(items);
+            setHeroData(hero);
+        } catch (error) {
+            console.error("Failed to load page data:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    }
-  }, [loadItems, loadHero]);
+    loadData();
+  }, []);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));
@@ -162,7 +150,24 @@ export default function HomePage() {
           </TooltipProvider>
       </div>
 
-      {filteredAndSortedMenu.length > 0 ? (
+      {isLoading ? (
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+                <Card key={i}>
+                    <CardHeader><Skeleton className="h-48 w-full" /></CardHeader>
+                    <CardContent className="space-y-2">
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-1/2" />
+                        <div className="flex gap-2 pt-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+         </div>
+      ) : filteredAndSortedMenu.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAndSortedMenu.map(item => (
             <MenuItemCard key={item.id} menuItem={item} />

@@ -1,15 +1,24 @@
 
-
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  setDoc,
+  query,
+  where,
+  orderBy,
+  runTransaction,
+  serverTimestamp,
+  Query,
+  DocumentData,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef } from './types';
-
-// --- Key Constants ---
-const allMenuItemsKey = 'rasoiExpressMenuItems';
-const allOrdersKey = 'rasoiExpressAllOrders';
-const userAddressesKeyPrefix = 'rasoiExpressUserAddresses_';
-const heroDataKey = 'rasoiExpressHeroData';
-const paymentSettingsKey = 'rasoiExpressPaymentSettings';
-const adminMessagesKey = 'rasoiExpressAdminMessages';
-
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [
@@ -124,179 +133,170 @@ const defaultPaymentSettings: PaymentSettings = {
     qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay'
 };
 
-// --- Helper Functions ---
-function getFromStorage<T>(key: string, defaultValue: T): T {
-    if (typeof window === 'undefined') return defaultValue;
-    const stored = localStorage.getItem(key);
-    try {
-        return stored ? JSON.parse(stored) : defaultValue;
-    } catch (e) {
-        console.error(`Error parsing JSON from localStorage key "${key}":`, e);
-        return defaultValue;
+async function initializeCollection(collectionName: string, initialData: any[]) {
+    const collectionRef = collection(db, collectionName);
+    const snapshot = await getDocs(collectionRef);
+    if (snapshot.empty) {
+        console.log(`Collection '${collectionName}' is empty. Populating with initial data...`);
+        const promises = initialData.map(item => addDoc(collectionRef, item));
+        await Promise.all(promises);
+        console.log(`Collection '${collectionName}' populated.`);
     }
 }
-
-function saveToStorage<T>(key: string, data: T) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, JSON.stringify(data));
-    window.dispatchEvent(new StorageEvent('storage', { key }));
-}
-
 
 // --- Menu Item Management ---
-export function getMenuItems(): MenuItem[] {
-    let items = getFromStorage<MenuItem[]>(allMenuItemsKey, []);
-    if (items.length === 0) {
-        items = initialMenuItems.map((item, index) => ({
-            ...item,
-            id: `m${index + 1}`
-        }));
-        saveToStorage(allMenuItemsKey, items);
-    }
-    return items.sort((a,b) => a.name.localeCompare(b.name));
+export async function getMenuItems(): Promise<MenuItem[]> {
+    await initializeCollection('menuItems', initialMenuItems);
+    const menuItemsCol = collection(db, 'menuItems');
+    const q = query(menuItemsCol, orderBy("name"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
 }
 
-export function addMenuItem(newItemData: Omit<MenuItem, 'id'>): MenuItem {
-    const items = getMenuItems();
-    const newItem: MenuItem = {
-        ...newItemData,
-        id: `m${Date.now()}`,
-    };
-    saveToStorage(allMenuItemsKey, [...items, newItem]);
-    return newItem;
+export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
+    const menuItemsCol = collection(db, 'menuItems');
+    const docRef = await addDoc(menuItemsCol, newItemData);
+    const docSnap = await getDoc(docRef);
+    return { id: docSnap.id, ...docSnap.data() } as MenuItem;
 }
 
-export function updateMenuItem(updatedItem: MenuItem): void {
-    let items = getMenuItems();
-    const index = items.findIndex(item => item.id === updatedItem.id);
-    if (index !== -1) {
-        items[index] = updatedItem;
-        saveToStorage(allMenuItemsKey, items);
-    }
+export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
+    const { id, ...itemData } = updatedItem;
+    const docRef = doc(db, 'menuItems', id);
+    await updateDoc(docRef, itemData);
 }
 
-export function deleteMenuItem(itemId: string): void {
-    let items = getMenuItems();
-    items = items.filter(item => item.id !== itemId);
-    saveToStorage(allMenuItemsKey, items);
+export async function deleteMenuItem(itemId: string): Promise<void> {
+    const docRef = doc(db, 'menuItems', itemId);
+    await deleteDoc(docRef);
 }
 
 // --- Restaurant Stubs ---
-export function getRestaurants(): Restaurant[] { return []; }
-export function getRestaurantById(id: string): Restaurant | undefined { return undefined; }
+export async function getRestaurants(): Promise<Restaurant[]> { return []; }
+export async function getRestaurantById(id: string): Promise<Restaurant | undefined> { return undefined; }
 
 // --- Order Management ---
-export function placeOrder(orderData: Omit<Order, 'id'>): Order {
-    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
-    const newOrder: Order = {
+export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
+    const ordersCol = collection(db, 'orders');
+    const docRef = await addDoc(ordersCol, {
         ...orderData,
-        id: `ORD${Date.now()}`,
-    };
-    saveToStorage(allOrdersKey, [...allOrders, newOrder]);
-    return newOrder;
+        createdAt: serverTimestamp(),
+    });
+    return { ...orderData, id: docRef.id } as Order;
 }
 
-export function updateOrderStatus(orderId: string, status: Order['status']): void {
-    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
-    const index = allOrders.findIndex(o => o.id === orderId);
-    if (index !== -1) {
-        allOrders[index].status = status;
-        saveToStorage(allOrdersKey, allOrders);
-    }
+export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { status });
 }
 
-export function cancelOrder(orderId: string, reason: string): void {
-    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
-    const index = allOrders.findIndex(o => o.id === orderId);
-    if (index !== -1) {
-        allOrders[index].status = 'Cancelled';
-        allOrders[index].cancellationReason = reason;
-        saveToStorage(allOrdersKey, allOrders);
-    }
+export async function cancelOrder(orderId: string, reason: string): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { 
+        status: 'Cancelled',
+        cancellationReason: reason 
+    });
 }
 
-export function submitOrderReview(orderId: string, review: Review): void {
-    const allOrders = getFromStorage<Order[]>(allOrdersKey, []);
-    const index = allOrders.findIndex(o => o.id === orderId);
-    if (index !== -1) {
-        allOrders[index].review = review;
-        saveToStorage(allOrdersKey, allOrders);
-    }
+export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { review });
 }
 
-export function getAllOrders(): Order[] {
-    return getFromStorage<Order[]>(allOrdersKey, []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export async function getAllOrders(): Promise<Order[]> {
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
 }
 
 // --- Address Management ---
-export function getAddresses(userId: string): Address[] {
-    return getFromStorage<Address[]>(`${userAddressesKeyPrefix}${userId}`, []);
+export async function getAddresses(userId: string): Promise<Address[]> {
+    if (!userId) return [];
+    const addressesCol = collection(db, 'users', userId, 'addresses');
+    const snapshot = await getDocs(addressesCol);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Address[];
 }
 
-export function addAddress(userId: string, addressData: Omit<Address, 'id'>): Address {
-    const addresses = getAddresses(userId);
-    const newAddress: Address = {
-        ...addressData,
-        id: `addr${Date.now()}`
-    };
-    saveToStorage(`${userAddressesKeyPrefix}${userId}`, [...addresses, newAddress]);
-    return newAddress;
+export async function addAddress(userId: string, addressData: Omit<Address, 'id'>): Promise<Address> {
+    const addressesCol = collection(db, 'users', userId, 'addresses');
+    const docRef = await addDoc(addressesCol, addressData);
+    return { ...addressData, id: docRef.id } as Address;
 }
 
-export function updateAddress(userId: string, updatedAddress: Address): void {
-    let addresses = getAddresses(userId);
-    const index = addresses.findIndex(addr => addr.id === updatedAddress.id);
-    if (index !== -1) {
-        addresses[index] = updatedAddress;
-        saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
+export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
+    const { id, ...addressData } = updatedAddress;
+    const docRef = doc(db, 'users', userId, 'addresses', id);
+    await updateDoc(docRef, addressData);
+}
+
+export async function deleteAddress(userId: string, addressId: string): Promise<void> {
+    const docRef = doc(db, 'users', userId, 'addresses', addressId);
+    await deleteDoc(docRef);
+}
+
+export async function setDefaultAddress(userId: string, addressIdToSetDefault: string): Promise<void> {
+    try {
+        await runTransaction(db, async (transaction) => {
+            const addressesCol = collection(db, 'users', userId, 'addresses');
+            const q = query(addressesCol, where('isDefault', '==', true));
+            const currentDefaultSnapshot = await getDocs(q);
+
+            currentDefaultSnapshot.forEach(docSnap => {
+                transaction.update(docSnap.ref, { isDefault: false });
+            });
+
+            const newDefaultRef = doc(db, 'users', userId, 'addresses', addressIdToSetDefault);
+            transaction.update(newDefaultRef, { isDefault: true });
+        });
+    } catch (e) {
+        console.error("Set default address transaction failed: ", e);
     }
 }
 
-export function deleteAddress(userId: string, addressId: string): void {
-    let addresses = getAddresses(userId);
-    addresses = addresses.filter(addr => addr.id !== addressId);
-    saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
-}
-
-export function setDefaultAddress(userId: string, addressIdToSetDefault: string): void {
-    const addresses = getAddresses(userId).map(addr => ({
-        ...addr,
-        isDefault: addr.id === addressIdToSetDefault
-    }));
-    saveToStorage(`${userAddressesKeyPrefix}${userId}`, addresses);
-}
-
 // --- Hero Section Management ---
-export function getHeroData(): HeroData {
-    return getFromStorage<HeroData>(heroDataKey, defaultHeroData);
+export async function getHeroData(): Promise<HeroData> {
+    const docRef = doc(db, 'globals', 'hero');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+        await setDoc(docRef, defaultHeroData);
+        return defaultHeroData;
+    }
+    return docSnap.data() as HeroData;
 }
 
-export function updateHeroData(data: HeroData): void {
-    saveToStorage(heroDataKey, data);
+export async function updateHeroData(data: HeroData): Promise<void> {
+    const docRef = doc(db, 'globals', 'hero');
+    await setDoc(docRef, data, { merge: true });
 }
 
 // --- Payment Settings Management ---
-export function getPaymentSettings(): PaymentSettings {
-    return getFromStorage<PaymentSettings>(paymentSettingsKey, defaultPaymentSettings);
+export async function getPaymentSettings(): Promise<PaymentSettings> {
+    const docRef = doc(db, 'globals', 'paymentSettings');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+        await setDoc(docRef, defaultPaymentSettings);
+        return defaultPaymentSettings;
+    }
+    return docSnap.data() as PaymentSettings;
 }
 
-export function updatePaymentSettings(data: PaymentSettings): void {
-    saveToStorage(paymentSettingsKey, data);
+export async function updatePaymentSettings(data: PaymentSettings): Promise<void> {
+    const docRef = doc(db, 'globals', 'paymentSettings');
+    await setDoc(docRef, data, { merge: true });
 }
 
 // --- Analytics Data ---
-export function getAnalyticsData(): AnalyticsData {
-    const orders = getAllOrders();
+export async function getAnalyticsData(): Promise<AnalyticsData> {
+    const orders = await getAllOrders();
     const deliveredOrders = orders.filter(o => o.status === 'Delivered');
 
     const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
-    const totalProfit = totalRevenue * 0.30; // Assuming a 30% profit margin
+    const totalProfit = totalRevenue * 0.30;
     const totalOrders = deliveredOrders.length;
     
-    // Process data for the chart
     const dailyData: Map<string, { revenue: number; profit: number }> = new Map();
     
-    // Initialize data for the last 7 days to ensure they appear on the chart
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -316,7 +316,7 @@ export function getAnalyticsData(): AnalyticsData {
     
     const chartData: DailyChartData[] = Array.from(dailyData.entries())
       .map(([date, data]) => ({ date, ...data }))
-      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a,b) => new Date(a.date).getTime() - new Date(a.date).getTime());
 
     return {
         totalRevenue,
@@ -326,40 +326,35 @@ export function getAnalyticsData(): AnalyticsData {
     };
 }
 
-
 // --- Admin Messaging ---
-export function getAllUsers(): UserRef[] {
-    const orders = getAllOrders();
-    const usersMap = new Map<string, string>();
-    orders.forEach(order => {
-        if (order.userId && order.userEmail) {
-            usersMap.set(order.userId, order.userEmail);
-        }
-    });
-    return Array.from(usersMap.entries()).map(([id, email]) => ({ id, email }));
+export async function getAllUsers(): Promise<UserRef[]> {
+    const usersCol = collection(db, 'users');
+    const snapshot = await getDocs(usersCol);
+    return snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email })) as UserRef[];
 }
 
-export function getAdminMessages(): AdminMessage[] {
-    return getFromStorage<AdminMessage[]>(adminMessagesKey, []);
+export async function getAdminMessages(): Promise<AdminMessage[]> {
+    const messagesCol = collection(db, 'adminMessages');
+    const q = query(messagesCol, orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
 }
 
-export function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): void {
-    const messages = getAdminMessages();
-    const newMessage: AdminMessage = {
-        id: `msg-${Date.now()}`,
+export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
+    const messagesCol = collection(db, 'adminMessages');
+    await addDoc(messagesCol, {
         userId,
         userEmail,
         title,
         message,
-        timestamp: Date.now(),
-    };
-    saveToStorage(adminMessagesKey, [...messages, newMessage]);
+        timestamp: serverTimestamp(),
+    });
 }
 
-
 // --- Other Data Functions ---
-export function getPopularDishes(): string[] {
-    return getMenuItems().filter(item => item.isPopular).map(item => item.name);
+export async function getPopularDishes(): Promise<string[]> {
+    const allItems = await getMenuItems();
+    return allItems.filter(item => item.isPopular).map(item => item.name);
 };
 
 export const getCurrentTrends = (): string[] => {

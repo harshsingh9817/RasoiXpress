@@ -31,10 +31,18 @@ export default function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  const loadAnalytics = useCallback(() => {
-    const data = getAnalyticsData();
-    setAnalyticsData(data);
-  }, []);
+  const loadAnalytics = useCallback(async () => {
+    setIsDataLoading(true);
+    try {
+        const data = await getAnalyticsData();
+        setAnalyticsData(data);
+    } catch (error) {
+        console.error("Failed to load analytics data", error);
+        toast({ title: "Error", description: "Could not load analytics.", variant: "destructive" });
+    } finally {
+        setIsDataLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
@@ -42,29 +50,9 @@ export default function AnalyticsPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      setIsDataLoading(true);
       loadAnalytics();
-      setIsDataLoading(false);
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, loadAnalytics]);
-  
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      // The analytics data is derived from orders. We listen for changes to this specific
-      // data to ensure the dashboard is always up-to-date with the latest sales information.
-      if (event.key === 'rasoiExpressAllOrders') {
-        loadAnalytics();
-        toast({
-          title: "Analytics Synced",
-          description: "App data has been updated, analytics are now in sync.",
-        });
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadAnalytics, toast]);
   
   const chartConfig = {
     revenue: {

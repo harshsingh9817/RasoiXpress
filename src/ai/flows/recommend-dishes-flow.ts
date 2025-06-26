@@ -106,11 +106,11 @@ const recommendDishesFlow = ai.defineFlow(
     // In a real app, you would fetch user history based on input.userId
     // For now, we use mock data.
     const userHistory = mockUserHistory;
-    const popularDishes = getPopularDishes();
-    const trends = getCurrentTrends();
+    const popularDishes = await getPopularDishes();
+    const trends = await getCurrentTrends();
     
     // We pass the full menu data to the model.
-    const menuItems = getMenuItems();
+    const menuItems = await getMenuItems();
 
     const { output } = await prompt({
         userHistory: JSON.stringify(userHistory, null, 2),

@@ -67,12 +67,15 @@ export default function MessagingPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      const allUsers = getAllUsers();
-      setUsers(allUsers);
+      const loadUsers = async () => {
+        const allUsers = await getAllUsers();
+        setUsers(allUsers);
+      }
+      loadUsers();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router]);
 
-  const onSubmit = (data: MessageFormValues) => {
+  const onSubmit = async (data: MessageFormValues) => {
     setIsSubmitting(true);
     try {
       const selectedUser = users.find(u => u.id === data.userId);
@@ -81,7 +84,7 @@ export default function MessagingPage() {
         return;
       }
 
-      sendAdminMessage(selectedUser.id, selectedUser.email, data.title, data.message);
+      await sendAdminMessage(selectedUser.id, selectedUser.email, data.title, data.message);
 
       toast({
         title: "Message Sent!",

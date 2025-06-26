@@ -57,32 +57,18 @@ export default function HeroManagementPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      const data = getHeroData();
-      form.reset(data);
+      const loadData = async () => {
+        const data = await getHeroData();
+        form.reset(data);
+      }
+      loadData();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
 
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressHeroData') {
-        const data = getHeroData();
-        form.reset(data);
-        toast({
-          title: "Hero Content Synced",
-          description: "Content was updated in another tab and has been synced.",
-        });
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [form, toast]);
-
-  const onSubmit = (data: HeroFormValues) => {
+  const onSubmit = async (data: HeroFormValues) => {
     setIsSubmitting(true);
     try {
-      updateHeroData(data);
+      await updateHeroData(data);
       toast({
         title: "Hero Section Updated",
         description: "The homepage hero has been successfully updated.",

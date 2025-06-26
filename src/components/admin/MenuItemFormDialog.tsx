@@ -89,16 +89,14 @@ export default function MenuItemFormDialog({
     }
   }, [menuItem, reset, isOpen]);
 
-  const onSubmit = (data: MenuItemFormValues) => {
+  const onSubmit = async (data: MenuItemFormValues) => {
     setIsSubmitting(true);
     try {
       if (menuItem) {
-        // Update existing item
-        updateMenuItem({ ...data, id: menuItem.id });
+        await updateMenuItem({ ...data, id: menuItem.id });
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
       } else {
-        // Add new item
-        addMenuItem(data);
+        await addMenuItem(data);
         toast({ title: "Menu Item Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent, useEffect } from 'react';
+import { useState, type FormEvent, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
@@ -29,6 +29,7 @@ export default function CheckoutPage() {
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment' | 'success'>('details');
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
@@ -46,21 +47,19 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>(ADD_NEW_ADDRESS_VALUE);
   const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery'>('UPI');
 
-  useEffect(() => {
-    if (isAuthLoading) return;
-    if (!isAuthenticated) {
-      router.replace('/login');
-      return;
-    }
-    
-    if (getCartItemCount() === 0 && checkoutStep !== 'success') {
-      router.replace('/');
-    }
-
-    if (user) {
-        setFormData(prev => ({...prev, fullName: user.displayName || ''}));
-        const addresses = getAddresses(user.uid);
+  const loadPageData = useCallback(async () => {
+    if (!user) return;
+    setIsDataLoading(true);
+    try {
+        const [addresses, settings] = await Promise.all([
+            getAddresses(user.uid),
+            getPaymentSettings()
+        ]);
+        
         setSavedAddresses(addresses);
+        setPaymentSettings(settings);
+        setFormData(prev => ({...prev, fullName: user.displayName || ''}));
+        
         const defaultAddress = addresses.find(addr => addr.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
@@ -74,45 +73,47 @@ export default function CheckoutPage() {
             phone: defaultAddress.phone || '',
           }));
         }
+    } catch (error) {
+        console.error("Failed to load checkout data", error);
+        toast({ title: "Error", description: "Could not load checkout data.", variant: "destructive" });
+    } finally {
+        setIsDataLoading(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/login');
+      return;
     }
     
-    const settings = getPaymentSettings();
-    setPaymentSettings(settings);
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressPaymentSettings') {
-        const data = getPaymentSettings();
-        setPaymentSettings(data);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep]);
+    if (getCartItemCount() === 0 && checkoutStep !== 'success') {
+      router.replace('/');
+      return;
+    }
+    loadPageData();
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData]);
 
   const subTotal = getCartTotal();
   const deliveryFee = 49;
   const estimatedTax = subTotal * 0.05;
   const grandTotal = subTotal + deliveryFee + estimatedTax;
 
-  const finalizeOrder = (orderData: Omit<Order, 'id'>) => {
+  const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
 
-    // Simulate payment verification delay for UPI
     const isUpi = orderData.paymentMethod === 'UPI';
     const delay = isUpi ? 2500 : 0;
 
-    setTimeout(() => {
-        const placedOrder = placeOrder(orderData);
+    setTimeout(async () => {
+        const placedOrder = await placeOrder(orderData);
         setOrderDetails(placedOrder);
         
         clearCart();
         setCheckoutStep('success');
         setIsLoading(false);
     
-        // Redirect after a delay
         setTimeout(() => {
             router.push('/profile');
         }, 8000);
@@ -193,12 +194,12 @@ export default function CheckoutPage() {
     }
   };
 
-  if (isAuthLoading || !isAuthenticated) {
+  if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="mt-4 text-xl text-muted-foreground">
-          {isAuthLoading ? "Loading..." : "Redirecting to login..."}
+          {isAuthLoading ? "Loading..." : isDataLoading ? "Getting everything ready..." : "Redirecting to login..."}
         </p>
       </div>
     );

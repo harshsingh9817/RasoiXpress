@@ -22,7 +22,7 @@ const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Shipped': Truck,
   'Out for Delivery': Bike,
   'Delivered': PackageCheck,
-  'Cancelled': User, // Not used here, but for completeness
+  'Cancelled': User,
 };
 
 export default function DeliveryDashboard() {
@@ -41,16 +41,14 @@ export default function DeliveryDashboard() {
     }
   }, [isDelivery, isAuthLoading, router]);
   
-  const loadActiveOrders = useCallback(() => {
+  const loadActiveOrders = useCallback(async () => {
     if(isDelivery) {
         setIsDataLoading(true);
         try {
-            const allOrders = getAllOrders();
-            // Delivery personnel should only see orders that are shipped or out for delivery.
+            const allOrders = await getAllOrders();
             const deliveryStatuses: OrderStatus[] = ['Shipped', 'Out for Delivery'];
             const filteredOrders = allOrders.filter(order => deliveryStatuses.includes(order.status));
             
-            // Sort to show 'Out for Delivery' orders first, then by date
             const sortedOrders = filteredOrders.sort((a, b) => {
               if (a.status === 'Out for Delivery' && b.status !== 'Out for Delivery') return -1;
               if (a.status !== 'Out for Delivery' && b.status === 'Out for Delivery') return 1;
@@ -69,24 +67,16 @@ export default function DeliveryDashboard() {
 
   useEffect(() => {
     loadActiveOrders();
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'rasoiExpressAllOrders') {
-        loadActiveOrders();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadActiveOrders]);
 
-  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-        updateOrderStatus(orderId, newStatus);
+        await updateOrderStatus(orderId, newStatus);
         toast({
             title: 'Order Updated!',
             description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
         });
-        // The storage event listener will handle the state update
+        await loadActiveOrders();
     } catch (error) {
         console.error("Failed to update status", error);
         toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
