@@ -139,7 +139,8 @@ export default function ProfilePage() {
             getUserOrders(firebaseUser.uid),
             getAddresses(firebaseUser.uid)
         ]);
-        setOrders(userOrders);
+        const sortedOrders = userOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setOrders(sortedOrders);
         setAddresses(userAddresses);
     } catch (error) {
         console.error("Failed to load user data:", error);
