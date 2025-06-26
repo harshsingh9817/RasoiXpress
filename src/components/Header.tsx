@@ -126,7 +126,7 @@ const Header = () => {
         ? 'rasoiExpressDeliveryNotifications' 
         : 'rasoiExpressUserNotifications';
     
-    const allOrders = getAllOrders();
+    const allOrders = await getAllOrders();
     const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const generatedNotifications: AppNotification[] = [];
 
@@ -215,7 +215,7 @@ const Header = () => {
             }
         });
         
-        const adminMessages = getAdminMessages().filter(m => m.userId === user.uid);
+        const adminMessages = (await getAdminMessages()).filter(m => m.userId === user.uid);
         adminMessages.forEach(msg => {
           const notificationId = `notif-${msg.id}`;
           const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);
