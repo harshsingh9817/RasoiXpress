@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const publicPaths = ['/login', '/signup', '/delivery/login'];
         const isPublicPath = publicPaths.includes(pathname);
         
-        if (!isPublicPath && !pathname.startsWith('/restaurants')) {
+        if (!isPublicPath) {
             if (pathname.startsWith('/delivery')) {
                 router.replace('/delivery/login');
             } else if (pathname !== '/') {
@@ -202,23 +202,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
 
     } catch (error: any) {
-      const isSpecialAccountEmail = identifier === 'harshsunil9817@gmail.com' || identifier === 'harshsingh9817@gmail.com';
-
-      if (isSpecialAccountEmail && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, identifier, password);
-          if (userCredential.user) {
-            const displayName = identifier === 'harshsingh9817@gmail.com' ? 'Admin User' : 'Delivery Partner';
-            await updateProfile(userCredential.user, { displayName });
-            await manageUserInFirestore(userCredential.user);
-          }
-          toast({ title: 'Special Account Created!', description: 'Welcome! Logging you in now.', variant: 'default' });
-          return; 
-        } catch (signupError: any) {
-          console.error("Firebase auto-signup error for special user:", signupError);
-        }
-      }
-
       console.error("Firebase login error:", error);
       let description = 'An unexpected error occurred during login. Please try again.';
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes('Invalid credentials')) {
