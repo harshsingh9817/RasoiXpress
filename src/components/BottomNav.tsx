@@ -15,6 +15,22 @@ const BottomNav = () => {
     const pathname = usePathname();
     const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
 
+    if (isAuthLoading) {
+        return (
+            <footer className="fixed bottom-0 left-0 right-0 z-40 h-16 border-t bg-background/95 md:hidden">
+                <div className="flex h-full items-center justify-around px-2">
+                    <Skeleton className="h-10 w-12 rounded-md" />
+                    <Skeleton className="h-10 w-12 rounded-md" />
+                    <Skeleton className="h-10 w-12 rounded-md" />
+                </div>
+            </footer>
+        )
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
     // Function to determine if a link is active
     const getActiveClass = (href: string, isPrefix: boolean = false) => {
         const isActive = isPrefix ? pathname.startsWith(href) : pathname === href;
@@ -35,27 +51,15 @@ const BottomNav = () => {
                         <span className="text-xs font-medium">Help</span>
                     </button>
 
-                    {isAuthLoading ? (
-                        <div className="flex flex-col items-center justify-center gap-1 p-2">
-                            <Skeleton className="h-6 w-6 rounded-full" />
-                            <Skeleton className="h-2 w-10 rounded-sm" />
-                        </div>
-                    ) : isAuthenticated ? (
-                        isAdmin ? (
-                            <Link href="/admin" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/admin', true))}>
-                                <ShieldCheck className="h-6 w-6" />
-                                <span className="text-xs font-medium">Admin</span>
-                            </Link>
-                        ) : (
-                            <Link href="/profile" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/profile', true))}>
-                                <User className="h-6 w-6" />
-                                <span className="text-xs font-medium">Profile</span>
-                            </Link>
-                        )
+                    {isAdmin ? (
+                        <Link href="/admin" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/admin', true))}>
+                            <ShieldCheck className="h-6 w-6" />
+                            <span className="text-xs font-medium">Admin</span>
+                        </Link>
                     ) : (
-                        <Link href="/login" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/login'))}>
-                            <LogIn className="h-6 w-6" />
-                            <span className="text-xs font-medium">Login</span>
+                        <Link href="/profile" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/profile', true))}>
+                            <User className="h-6 w-6" />
+                            <span className="text-xs font-medium">Profile</span>
                         </Link>
                     )}
                 </nav>

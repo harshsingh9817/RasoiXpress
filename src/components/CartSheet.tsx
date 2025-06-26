@@ -20,6 +20,7 @@ import { useState, type FormEvent } from 'react';
 import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CartSheet = () => {
   const {
@@ -31,7 +32,7 @@ const CartSheet = () => {
     isCartOpen,
     setIsCartOpen,
   } = useCart();
-  const [couponCode, setCouponCode] = useState('');
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -48,9 +49,14 @@ const CartSheet = () => {
     router.push('/checkout');
   };
 
+  const [couponCode, setCouponCode] = useState('');
   const total = getCartTotal();
   const itemCount = getCartItemCount();
   const showFAB = pathname !== '/checkout';
+  
+  if (isAuthLoading || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <>

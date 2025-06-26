@@ -278,8 +278,10 @@ const Header = () => {
 
   useEffect(() => {
     if (!isClient) return;
-    syncNotifications();
-  }, [isClient, pathname, syncNotifications]);
+    if (isAuthenticated && !isAuthLoading) {
+      syncNotifications();
+    }
+  }, [isClient, pathname, isAuthenticated, isAuthLoading, syncNotifications]);
 
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
@@ -308,6 +310,24 @@ const Header = () => {
     setIsNotificationPanelOpen(false);
   };
 
+  if (isAuthLoading) {
+    return (
+        <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95">
+             <div className="container flex h-16 items-center justify-between">
+                <Skeleton className="h-8 w-40" />
+                <div className="hidden md:flex items-center gap-2">
+                    <Skeleton className="h-8 w-20 rounded-md" />
+                    <Skeleton className="h-8 w-20 rounded-md" />
+                </div>
+            </div>
+        </header>
+    )
+  }
+
+  if (!isAuthenticated) {
+      return null;
+  }
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
@@ -332,48 +352,20 @@ const Header = () => {
                 <span className="hidden sm:inline">Help</span>
               </Button>
 
-              {isAuthLoading ? (
-                <div className="flex items-center space-x-2">
-                  <Skeleton className="h-8 w-16 rounded-md" />
-                </div>
-              ) : (
-                <>
-                  {isAuthenticated && (
-                    <>
-                      {isAdmin && (
-                        <Link href="/admin">
-                          <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
-                            <ShieldCheck className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Admin</span>
-                          </Button>
-                        </Link>
-                      )}
-                      <Link href="/profile">
-                        <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                          <User className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Profile</span>
-                        </Button>
-                      </Link>
-                    </>
-                  )}
-                  {!isAuthenticated && (
-                    <>
-                      <Link href="/login">
-                        <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                          <LogIn className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Login</span>
-                        </Button>
-                      </Link>
-                      <Link href="/signup">
-                        <Button variant="default" className="text-sm font-medium px-2 sm:px-3 bg-accent hover:bg-accent/90 text-accent-foreground">
-                          <UserPlus className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Sign Up</span>
-                        </Button>
-                      </Link>
-                    </>
-                  )}
-                </>
+              {isAdmin && (
+                <Link href="/admin">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
+                    <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Button>
+                </Link>
               )}
+              <Link href="/profile">
+                <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                  <User className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Profile</span>
+                </Button>
+              </Link>
             </div>
 
             {isAuthenticated && (
