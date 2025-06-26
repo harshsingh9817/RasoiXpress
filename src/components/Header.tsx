@@ -113,7 +113,7 @@ const Header = () => {
   };
 
   const syncNotifications = useCallback(async () => {
-    if (!isAuthenticated || !user) {
+    if (isAuthLoading || !isAuthenticated || !user) {
         setNotifications([]);
         setIsLoadingNotifications(false);
         return;
@@ -273,7 +273,7 @@ const Header = () => {
     setNotifications(uniqueNotifications);
     localStorage.setItem(storageKey, JSON.stringify(uniqueNotifications));
     setIsLoadingNotifications(false);
-  }, [isAuthenticated, user, isAdmin, isDelivery]);
+  }, [isAuthenticated, user, isAdmin, isDelivery, isAuthLoading]);
 
 
   useEffect(() => {
