@@ -36,7 +36,7 @@ const defaultPaymentSettings: PaymentSettings = {
 async function initializeCollection(collectionName: string, initialData: any[]) {
     const collectionRef = collection(db, collectionName);
     const snapshot = await getDocs(collectionRef);
-    if (snapshot.empty) {
+    if (snapshot.empty && initialData.length > 0) {
         console.log(`Collection '${collectionName}' is empty. Populating with initial data...`);
         const promises = initialData.map(item => addDoc(collectionRef, item));
         await Promise.all(promises);
@@ -55,15 +55,35 @@ export async function getMenuItems(): Promise<MenuItem[]> {
 
 export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
     const menuItemsCol = collection(db, 'menuItems');
-    const docRef = await addDoc(menuItemsCol, newItemData);
+    
+    // Firestore does not allow 'undefined' values.
+    // We create a clean object that filters out any keys with an undefined value.
+    const cleanData: { [key: string]: any } = {};
+    Object.entries(newItemData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    });
+
+    const docRef = await addDoc(menuItemsCol, cleanData);
     const docSnap = await getDoc(docRef);
     return { id: docSnap.id, ...docSnap.data() } as MenuItem;
 }
 
 export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
     const { id, ...itemData } = updatedItem;
+    
+    // Firestore does not allow 'undefined' values.
+    // We create a clean object that filters out any keys with an undefined value.
+    const cleanData: { [key: string]: any } = {};
+    Object.entries(itemData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    });
+    
     const docRef = doc(db, 'menuItems', id);
-    await updateDoc(docRef, itemData);
+    await updateDoc(docRef, cleanData);
 }
 
 export async function deleteMenuItem(itemId: string): Promise<void> {
@@ -105,8 +125,9 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 
 export async function getAllOrders(): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
-    const snapshot = await getDocs(query(ordersCol, orderBy('date', 'desc')));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    const snapshot = await getDocs(query(ordersCol));
+    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    return allOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
@@ -139,7 +160,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', addressId);
+    const docRef = doc(db, 'users', userId, 'addresses', id);
     await deleteDoc(docRef);
 }
 
