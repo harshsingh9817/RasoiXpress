@@ -210,6 +210,14 @@ export async function getAllOrders(): Promise<Order[]> {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
 }
 
+export async function getUserOrders(userId: string): Promise<Order[]> {
+    if (!userId) return [];
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+}
+
 // --- Address Management ---
 export async function getAddresses(userId: string): Promise<Address[]> {
     if (!userId) return [];
@@ -336,6 +344,14 @@ export async function getAllUsers(): Promise<UserRef[]> {
 export async function getAdminMessages(): Promise<AdminMessage[]> {
     const messagesCol = collection(db, 'adminMessages');
     const q = query(messagesCol, orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+}
+
+export async function getUserAdminMessages(userId: string): Promise<AdminMessage[]> {
+    if (!userId) return [];
+    const messagesCol = collection(db, 'adminMessages');
+    const q = query(messagesCol, where('userId', '==', userId), orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
 }

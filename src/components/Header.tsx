@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { AppNotification, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getAllOrders, getAdminMessages } from '@/lib/data';
+import { getAllOrders, getAdminMessages, getUserAdminMessages, getUserOrders } from '@/lib/data';
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': {
@@ -126,12 +126,12 @@ const Header = () => {
         ? 'rasoiExpressDeliveryNotifications' 
         : 'rasoiExpressUserNotifications';
     
-    const allOrders = await getAllOrders();
     const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const generatedNotifications: AppNotification[] = [];
 
     if (isAdmin) {
         // --- ADMIN NOTIFICATION LOGIC ---
+        const allOrders = await getAllOrders();
         allOrders.forEach(order => {
             // 1. New Order Notification
             if (order.status === 'Order Placed') {
@@ -173,6 +173,7 @@ const Header = () => {
         });
     } else if (isDelivery) {
         // --- DELIVERY NOTIFICATION LOGIC ---
+        const allOrders = await getAllOrders();
         allOrders.forEach(order => {
             if (order.status === 'Out for Delivery') {
                 const notificationId = `notif-delivery-assign-${order.id}`;
@@ -194,7 +195,7 @@ const Header = () => {
         });
     } else {
         // --- REGULAR USER NOTIFICATION LOGIC ---
-        const userOrders = allOrders.filter(o => o.userId === user.uid);
+        const userOrders = await getUserOrders(user.uid);
         
         userOrders.forEach(order => {
             const notificationId = `notif-${order.id}-${order.status}`;
@@ -215,7 +216,7 @@ const Header = () => {
             }
         });
         
-        const adminMessages = (await getAdminMessages()).filter(m => m.userId === user.uid);
+        const adminMessages = await getUserAdminMessages(user.uid);
         adminMessages.forEach(msg => {
           const notificationId = `notif-${msg.id}`;
           const hasNotif = existingNotifications.some(n => n.id === notificationId) || generatedNotifications.some(n => n.id === notificationId);

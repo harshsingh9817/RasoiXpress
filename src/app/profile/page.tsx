@@ -41,7 +41,7 @@ import { auth, storage } from '@/lib/firebase';
 import { updateProfile } from 'firebase/auth';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
-  getAllOrders,
+  getUserOrders,
   getAddresses,
   addAddress,
   updateAddress,
@@ -136,7 +136,7 @@ export default function ProfilePage() {
     setIsDataLoading(true);
     try {
         const [userOrders, userAddresses] = await Promise.all([
-            getAllOrders().then(allOrders => allOrders.filter(o => o.userId === firebaseUser.uid)),
+            getUserOrders(firebaseUser.uid),
             getAddresses(firebaseUser.uid)
         ]);
         setOrders(userOrders);
@@ -173,13 +173,15 @@ export default function ProfilePage() {
       setTrackOrderError('Please enter an order ID.');
       return;
     }
-    const allOrders = await getAllOrders();
-    const foundOrder = allOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase() && o.userId === firebaseUser?.uid);
+    if (!firebaseUser) return;
+    
+    const userOrders = await getUserOrders(firebaseUser.uid);
+    const foundOrder = userOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase());
 
     if (foundOrder) {
       setTrackedOrderDetails(foundOrder);
     } else {
-      setTrackOrderError(`Order ${idToTrack} not found.`);
+      setTrackOrderError(`Order ${idToTrack} not found in your history.`);
     }
   };
 
