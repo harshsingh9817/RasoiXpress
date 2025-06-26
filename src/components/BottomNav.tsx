@@ -4,14 +4,14 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, User, LogIn, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Home, User, ShieldCheck, HelpCircle, Bike } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import HelpDialog from './HelpDialog';
 import { Skeleton } from './ui/skeleton';
 
 const BottomNav = () => {
-    const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
+    const { isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
     const pathname = usePathname();
     const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
 
@@ -51,7 +51,12 @@ const BottomNav = () => {
                         <span className="text-xs font-medium">Help</span>
                     </button>
 
-                    {isAdmin ? (
+                    {isDelivery ? (
+                         <Link href="/delivery/dashboard" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/delivery', true))}>
+                            <Bike className="h-6 w-6" />
+                            <span className="text-xs font-medium">Dashboard</span>
+                        </Link>
+                    ) : isAdmin ? (
                         <Link href="/admin" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/admin', true))}>
                             <ShieldCheck className="h-6 w-6" />
                             <span className="text-xs font-medium">Admin</span>

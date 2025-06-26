@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare } from 'lucide-react';
+import { Loader2, LogOut, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
@@ -159,6 +159,21 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Click here to send personalized notifications to users.</p>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/riders" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <Bike className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Riders
+              </CardTitle>
+              <CardDescription>Add or remove delivery riders from the system.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to manage rider accounts and access.</p>
             </CardContent>
           </Card>
         </Link>

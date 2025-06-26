@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
@@ -19,6 +20,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { getRiderEmails } from '@/lib/data';
 
 interface AuthContextType {
   user: User | null;
@@ -96,8 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       try {
         const idTokenResult = await getIdTokenResult(currentUser, true);
-        const isAdminClaim = !!idTokenResult.claims.admin || currentUser.email === 'harshsingh9817@gmail.com';
-        const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'harshsunil9817@gmail.com';
+        const riderEmails = await getRiderEmails();
+        const isAdminClaim = !!idTokenResult.claims.admin;
+        const isDeliveryClaim = !!idTokenResult.claims.delivery || riderEmails.includes(currentUser.email || '');
         
         setIsAdmin(isAdminClaim);
         setIsDelivery(isDeliveryClaim);
@@ -185,25 +188,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
       
+      const handleResendVerification = async () => {
+        try {
+          await sendEmailVerification(userCredential.user);
+          toast({
+            title: "Verification Email Sent",
+            description: "A new link has been sent to your email. Please check your inbox and spam folder.",
+            variant: "default",
+          });
+        } catch (error) {
+          console.error("Error resending verification email:", error);
+          toast({
+            title: "Error",
+            description: "Failed to resend verification email. Please try again later.",
+            variant: "destructive",
+          });
+        }
+      };
+      
       if (!userCredential.user.emailVerified) {
-        const handleResendVerification = async () => {
-          try {
-            await sendEmailVerification(userCredential.user);
-            toast({
-              title: "Verification Email Sent",
-              description: "A new link has been sent to your email. Please check your inbox and spam folder.",
-              variant: "default",
-            });
-          } catch (error) {
-            console.error("Error resending verification email:", error);
-            toast({
-              title: "Error",
-              description: "Failed to resend verification email. Please try again later.",
-              variant: "destructive",
-            });
-          }
-        };
-
         await firebaseSignOut(auth);
         toast({
           title: "Email Not Verified",

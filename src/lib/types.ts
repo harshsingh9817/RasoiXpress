@@ -130,3 +130,9 @@ export interface UserRef {
   id: string;
   email: string;
 }
+
+export interface Rider {
+  id: string;
+  fullName: string;
+  email: string;
+}

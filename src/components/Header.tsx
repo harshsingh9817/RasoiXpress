@@ -351,21 +351,32 @@ const Header = () => {
                 <HelpCircle className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Help</span>
               </Button>
-
-              {isAdmin && (
-                <Link href="/admin">
-                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
-                    <ShieldCheck className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Admin</span>
+              
+              {isDelivery ? (
+                <Link href="/delivery/dashboard">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                    <Bike className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Rider Panel</span>
                   </Button>
                 </Link>
+              ) : (
+                <>
+                  {isAdmin && (
+                    <Link href="/admin">
+                      <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
+                        <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Admin</span>
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/profile">
+                    <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                      <User className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Profile</span>
+                    </Button>
+                  </Link>
+                </>
               )}
-              <Link href="/profile">
-                <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                  <User className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Profile</span>
-                </Button>
-              </Link>
             </div>
 
             {isAuthenticated && (

@@ -18,7 +18,7 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider } from './types';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -60,7 +60,7 @@ export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<Me
     // We create a clean object that filters out any keys with an undefined value.
     const cleanData: { [key: string]: any } = {};
     Object.entries(newItemData).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null && value !== '') {
         cleanData[key] = value;
       }
     });
@@ -77,7 +77,7 @@ export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
     // We create a clean object that filters out any keys with an undefined value.
     const cleanData: { [key: string]: any } = {};
     Object.entries(itemData).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null && value !== '') {
         cleanData[key] = value;
       }
     });
@@ -245,7 +245,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     
     const chartData: DailyChartData[] = Array.from(dailyData.entries())
       .map(([date, data]) => ({ date, ...data }))
-      .sort((a,b) => new Date(a.date).getTime() - new Date(a.date).getTime());
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
         totalRevenue,
@@ -287,6 +287,39 @@ export async function sendAdminMessage(userId: string, userEmail: string, title:
         message,
         timestamp: serverTimestamp(),
     });
+}
+
+// --- Rider Management ---
+export async function getRiders(): Promise<Rider[]> {
+    const ridersCol = collection(db, 'riders');
+    const snapshot = await getDocs(query(ridersCol, orderBy("fullName")));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Rider[];
+}
+
+export async function getRiderEmails(): Promise<string[]> {
+    const ridersCol = collection(db, 'riders');
+    const snapshot = await getDocs(ridersCol);
+    if (snapshot.empty) {
+        return ['harshsunil9817@gmail.com']; // Keep default while list is empty
+    }
+    const emails = snapshot.docs.map(doc => doc.data().email as string);
+    return [...emails, 'harshsunil9817@gmail.com']; // Also include default
+}
+
+export async function addRider(fullName: string, email: string): Promise<void> {
+    const ridersCol = collection(db, 'riders');
+    const lowercasedEmail = email.toLowerCase();
+    const q = query(ridersCol, where("email", "==", lowercasedEmail));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        throw new Error("A rider with this email already exists.");
+    }
+    await addDoc(ridersCol, { fullName, email: lowercasedEmail });
+}
+
+export async function deleteRider(riderId: string): Promise<void> {
+    const docRef = doc(db, 'riders', riderId);
+    await deleteDoc(docRef);
 }
 
 // --- Other Data Functions ---
