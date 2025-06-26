@@ -1,38 +1,79 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Menu items are public to read, but only admins can write.
-    match /menuItems/{itemId} {
-      allow read: if true;
-      allow write: if request.auth.token.admin == true;
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Orders can be created by any authenticated user for themselves.
-    // They can be read by the user who owns it, or by an admin or delivery person.
-    // They can be updated by an admin or delivery person.
-    // A user can also update their own order to cancel it or add a review.
-    match /orders/{orderId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
+    // Helper function to check for admin role
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+    
+    // Helper function to check for delivery role
+    function isDelivery() {
+      return isAuthenticated() && request.auth.token.delivery == true;
+    }
+
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users can only read/write their own data
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId); // On signup
+      allow update: if isOwner(userId); // To update profile info
       
-      allow read: if request.auth.uid == resource.data.userId
-                   || request.auth.token.admin == true
-                   || request.auth.token.delivery == true;
-
-      // Admins and delivery can update status.
-      // Users can only update their own order to 'Cancelled' or to add/update a review.
-      allow update: if (request.auth.token.admin == true || request.auth.token.delivery == true)
-                    || (request.auth.uid == resource.data.userId && (
-                        (request.resource.data.status == 'Cancelled' && resource.data.status != 'Cancelled') || 
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly('review')
-                      ));
+      // Addresses are private to the user
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
-    // User-specific data like addresses.
-    // Only the authenticated user can access their own documents.
-    match /users/{userId}/{document=**} {
-      allow read, write, delete: if request.auth.uid == userId;
+    // Menu items are public to read, but only admins can modify
+    match /menuItems/{menuItemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Global settings are public to read, but only admins can modify
+    match /globals/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders have more complex rules
+    match /orders/{orderId} {
+      // User can create their own order
+      allow create: if isOwner(request.resource.data.userId);
+
+      // User can read their own order
+      // Admins can read any order
+      // Delivery staff can read orders that are 'Shipped' or 'Out for Delivery'
+      allow read: if isOwner(resource.data.userId) || isAdmin() || (isDelivery() && (resource.data.status == 'Shipped' || resource.data.status == 'Out for Delivery'));
+      
+      // Admins can update any order
+      // Delivery staff can update status of orders
+      // Users can cancel their own orders or add reviews
+      allow update: if isAdmin() || 
+                       (isDelivery() && request.resource.data.status != resource.data.status) ||
+                       (isOwner(resource.data.userId) && (request.resource.data.status == 'Cancelled' || request.resource.data.review != resource.data.review));
+    }
+    
+    // Admin messages sent to specific users
+    match /adminMessages/{messageId} {
+      // Admins can create messages for users
+      allow create: if isAdmin();
+      // Admins can read all messages
+      // Users can read messages addressed to them
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      // No updates/deletes from client
     }
   }
 }
