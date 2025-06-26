@@ -78,12 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         
         const publicPaths = ['/login', '/signup', '/delivery/login'];
-        const isPublicPath = publicPaths.includes(pathname) || pathname === '/';
+        const isPublicPath = publicPaths.includes(pathname);
         
         if (!isPublicPath && !pathname.startsWith('/restaurants')) {
             if (pathname.startsWith('/delivery')) {
                 router.replace('/delivery/login');
-            } else {
+            } else if (pathname !== '/') {
                 router.replace('/login');
             }
         }
@@ -97,8 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       try {
         const idTokenResult = await getIdTokenResult(currentUser, true);
-        const isAdminClaim = !!idTokenResult.claims.admin || currentUser.email === 'admin@example.com';
-        const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'delivery@example.com';
+        const isAdminClaim = !!idTokenResult.claims.admin || currentUser.email === 'harshsingh9817@gmail.com';
+        const isDeliveryClaim = !!idTokenResult.claims.delivery || currentUser.email === 'harshsunil9817@gmail.com';
         
         setIsAdmin(isAdminClaim);
         setIsDelivery(isDeliveryClaim);
@@ -186,7 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
       
-      const isSpecialAccount = userCredential.user.email === 'admin@example.com' || userCredential.user.email === 'delivery@example.com';
+      const isSpecialAccount = userCredential.user.email === 'harshsingh9817@gmail.com' || userCredential.user.email === 'harshsunil9817@gmail.com';
 
       if (!userCredential.user.emailVerified && !isSpecialAccount) {
         await firebaseSignOut(auth);
@@ -202,13 +202,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
 
     } catch (error: any) {
-      const isSpecialAccountEmail = identifier === 'delivery@example.com' || identifier === 'admin@example.com';
+      const isSpecialAccountEmail = identifier === 'harshsunil9817@gmail.com' || identifier === 'harshsingh9817@gmail.com';
 
       if (isSpecialAccountEmail && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, identifier, password);
           if (userCredential.user) {
-            const displayName = identifier === 'admin@example.com' ? 'Admin User' : 'Delivery Partner';
+            const displayName = identifier === 'harshsingh9817@gmail.com' ? 'Admin User' : 'Delivery Partner';
             await updateProfile(userCredential.user, { displayName });
             await manageUserInFirestore(userCredential.user);
           }
