@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import { getMenuItems, getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
@@ -24,10 +24,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RestaurantDetailPage() {
   const params = useParams(); 
   const id = params.id as string;
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
   
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -37,25 +40,31 @@ export default function RestaurantDetailPage() {
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const fetchedRestaurant = await getRestaurantById(id);
-            if (fetchedRestaurant) {
-                setRestaurant(fetchedRestaurant);
-                setMenuItems(fetchedRestaurant.menu);
-            } else {
-                const allItems = await getMenuItems();
-                setMenuItems(allItems);
+    if (!isAuthLoading && !isAuthenticated) {
+        router.replace('/login');
+        return;
+    }
+    if (isAuthenticated) {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const fetchedRestaurant = await getRestaurantById(id);
+                if (fetchedRestaurant) {
+                    setRestaurant(fetchedRestaurant);
+                    setMenuItems(fetchedRestaurant.menu);
+                } else {
+                    const allItems = await getMenuItems();
+                    setMenuItems(allItems);
+                }
+            } catch (error) {
+                console.error("Failed to fetch restaurant details:", error);
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to fetch restaurant details:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchData();
-  }, [id]);
+        };
+        fetchData();
+    }
+  }, [id, isAuthenticated, isAuthLoading, router]);
 
   const uniqueCategories = useMemo(() => {
     const itemsToCategorize = restaurant ? restaurant.menu : menuItems;
@@ -90,6 +99,15 @@ export default function RestaurantDetailPage() {
 
     return items;
   }, [menuItems, filterCategory, sortOption, showVegetarian]);
+
+  if (isAuthLoading || !isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

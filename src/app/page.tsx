@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -17,9 +18,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 
 export default function HomePage() {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -29,23 +35,29 @@ export default function HomePage() {
   const [heroData, setHeroData] = useState<HeroData | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            const [items, hero] = await Promise.all([
-                getMenuItems(),
-                getHeroData()
-            ]);
-            setMenuItems(items);
-            setHeroData(hero);
-        } catch (error) {
-            console.error("Failed to load page data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    loadData();
-  }, []);
+    if (!isAuthLoading && !isAuthenticated) {
+      router.replace('/login');
+      return;
+    }
+    if (isAuthenticated) {
+      const loadData = async () => {
+          setIsLoading(true);
+          try {
+              const [items, hero] = await Promise.all([
+                  getMenuItems(),
+                  getHeroData()
+              ]);
+              setMenuItems(items);
+              setHeroData(hero);
+          } catch (error) {
+              console.error("Failed to load page data:", error);
+          } finally {
+              setIsLoading(false);
+          }
+      };
+      loadData();
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));
@@ -82,6 +94,15 @@ export default function HomePage() {
 
     return items;
   }, [menuItems, searchTerm, filterCategory, sortOption, showVegetarian]);
+
+  if (isAuthLoading || !isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+      </div>
+    );
+  }
 
 
   return (
