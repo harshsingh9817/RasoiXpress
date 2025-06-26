@@ -340,43 +340,44 @@ const Header = () => {
 
           <nav className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
             <div className="hidden md:flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
-              <Link href="/">
-                <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                  <Home className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Menu</span>
-                </Button>
-              </Link>
+              {!isDelivery && (
+                <Link href="/">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                    <Home className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Menu</span>
+                  </Button>
+                </Link>
+              )}
 
               <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3" onClick={() => setIsHelpDialogOpen(true)}>
                 <HelpCircle className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Help</span>
               </Button>
               
-              {isDelivery ? (
+              {isDelivery && (
                 <Link href="/delivery/dashboard">
                   <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                     <Bike className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Rider Panel</span>
                   </Button>
                 </Link>
-              ) : (
-                <>
-                  {isAdmin && (
-                    <Link href="/admin">
-                      <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
-                        <ShieldCheck className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Admin</span>
-                      </Button>
-                    </Link>
-                  )}
-                  <Link href="/profile">
-                    <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
-                      <User className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Profile</span>
-                    </Button>
-                  </Link>
-                </>
               )}
+
+              {isAdmin && (
+                <Link href="/admin">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3 text-red-600 hover:text-red-700">
+                    <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Button>
+                </Link>
+              )}
+
+              <Link href="/profile">
+                <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                  <User className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Profile</span>
+                </Button>
+              </Link>
             </div>
 
             {isAuthenticated && (

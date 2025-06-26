@@ -53,22 +53,24 @@ const BottomNav = () => {
                         <span className="text-xs font-medium">Help</span>
                     </button>
 
-                    {isDelivery ? (
+                    {isDelivery && (
                          <Link href="/delivery/dashboard" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/delivery', true))}>
                             <Bike className="h-6 w-6" />
                             <span className="text-xs font-medium">Dashboard</span>
                         </Link>
-                    ) : isAdmin ? (
+                    )}
+
+                    {isAdmin && (
                         <Link href="/admin" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/admin', true))}>
                             <ShieldCheck className="h-6 w-6" />
                             <span className="text-xs font-medium">Admin</span>
                         </Link>
-                    ) : (
-                        <Link href="/profile" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/profile', true))}>
-                            <User className="h-6 w-6" />
-                            <span className="text-xs font-medium">Profile</span>
-                        </Link>
                     )}
+
+                    <Link href="/profile" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/profile', true))}>
+                        <User className="h-6 w-6" />
+                        <span className="text-xs font-medium">Profile</span>
+                    </Link>
                 </nav>
             </footer>
             {/* The dialog is rendered here, controlled by this component's state */}
