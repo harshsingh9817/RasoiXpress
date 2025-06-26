@@ -93,7 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setUser(currentUser);
-      await manageUserInFirestore(currentUser);
       
       try {
         const idTokenResult = await getIdTokenResult(currentUser, true);
@@ -186,9 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
       
-      const isSpecialAccount = userCredential.user.email === 'harshsingh9817@gmail.com' || userCredential.user.email === 'harshsunil9817@gmail.com';
-
-      if (!userCredential.user.emailVerified && !isSpecialAccount) {
+      if (!userCredential.user.emailVerified) {
         await firebaseSignOut(auth);
         toast({
           title: "Email Not Verified",
