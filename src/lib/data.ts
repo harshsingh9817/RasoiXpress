@@ -87,7 +87,7 @@ export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
 }
 
 export async function deleteMenuItem(itemId: string): Promise<void> {
-    const docRef = doc(db, 'menuItems', id);
+    const docRef = doc(db, 'menuItems', itemId);
     await deleteDoc(docRef);
 }
 
@@ -160,7 +160,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', id);
+    const docRef = doc(db, 'users', userId, 'addresses', addressId);
     await deleteDoc(docRef);
 }
 
