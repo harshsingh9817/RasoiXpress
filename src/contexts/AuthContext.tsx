@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
@@ -19,6 +18,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 interface AuthContextType {
   user: User | null;
@@ -186,12 +186,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
       
       if (!userCredential.user.emailVerified) {
+        const handleResendVerification = async () => {
+          try {
+            await sendEmailVerification(userCredential.user);
+            toast({
+              title: "Verification Email Sent",
+              description: "A new link has been sent to your email. Please check your inbox and spam folder.",
+              variant: "default",
+            });
+          } catch (error) {
+            console.error("Error resending verification email:", error);
+            toast({
+              title: "Error",
+              description: "Failed to resend verification email. Please try again later.",
+              variant: "destructive",
+            });
+          }
+        };
+
         await firebaseSignOut(auth);
         toast({
           title: "Email Not Verified",
-          description: "A verification link was sent to your email upon signup. Please check your inbox (and spam folder) to activate your account before logging in.",
+          description: "You must verify your email address before logging in.",
           variant: "destructive",
           duration: 10000,
+          action: (
+            <ToastAction altText="Resend Email" onClick={handleResendVerification}>
+              Resend Email
+            </ToastAction>
+          ),
         });
         return;
       }
