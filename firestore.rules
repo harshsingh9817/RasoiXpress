@@ -3,70 +3,63 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return request.auth.token.admin == true;
+  
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
     }
     
-    function isDelivery() {
-        return request.auth.token.delivery == true;
-    }
-
-    // USERS collection
-    // Users can read and update their own document. No one can create or delete user docs through the client.
+    // Users:
     match /users/{userId} {
-      allow read, update: if isSignedIn() && isOwner(userId);
-      allow list: if isAdmin();
+      // A user can get their own doc. Admins can get any.
+      allow get: if request.auth.uid == userId || request.auth.token.admin == true;
+      // A user can update their own doc.
+      allow update: if request.auth.uid == userId;
+      // Any authenticated user can create their user document on signup.
+      allow create: if request.auth.uid != null;
+      // Only admins can list all users.
+      allow list: if request.auth.token.admin == true;
     }
 
-    // users/{userId}/ADDRESSES sub-collection
-    // Users can fully manage their own addresses.
+    // Addresses can only be managed by the owner of the user document.
     match /users/{userId}/addresses/{addressId} {
-      allow read, write: if isSignedIn() && isOwner(userId);
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Menu items can be read by any authenticated user, but only written by admins.
+    match /menuItems/{menuItemId} {
+        allow read: if request.auth.uid != null;
+        allow write: if request.auth.token.admin == true;
+    }
+
+    // Global settings (like hero, payment) can be read by authenticated users, written by admins.
+    match /globals/{docId} {
+        allow read: if request.auth.uid != null;
+        allow write: if request.auth.token.admin == true;
+    }
+
+    // Orders:
+    match /orders/{orderId} {
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      // GET: User can get their own order. Admin/Delivery can get any order.
+      allow get: if request.auth.uid == resource.data.userId || request.auth.token.admin == true || request.auth.token.delivery == true;
+      
+      // LIST: Admin/Delivery can list all orders. Users can only list their own orders via a constrained query.
+      allow list: if request.auth.token.admin == true || request.auth.token.delivery == true || (request.auth.uid != null && request.auth.uid == request.query.where.userId);
+      
+      allow update: if request.auth.token.admin == true || request.auth.token.delivery == true;
     }
     
-    // adminMessages collection
-    // Admins can create messages. Users can only read messages sent to them.
+    // Admin Messages:
     match /adminMessages/{messageId} {
-        allow create: if isAdmin();
-        allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-        allow list: if isAdmin(); // Only admin can list all messages.
-        allow update, delete: if isAdmin();
-    }
+      allow create: if request.auth.token.admin == true;
 
-    // GLOBALS collection
-    // Anyone can read, only admins can write.
-    match /globals/{docId} {
-        allow read: if true;
-        allow write: if isAdmin();
-    }
-
-    // MENUITEMS collection
-    // Anyone can read, only admins can write.
-    match /menuItems/{itemId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ORDERS collection
-    // Users can create their own orders.
-    // Users can read their own orders.
-    // Admins can read/update all orders.
-    // Delivery staff can read/update orders.
-    match /orders/{orderId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin() || isDelivery());
-      allow update: if isSignedIn() && (isAdmin() || isDelivery());
-      allow delete: if false; // Orders should be cancelled, not deleted
+      // GET: Admin can get any. User can get their own.
+      allow get: if request.auth.uid == resource.data.userId || request.auth.token.admin == true;
+      
+      // LIST: Admin can list all. Users can only list their own messages via a constrained query.
+      allow list: if request.auth.token.admin == true || (request.auth.uid != null && request.auth.uid == request.query.where.userId);
     }
   }
 }
