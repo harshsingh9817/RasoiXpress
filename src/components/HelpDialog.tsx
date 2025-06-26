@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Send, Loader2, Mail } from 'lucide-react';
+import { sendSupportMessage } from '@/lib/data';
 
 interface HelpDialogProps {
   isOpen: boolean;
@@ -37,8 +38,6 @@ const HelpDialog: React.FC<HelpDialogProps> = ({ isOpen, onOpenChange }) => {
     }
     if (!isOpen) { // Reset message when dialog closes
         setMessage('');
-        // Optionally reset email if you don't want it to persist across openings when not logged in
-        // if (!user?.email) setEmail('');
     }
   }, [user, isOpen]);
 
@@ -66,17 +65,29 @@ const HelpDialog: React.FC<HelpDialogProps> = ({ isOpen, onOpenChange }) => {
     }
 
     setIsSending(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+        await sendSupportMessage({
+            userEmail: email,
+            userId: user?.uid,
+            userName: user?.displayName || 'Guest',
+            message: message,
+        });
 
-    console.log('Help Request Submitted:', { email, message });
-    toast({
-      title: 'Message Sent!',
-      description: "We've received your query and will get back to you soon.",
-      variant: 'default',
-    });
-    setIsSending(false);
-    onOpenChange(false); // Close dialog
+        toast({
+          title: 'Message Sent!',
+          description: "We've received your query and will get back to you soon.",
+        });
+        setIsSending(false);
+        onOpenChange(false); // Close dialog
+    } catch (error) {
+        console.error("Failed to send support message:", error);
+        toast({
+            title: 'Failed to Send',
+            description: "An error occurred while sending your message.",
+            variant: "destructive",
+        });
+        setIsSending(false);
+    }
   };
 
   return (

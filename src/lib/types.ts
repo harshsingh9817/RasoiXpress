@@ -136,3 +136,13 @@ export interface Rider {
   fullName: string;
   email: string;
 }
+
+export interface SupportTicket {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  userName?: string;
+  message: string;
+  timestamp: any;
+  status: 'Open' | 'Resolved';
+}

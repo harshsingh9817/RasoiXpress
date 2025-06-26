@@ -41,10 +41,12 @@ const BottomNav = () => {
         <>
             <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
                 <nav className="flex h-16 items-center justify-around px-2">
-                    <Link href="/" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/'))}>
-                        <Home className="h-6 w-6" />
-                        <span className="text-xs font-medium">Menu</span>
-                    </Link>
+                    {!isDelivery && (
+                        <Link href="/" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/'))}>
+                            <Home className="h-6 w-6" />
+                            <span className="text-xs font-medium">Menu</span>
+                        </Link>
+                    )}
 
                     <button onClick={() => setIsHelpDialogOpen(true)} className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md text-muted-foreground transition-colors hover:text-primary")}>
                         <HelpCircle className="h-6 w-6" />

@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -18,7 +19,7 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket } from './types';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -321,6 +322,38 @@ export async function deleteRider(riderId: string): Promise<void> {
     const docRef = doc(db, 'riders', riderId);
     await deleteDoc(docRef);
 }
+
+// --- Support Ticket Management ---
+export async function sendSupportMessage(
+    messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>
+): Promise<void> {
+  const supportCol = collection(db, 'supportTickets');
+  await addDoc(supportCol, {
+    ...messageData,
+    timestamp: serverTimestamp(),
+    status: 'Open',
+  });
+}
+
+export async function getSupportTickets(): Promise<SupportTicket[]> {
+    const ticketsCol = collection(db, 'supportTickets');
+    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toMillis() || Date.now(),
+        }
+    }) as SupportTicket[];
+}
+
+export async function resolveSupportTicket(ticketId: string): Promise<void> {
+    const docRef = doc(db, 'supportTickets', ticketId);
+    await updateDoc(docRef, { status: 'Resolved' });
+}
+
 
 // --- Other Data Functions ---
 export async function getPopularDishes(): Promise<string[]> {
