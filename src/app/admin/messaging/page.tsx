@@ -123,7 +123,7 @@ export default function MessagingPage() {
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-32 h-32 text-primary">
+        <div className="w-24 h-24 text-primary">
             <AnimatedPlateSpinner />
         </div>
         <p className="text-xl text-muted-foreground mt-4">Verifying access...</p>
@@ -209,7 +209,7 @@ export default function MessagingPage() {
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
-                    <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Sending...
+                    <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...
                   </>
                 ) : (
                   <>

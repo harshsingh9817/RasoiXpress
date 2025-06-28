@@ -77,7 +77,7 @@ export default function LoginPage() {
   if (pageLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-32 h-32 text-primary">
+        <div className="w-24 h-24 text-primary">
             <AnimatedPlateSpinner />
         </div>
         <p className="text-xl text-muted-foreground mt-4">Loading...</p>
@@ -140,7 +140,7 @@ export default function LoginPage() {
                     </div>
                   </div>
                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
-                    {isSubmitting ? <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> : <LogInIcon className="mr-2 h-5 w-5" />}
+                    {isSubmitting ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <LogInIcon className="mr-2 h-5 w-5" />}
                     {isSubmitting ? 'Logging In...' : 'Log In'}
                   </Button>
               </form>
@@ -204,7 +204,7 @@ export default function LoginPage() {
                   </DialogClose>
                   <Button type="submit" disabled={isSendingReset}>
                   {isSendingReset ? (
-                      <><div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Sending...</>
+                      <><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>
                   ) : (
                       "Send Reset Link"
                   )}

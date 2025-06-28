@@ -133,7 +133,7 @@ export default function DeliveryOrderDetailPage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-32 h-32 text-primary">
+        <div className="w-24 h-24 text-primary">
             <AnimatedPlateSpinner />
         </div>
         <p className="text-xl text-muted-foreground mt-4">
@@ -252,7 +252,7 @@ export default function DeliveryOrderDetailPage() {
                     onClick={handleAcceptOrder}
                     disabled={isAccepting}
                   >
-                    {isAccepting ? <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> : <Bike className="mr-2 h-5 w-5" />}
+                    {isAccepting ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <Bike className="mr-2 h-5 w-5" />}
                     {isAccepting ? 'Accepting...' : 'Accept for Delivery'}
                   </Button>
                )}

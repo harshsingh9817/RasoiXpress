@@ -257,7 +257,7 @@ export default function MenuItemFormDialog({
             </div>
             <DialogFooter className="pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div>}
+                {isSubmitting && <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>}
                 {isSubmitting ? 'Saving...' : (menuItem ? "Save Changes" : "Create Item")}
               </Button>
             </DialogFooter>

@@ -146,7 +146,7 @@ export default function RiderManagementPage() {
   if (isLoading || (!isAuthenticated && !isLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-32 h-32 text-primary">
+        <div className="w-24 h-24 text-primary">
             <AnimatedPlateSpinner />
         </div>
         <p className="text-xl text-muted-foreground mt-4">
@@ -200,7 +200,7 @@ export default function RiderManagementPage() {
                         <Button type="submit" disabled={form.formState.isSubmitting}>
                             {form.formState.isSubmitting ? (
                             <>
-                                <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Adding...
+                                <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Adding...
                             </>
                             ) : (
                             <>
@@ -224,7 +224,7 @@ export default function RiderManagementPage() {
             <CardContent>
             {isDataLoading ? (
                 <div className="flex items-center justify-center h-40">
-                    <div className="w-24 h-24 text-primary">
+                    <div className="w-20 h-20 text-primary">
                         <AnimatedPlateSpinner />
                     </div>
                 </div>

@@ -122,7 +122,7 @@ export default function HomePage() {
   if (isAuthLoading || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-32 h-32 text-primary">
+        <div className="w-24 h-24 text-primary">
             <AnimatedPlateSpinner />
         </div>
         <p className="text-xl text-muted-foreground mt-4">Verifying access...</p>

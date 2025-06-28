@@ -137,7 +137,7 @@ const HelpDialog: React.FC<HelpDialogProps> = ({ isOpen, onOpenChange }) => {
             <Button type="submit" disabled={isSending}>
               {isSending ? (
                 <>
-                  <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Sending...
+                  <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...
                 </>
               ) : (
                 <>
