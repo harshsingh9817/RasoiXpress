@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -255,7 +256,7 @@ export default function MyOrdersPage() {
             </Dialog>
             {orderForBillView && (
               <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Bill for Order {orderForBillView.id}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{orderForBillView.deliveryFee.toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * orderForBillView.taxRate).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+                <DialogContent><DialogHeader><DialogTitle>Bill for Order {orderForBillView.id}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{(orderForBillView.deliveryFee ?? 0).toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
               </Dialog>
             )}
             {orderToReview && (
