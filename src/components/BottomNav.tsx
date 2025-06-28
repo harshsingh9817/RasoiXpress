@@ -1,52 +1,17 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, User, ShieldCheck, HelpCircle, Bike, ListOrdered, Bell } from 'lucide-react';
+import { Home, User, ShieldCheck, HelpCircle, Bike, ListOrdered } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import HelpDialog from './HelpDialog';
-import { Badge } from './ui/badge';
-import type { AppNotification } from '@/lib/types';
 
 const BottomNav = () => {
-    const { user, isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
+    const { isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
     const pathname = usePathname();
     const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
-
-    const storageKey = user ? (isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : `rasoiExpressUserNotifications_${user.uid}`) : null;
-    
-    useEffect(() => {
-        if (!storageKey || typeof window === 'undefined') return;
-
-        const updateUnreadCount = () => {
-            try {
-                const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]') as AppNotification[];
-                const count = storedNotifications.filter(n => !n.read).length;
-                setUnreadCount(count);
-            } catch (e) {
-                console.error("Failed to parse notifications from localStorage", e);
-                setUnreadCount(0);
-            }
-        };
-
-        updateUnreadCount();
-
-        const handleStorageChange = (event: StorageEvent) => {
-            if (event.key === storageKey) {
-                updateUnreadCount();
-            }
-        };
-        
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, [storageKey, pathname]);
-
 
     if (isAuthLoading || !isAuthenticated) {
         return null;
@@ -83,14 +48,6 @@ const BottomNav = () => {
                             <span className="text-xs font-medium">Dashboard</span>
                         </Link>
                     )}
-
-                     <Link href="/notifications" className={cn("relative flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/notifications') ? 'text-primary' : 'text-muted-foreground')}>
-                        <Bell className="h-6 w-6" />
-                        <span className="text-xs font-medium">Alerts</span>
-                         {unreadCount > 0 && (
-                            <Badge variant="destructive" className="absolute top-1 right-2 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]">{unreadCount > 9 ? '9+' : unreadCount}</Badge>
-                        )}
-                    </Link>
 
                     <button onClick={() => setIsHelpDialogOpen(true)} className="flex flex-col items-center gap-1 p-2 rounded-md text-muted-foreground">
                         <HelpCircle className="h-6 w-6" />

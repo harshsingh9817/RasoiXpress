@@ -127,6 +127,8 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full border-b bg-sidebar-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" aria-label="Home"><RasoiXpressLogo /></Link>
+          
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-2">
             {!isDelivery && <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>}
             {!isDelivery && !isAdmin && <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>}
@@ -142,6 +144,18 @@ const Header = () => {
               </Button>
             </Link>
           </nav>
+
+           {/* Mobile Nav Actions */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Link href="/notifications">
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-6 w-6" />
+                {isClient && unreadNotificationCount > 0 && (
+                  <Badge variant="destructive" className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]">{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Badge>
+                )}
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
       <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
