@@ -6,14 +6,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { Loader2, Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateOrderStatus, getOrderById } from '@/lib/data';
+import { updateOrderStatus, listenToOrderById } from '@/lib/data';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 
@@ -21,7 +21,6 @@ const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
   'Confirmed': ChefHat,
   'Preparing': ChefHat,
-  'Shipped': Truck,
   'Out for Delivery': Bike,
   'Delivered': PackageCheck,
   'Cancelled': User,
@@ -45,24 +44,16 @@ export default function DeliveryOrderDetailPage() {
     }
   }, [isDelivery, isAuthLoading, router]);
   
-  const loadOrder = useCallback(async () => {
+  useEffect(() => {
     if(isDelivery && orderId) {
         setIsDataLoading(true);
-        try {
-            const fetchedOrder = await getOrderById(orderId);
+        const unsubscribe = listenToOrderById(orderId, (fetchedOrder) => {
             setOrder(fetchedOrder);
-        } catch (error) {
-            console.error("Error fetching order details: ", error);
-            toast({ title: "Error", description: "Could not fetch order details.", variant: "destructive" });
-        } finally {
             setIsDataLoading(false);
-        }
+        });
+        return () => unsubscribe();
     }
-  }, [isDelivery, orderId, toast]);
-
-  useEffect(() => {
-    loadOrder();
-  }, [loadOrder]);
+  }, [isDelivery, isAuthLoading, orderId, router]);
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     if (!order) return;
@@ -72,7 +63,7 @@ export default function DeliveryOrderDetailPage() {
             title: 'Order Updated!',
             description: `Order #${order.id.slice(-6)} is now marked as ${newStatus}.`,
         });
-        await loadOrder(); // Refresh the order details
+        // Real-time listener will update the order details automatically
     } catch (error) {
         console.error("Failed to update status", error);
         toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
@@ -109,7 +100,6 @@ export default function DeliveryOrderDetailPage() {
     switch (status) {
       case 'Delivered':
       case 'Out for Delivery':
-      case 'Shipped':
         return 'default';
       case 'Cancelled':
         return 'destructive';
@@ -233,15 +223,6 @@ export default function DeliveryOrderDetailPage() {
 
             </CardContent>
             <CardFooter>
-               {order.status === 'Shipped' && (
-                  <Button
-                    className="w-full text-lg py-6"
-                    onClick={() => handleUpdateStatus('Out for Delivery')}
-                  >
-                    <Bike className="mr-2 h-5 w-5" />
-                    Start Delivery
-                  </Button>
-               )}
                {order.status === 'Out for Delivery' && (
                   <Button 
                     className="w-full text-lg py-6"

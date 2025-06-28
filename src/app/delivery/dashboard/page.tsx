@@ -5,18 +5,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, MapPin, ClipboardList } from 'lucide-react';
+import { Loader2, Bike, PackageCheck, ChefHat, User, MapPin, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { getAllOrders } from '@/lib/data';
+import { listenToAllOrders } from '@/lib/data';
 import Link from 'next/link';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
   'Confirmed': ChefHat,
   'Preparing': ChefHat,
-  'Shipped': Truck,
   'Out for Delivery': Bike,
   'Delivered': PackageCheck,
   'Cancelled': User,
@@ -35,33 +34,21 @@ export default function DeliveryDashboard() {
     }
   }, [isDelivery, isAuthLoading, router]);
   
-  const loadActiveOrders = useCallback(async () => {
-    if(isDelivery) {
+  useEffect(() => {
+    if (isDelivery) {
         setIsDataLoading(true);
-        try {
-            const allOrders = await getAllOrders();
-            const deliveryStatuses: OrderStatus[] = ['Shipped', 'Out for Delivery'];
+        const unsubscribe = listenToAllOrders((allOrders) => {
+            const deliveryStatuses: OrderStatus[] = ['Out for Delivery'];
             const filteredOrders = allOrders.filter(order => deliveryStatuses.includes(order.status));
             
-            const sortedOrders = filteredOrders.sort((a, b) => {
-              if (a.status === 'Out for Delivery' && b.status !== 'Out for Delivery') return -1;
-              if (a.status !== 'Out for Delivery' && b.status === 'Out for Delivery') return 1;
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-            });
+            const sortedOrders = filteredOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             setActiveOrders(sortedOrders);
-        } catch (error) {
-            console.error("Error fetching active orders: ", error);
-            toast({ title: "Error", description: "Could not fetch active orders.", variant: "destructive" });
-        } finally {
             setIsDataLoading(false);
-        }
+        });
+        return () => unsubscribe();
     }
-  }, [isDelivery, toast]);
-
-  useEffect(() => {
-    loadActiveOrders();
-  }, [loadActiveOrders]);
+  }, [isDelivery, isAuthLoading]);
 
 
   if (isAuthLoading || isDataLoading) {
@@ -95,7 +82,7 @@ export default function DeliveryDashboard() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Order #{order.id.slice(-6)}</span>
-                                <Badge variant={order.status === 'Shipped' || order.status === 'Out for Delivery' ? 'default' : 'secondary'}>
+                                <Badge variant={order.status === 'Out for Delivery' ? 'default' : 'secondary'}>
                                 <Icon className="mr-1.5 h-3 w-3" />
                                 {order.status}
                                 </Badge>

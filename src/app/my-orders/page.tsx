@@ -7,20 +7,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, Loader2, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft
+  PackageSearch, Loader2, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { getUserOrders, cancelOrder, submitOrderReview } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 
-const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery', 'Delivered' ];
-const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Shipped': Truck, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered' ];
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 
@@ -45,37 +45,32 @@ export default function MyOrdersPage() {
     const [currentRating, setCurrentRating] = useState(0);
     const [currentReviewComment, setCurrentReviewComment] = useState('');
 
-    const loadOrders = useCallback(async () => {
-        if (!firebaseUser) return;
+    useEffect(() => {
+        if (isAuthLoading) return;
+        if (!isAuthenticated) {
+            router.replace('/login');
+            return;
+        }
+        if (!firebaseUser) {
+            setIsLoading(false);
+            return;
+        }
+        
         setIsLoading(true);
-        try {
-            const userOrders = await getUserOrders(firebaseUser.uid);
+        const unsubscribe = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             const sortedOrders = userOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setOrders(sortedOrders);
 
-            // Check for tracking param and set initial tracked order
             const trackParam = searchParams.get('track');
             if (trackParam) {
                 const orderToTrack = sortedOrders.find(o => o.id === trackParam);
                 setTrackedOrder(orderToTrack || null);
             }
-        } catch (error) {
-            console.error("Failed to load user orders:", error);
-            toast({ title: "Error", description: "Could not load your orders.", variant: "destructive" });
-        } finally {
             setIsLoading(false);
-        }
-    }, [firebaseUser, toast, searchParams]);
-    
-    useEffect(() => {
-        if (!isAuthLoading && !isAuthenticated) {
-            router.replace('/login');
-            return;
-        }
-        if (isAuthenticated && firebaseUser) {
-            loadOrders();
-        }
-    }, [isAuthenticated, isAuthLoading, router, firebaseUser, loadOrders]);
+        });
+
+        return () => unsubscribe();
+    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams]);
 
 
     const handleTrackOrderFromList = (order: Order) => {
@@ -91,7 +86,7 @@ export default function MyOrdersPage() {
     const getStatusColor = (status: OrderStatus): string => {
         switch (status) {
           case 'Delivered': return 'text-green-600';
-          case 'Shipped': case 'Out for Delivery': return 'text-blue-600';
+          case 'Out for Delivery': return 'text-blue-600';
           case 'Preparing': case 'Confirmed': return 'text-yellow-600';
           case 'Order Placed': return 'text-sky-600';
           case 'Cancelled': return 'text-red-600';
@@ -113,8 +108,7 @@ export default function MyOrdersPage() {
     const handleConfirmCancellation = async () => {
         if (!orderToCancel || !selectedCancelReason) return;
         await cancelOrder(orderToCancel.id, selectedCancelReason);
-        toast({ title: 'Order Cancelled', description: `Order ${orderToCancel.id} has been successfully cancelled.` });
-        await loadOrders();
+        toast({ title: 'Order Cancelled', description: `Order #${orderToCancel.id.slice(-6)} has been successfully cancelled.` });
         setIsCancelDialogOpen(false);
     };
     
@@ -137,7 +131,6 @@ export default function MyOrdersPage() {
         const newReview: Review = { rating: currentRating, comment: currentReviewComment.trim() || undefined, date: new Date().toISOString().split('T')[0] };
         await submitOrderReview(orderToReview.id, newReview);
         toast({ title: 'Review Submitted!', description: 'Thank you for your feedback.' });
-        await loadOrders();
         setIsReviewDialogOpen(false);
     };
 
@@ -199,7 +192,7 @@ export default function MyOrdersPage() {
                             })}
                         </div>
                     )}
-                    {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && trackedOrder.deliveryConfirmationCode && (
+                    {trackedOrder.status !== 'Cancelled' && trackedOrder.deliveryConfirmationCode && (
                         <>
                             <Separator className="my-4" />
                             <div className="p-4 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
@@ -235,6 +228,14 @@ export default function MyOrdersPage() {
                                  </div>
                                </CardHeader>
                                <CardContent className="space-y-4">
+                                  {order.deliveryConfirmationCode && (
+                                    <div className="pt-2">
+                                        <p className="text-sm font-medium flex items-center">
+                                            <ShieldCheck className="mr-2 h-4 w-4 text-primary"/>Delivery Code: 
+                                            <span className="ml-2 font-bold tracking-widest text-muted-foreground">{order.deliveryConfirmationCode}</span>
+                                        </p>
+                                    </div>
+                                  )}
                                   {order.review && (
                                     <div className="pt-2 mt-2 border-t">
                                       <p className="text-sm font-medium">Your Review:</p>
@@ -244,7 +245,7 @@ export default function MyOrdersPage() {
                                       {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">"{order.review.comment}"</p>}
                                     </div>
                                   )}
-                                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                                  <div className="flex flex-wrap gap-2 pt-4 border-t">
                                      <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
                                      <Button variant="outline" size="sm" onClick={() => handleOpenBillDialog(order)}><FileText className="mr-2 h-4 w-4" />View Bill</Button>
                                      {order.status === 'Order Placed' && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}

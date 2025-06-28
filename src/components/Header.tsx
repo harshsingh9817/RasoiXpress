@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -5,7 +6,7 @@ import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2, ListOrdered,
-  Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, XCircle,
+  Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
@@ -15,15 +16,14 @@ import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { AppNotification, Order, OrderStatus } from '@/lib/types';
+import type { AppNotification, Order, OrderStatus, AdminMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getAllOrders, getAdminMessages, getUserAdminMessages, getUserOrders } from '@/lib/data';
+import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders } from '@/lib/data';
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': { title: 'Payment Successful!', message: 'Your order has been placed. The restaurant will confirm it shortly.' },
   'Confirmed': { title: 'Order Confirmed', message: 'The restaurant is preparing your order.' },
   'Preparing': { title: 'Order in the Kitchen', message: 'Your meal is being freshly prepared by the chefs!' },
-  'Shipped': { title: 'Order Shipped', message: 'Your order has been dispatched from the restaurant.' },
   'Out for Delivery': { title: 'Out for Delivery', message: 'Your delivery partner is on the way to your location!' },
   'Delivered': { title: 'Order Delivered!', message: 'We hope you enjoy your meal! You can now leave a review.' },
   'Cancelled': { title: 'Order Cancelled', message: 'Your order has been successfully cancelled.' },
@@ -42,7 +42,6 @@ const getNotificationIcon = (notification: AppNotification) => {
                     case 'Order Placed': return <PackagePlus className={iconClass} />;
                     case 'Confirmed': return <ClipboardCheck className={iconClass} />;
                     case 'Preparing': return <ChefHat className={iconClass} />;
-                    case 'Shipped': return <Truck className={iconClass} />;
                     case 'Out for Delivery': return <Bike className={iconClass} />;
                     case 'Delivered': return <DeliveredIcon className={iconClass} />;
                     case 'Cancelled': return <XCircle className={iconClass} />;
@@ -55,7 +54,6 @@ const getNotificationIcon = (notification: AppNotification) => {
 const Header = () => {
   const { user, isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   
@@ -73,60 +71,78 @@ const Header = () => {
     }
   };
 
-  const syncNotifications = useCallback(async () => {
-    if (isAuthLoading || !isAuthenticated || !user) {
-        setNotifications([]);
-        setIsLoadingNotifications(false);
-        return;
+  useEffect(() => {
+    if (!isClient || !isAuthenticated || isAuthLoading || !user) {
+      setIsLoadingNotifications(false);
+      return;
     }
+
     setIsLoadingNotifications(true);
 
     const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : 'rasoiExpressUserNotifications';
-    const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    const generatedNotifications: AppNotification[] = [];
+    
+    const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order') => {
+        const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const generatedNotifications: AppNotification[] = [];
 
-    if (isAdmin) {
-        const allOrders = await getAllOrders();
-        allOrders.forEach(order => {
-            if (order.status === 'Order Placed') {
-                const id = `notif-admin-new-order-${order.id}`;
+        newItems.forEach(item => {
+            let id: string, notif: AppNotification | null = null;
+
+            if (type === 'admin_order' && 'status' in item && item.status === 'Order Placed') {
+                const order = item as Order;
+                id = `notif-admin-new-order-${order.id}`;
                 if (!existingNotifications.some(n => n.id === id)) {
-                    generatedNotifications.push({ id, timestamp: new Date(order.date).getTime(), title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' });
+                   notif = { id, timestamp: new Date(order.date).getTime(), title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
+                }
+            } else if (type === 'order' && 'status' in item) {
+                const order = item as Order;
+                id = `notif-${order.id}-${order.status}`;
+                if (!existingNotifications.some(n => n.id === id) && orderStatusNotificationMap[order.status]) {
+                    const details = orderStatusNotificationMap[order.status]!;
+                    notif = { id, timestamp: new Date(order.date).getTime(), title: `${details.title}`, message: details.message, read: false, type: 'order_update', orderId: order.id, orderStatus: order.status, link: `/my-orders?track=${order.id}` };
+                }
+            } else if (type === 'message' && 'title' in item) {
+                const msg = item as AdminMessage;
+                id = `notif-${msg.id}`;
+                if (!existingNotifications.some(n => n.id === id)) {
+                    notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' };
                 }
             }
-        });
-    } else if (!isDelivery) {
-        const userOrders = await getUserOrders(user.uid);
-        userOrders.forEach(order => {
-            const id = `notif-${order.id}-${order.status}`;
-            if (!existingNotifications.some(n => n.id === id) && orderStatusNotificationMap[order.status]) {
-                const details = orderStatusNotificationMap[order.status]!;
-                generatedNotifications.push({ id, timestamp: new Date(order.date).getTime(), title: `${details.title}`, message: details.message, read: false, type: 'order_update', orderId: order.id, link: `/my-orders?track=${order.id}` });
+
+            if (notif) {
+                generatedNotifications.push(notif);
+                showSystemNotification(notif.title, { body: notif.message, tag: notif.id });
             }
         });
-        const adminMessages = await getUserAdminMessages(user.uid);
-        adminMessages.forEach(msg => {
-          const id = `notif-${msg.id}`;
-          if (!existingNotifications.some(n => n.id === id)) {
-            generatedNotifications.push({ id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' });
-          }
-        });
+
+        if (generatedNotifications.length > 0) {
+            setNotifications(prev => {
+                const all = [...prev, ...generatedNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
+                localStorage.setItem(storageKey, JSON.stringify(all));
+                return all;
+            });
+        }
+    };
+
+    const unsubscribers: (()=>void)[] = [];
+
+    if (isAdmin) {
+        unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'admin_order')));
+    } else if (!isDelivery) {
+        unsubscribers.push(listenToUserOrders(user.uid, orders => processNotifications(orders, 'order')));
+        unsubscribers.push(listenToUserAdminMessages(user.uid, messages => processNotifications(messages, 'message')));
     }
     
-    generatedNotifications.forEach(n => showSystemNotification(n.title, { body: n.message, tag: n.id }));
-
-    const allNotifications = [...existingNotifications, ...generatedNotifications].sort((a, b) => b.timestamp - a.timestamp).slice(0, 50);
-    setNotifications(allNotifications);
-    localStorage.setItem(storageKey, JSON.stringify(allNotifications));
+    // Load initial from storage & stop loading spinner
+    const initialNotifs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    setNotifications(initialNotifs);
     setIsLoadingNotifications(false);
-  }, [isAuthenticated, user, isAdmin, isDelivery, isAuthLoading]);
 
-  useEffect(() => {
-    if (isClient && isAuthenticated && !isAuthLoading) {
-      syncNotifications();
-    }
-  }, [isClient, pathname, isAuthenticated, isAuthLoading, syncNotifications]);
+    return () => {
+        unsubscribers.forEach(unsub => unsub());
+    };
 
+}, [isClient, isAuthenticated, user, isAdmin, isDelivery, isAuthLoading]);
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 

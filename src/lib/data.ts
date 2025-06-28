@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -17,6 +16,7 @@ import {
   serverTimestamp,
   Query,
   DocumentData,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
@@ -161,6 +161,72 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
+// --- REAL-TIME LISTENERS ---
+export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => void {
+    const menuItemsCol = collection(db, 'menuItems');
+    const q = query(menuItemsCol, orderBy("name"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
+        callback(items);
+    }, (error) => {
+        console.error("Error listening to menu items:", error);
+    });
+    return unsubscribe;
+}
+
+export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+        callback(allOrders);
+    }, (error) => {
+        console.error("Error listening to all orders:", error);
+    });
+    return unsubscribe;
+}
+
+export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
+    if (!userId) return () => {};
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+        callback(userOrders);
+    }, (error) => {
+        console.error("Error listening to user orders:", error);
+    });
+    return unsubscribe;
+}
+
+export function listenToOrderById(orderId: string, callback: (order: Order | null) => void): () => void {
+    const docRef = doc(db, 'orders', orderId);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback({ id: docSnap.id, ...docSnap.data() } as Order);
+        } else {
+            callback(null);
+        }
+    }, (error) => {
+        console.error("Error listening to order by ID:", error);
+    });
+    return unsubscribe;
+}
+
+export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
+    if (!userId) return () => {};
+    const messagesCol = collection(db, 'adminMessages');
+    const q = query(messagesCol, where('userId', '==', userId), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+        callback(messages);
+    }, (error) => {
+        console.error("Error listening to user admin messages:", error);
+    });
+    return unsubscribe;
+}
+
+
 // --- Address Management ---
 export async function getAddresses(userId: string): Promise<Address[]> {
     if (!userId) return [];
@@ -182,7 +248,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', id);
+    const docRef = doc(db, 'users', userId, 'addresses', addressId);
     await deleteDoc(docRef);
 }
 

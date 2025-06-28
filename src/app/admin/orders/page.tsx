@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, getAllOrders } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -46,7 +46,6 @@ const ALL_ORDER_STATUSES: OrderStatus[] = [
   'Order Placed',
   'Confirmed',
   'Preparing',
-  'Shipped',
   'Out for Delivery',
   'Delivered',
   'Cancelled',
@@ -61,35 +60,26 @@ export default function AdminOrdersPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const loadOrders = useCallback(async () => {
-    setIsDataLoading(true);
-    try {
-      const allOrders = await getAllOrders();
-      setOrders(allOrders);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
-    } finally {
-      setIsDataLoading(false);
-    }
-  }, [toast]);
-  
   useEffect(() => {
-    if (isAuthLoading) {
-        return; // Wait for auth to resolve
-    }
-    if (isAuthenticated && isAdmin) {
-        loadOrders();
-    } else {
+    if (isAuthLoading) return;
+    if (!isAuthenticated || !isAdmin) {
         router.replace("/");
+        return;
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, loadOrders]);
+
+    setIsDataLoading(true);
+    const unsubscribe = listenToAllOrders((allOrders) => {
+        setOrders(allOrders);
+        setIsDataLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [isAdmin, isAuthLoading, isAuthenticated, router]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
       case 'Delivered':
       case 'Out for Delivery':
-      case 'Shipped':
         return 'default'; // This is primary color in badge variants
       case 'Cancelled':
         return 'destructive';
@@ -105,7 +95,7 @@ export default function AdminOrdersPage() {
         title: 'Order Status Updated',
         description: `Order #${orderId.slice(-6)} is now marked as ${newStatus}.`,
       });
-      await loadOrders(); // Refresh state after update
+      // Real-time listener will update the state automatically
     } catch (error) {
       console.error("Failed to update order status", error);
       toast({
@@ -136,7 +126,7 @@ export default function AdminOrdersPage() {
             <ClipboardList className="mr-3 h-6 w-6 text-primary" /> All Customer Orders
           </CardTitle>
           <CardDescription>
-            View and manage all orders placed in the application.
+            View and manage all orders placed in the application. Updates happen in real-time.
           </CardDescription>
         </CardHeader>
         <CardContent>

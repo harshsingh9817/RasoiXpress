@@ -1,6 +1,4 @@
 
-
-
 export interface Restaurant {
   id: string;
   name: string;
@@ -15,7 +13,7 @@ export interface Restaurant {
 }
 
 export interface MenuItem {
-  id: string;
+  id:string;
   name: string;
   description: string;
   price: number;
@@ -35,7 +33,6 @@ export type OrderStatus =
   | 'Order Placed'
   | 'Confirmed'
   | 'Preparing'
-  | 'Shipped'
   | 'Out for Delivery'
   | 'Delivered'
   | 'Cancelled';

@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { MenuItem, HeroData } from '@/lib/types';
-import { getMenuItems, getHeroData } from '@/lib/data';
+import { listenToMenuItems, getHeroData } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
@@ -50,28 +50,36 @@ export default function HomePage() {
   }, [heroData]); // Re-run when heroData changes
 
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
+    if (isAuthLoading) return;
+    if (!isAuthenticated) {
       router.replace('/login');
       return;
     }
-    if (isAuthenticated) {
-      const loadData = async () => {
-          setIsLoading(true);
-          try {
-              const [items, hero] = await Promise.all([
-                  getMenuItems(),
-                  getHeroData()
-              ]);
-              setMenuItems(items);
-              setHeroData(hero);
-          } catch (error) {
-              console.error("Failed to load page data:", error);
-          } finally {
-              setIsLoading(false);
-          }
-      };
-      loadData();
+
+    let heroDataLoaded = false;
+    let menuItemsLoaded = false;
+
+    const checkLoadingDone = () => {
+        if (heroDataLoaded && menuItemsLoaded) {
+            setIsLoading(false);
+        }
     }
+
+    setIsLoading(true);
+    
+    const unsubscribe = listenToMenuItems((items) => {
+      setMenuItems(items);
+      menuItemsLoaded = true;
+      checkLoadingDone();
+    });
+
+    getHeroData().then(hero => {
+        setHeroData(hero);
+        heroDataLoaded = true;
+        checkLoadingDone();
+    });
+
+    return () => unsubscribe();
   }, [isAuthenticated, isAuthLoading, router]);
 
   const uniqueCategories = useMemo(() => {
