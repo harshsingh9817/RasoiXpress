@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, type FormEvent, type ReactNode, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +31,7 @@ import {
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
   PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck,
-  Bell, BellOff
+  Bell, BellOff, Calendar
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
@@ -96,6 +96,7 @@ const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,7 +110,7 @@ export default function ProfilePage() {
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-
+  const [viewMode, setViewMode] = useState<'today' | 'all'>('today');
 
   // State for Address Dialog
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
@@ -131,6 +132,25 @@ export default function ProfilePage() {
   const [currentRating, setCurrentRating] = useState(0);
   const [currentReviewComment, setCurrentReviewComment] = useState('');
 
+  const findAndDisplayOrderStatus = useCallback(async (idToTrack: string) => {
+    setTrackedOrderDetails(null);
+    setTrackOrderError(null);
+
+    if (!idToTrack) {
+      setTrackOrderError('Please enter an order ID.');
+      return;
+    }
+    if (!firebaseUser) return;
+    
+    const foundOrder = orders.find((o: Order) => o.id === idToTrack);
+
+    if (foundOrder) {
+      setTrackedOrderDetails(foundOrder);
+    } else {
+      setTrackOrderError(`Order #${idToTrack} not found in your history.`);
+    }
+  }, [orders, firebaseUser]);
+  
   const loadUserData = useCallback(async () => {
     if (!firebaseUser) return;
     setIsDataLoading(true);
@@ -158,19 +178,11 @@ export default function ProfilePage() {
       router.replace('/login');
     }
     
-    if (typeof window !== 'undefined') {
-        const hash = window.location.hash;
-        if (hash.startsWith('#track-order-')) {
-            const orderIdFromHash = hash.replace('#track-order-', '');
-            if (orderIdFromHash) {
-                setActiveTab('track');
-                setTrackOrderId(orderIdFromHash);
-                findAndDisplayOrderStatus(orderIdFromHash);
-            }
-        }
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && ['orders', 'addresses', 'track', 'settings'].includes(tabFromUrl)) {
+        setActiveTab(tabFromUrl);
     }
-
-  }, [isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, router, searchParams]);
 
   useEffect(() => {
     if (isAuthenticated && firebaseUser) {
@@ -178,36 +190,23 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated, firebaseUser, loadUserData]);
 
-
-  const findAndDisplayOrderStatus = async (idToTrack: string) => {
-    setTrackedOrderDetails(null);
-    setTrackOrderError(null);
-
-    if (!idToTrack) {
-      setTrackOrderError('Please enter an order ID.');
-      return;
+  // Handle deeplinking to tracking an order
+  useEffect(() => {
+    const orderIdFromUrl = searchParams.get('orderId');
+    if(orderIdFromUrl && orders.length > 0) {
+        setTrackOrderId(orderIdFromUrl);
+        findAndDisplayOrderStatus(orderIdFromUrl);
     }
-    if (!firebaseUser) return;
-    
-    // Instead of re-fetching, use the already loaded orders state
-    const foundOrder = orders.find((o: Order) => o.id === idToTrack);
+  }, [searchParams, orders, findAndDisplayOrderStatus])
 
-    if (foundOrder) {
-      setTrackedOrderDetails(foundOrder);
-    } else {
-      setTrackOrderError(`Order ${idToTrack} not found in your history.`);
-    }
-  };
 
   const handleTrackOrderSubmit = (e: FormEvent) => {
     e.preventDefault();
-    findAndDisplayOrderStatus(trackOrderId);
+    router.push(`/profile?tab=track&orderId=${trackOrderId}`, { scroll: false });
   };
 
   const handleTrackOrderFromList = (orderIdToList: string) => {
-    setActiveTab('track');
-    setTrackOrderId(orderIdToList);
-    findAndDisplayOrderStatus(orderIdToList);
+    router.push(`/profile?tab=track&orderId=${orderIdToList}`, { scroll: false });
   };
 
   const getStatusColor = (status: OrderStatus): string => {
@@ -426,6 +425,12 @@ export default function ProfilePage() {
     });
   };
 
+  const filteredOrders = orders.filter(order => {
+    if (viewMode === 'all') return true;
+    const today = new Date().toDateString();
+    return new Date(order.date).toDateString() === today;
+  });
+
 
   if (isAuthLoading || (isDataLoading && !orders.length)) {
     return (
@@ -479,7 +484,7 @@ export default function ProfilePage() {
           </Button>
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => router.push(`/profile?tab=${value}`, { scroll: false })} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
           <TabsTrigger value="orders"><ListOrdered className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Orders</TabsTrigger>
           <TabsTrigger value="addresses"><MapPin className="mr-2 h-4 w-4 sm:hidden md:inline-block" />My Addresses</TabsTrigger>
@@ -489,13 +494,21 @@ export default function ProfilePage() {
 
         <TabsContent value="orders">
           <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl md:text-2xl font-headline">Order History</CardTitle>
-              <CardDescription>Review your past and current orders.</CardDescription>
+            <CardHeader className="flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl md:text-2xl font-headline">Order History</CardTitle>
+                <CardDescription>
+                  {viewMode === 'today' ? "Showing your orders from today." : "Showing your complete order history."}
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => setViewMode(prev => prev === 'today' ? 'all' : 'today')}>
+                <Calendar className="mr-2 h-4 w-4" />
+                {viewMode === 'today' ? 'View All Orders' : "View Today's Orders"}
+            </Button>
             </CardHeader>
             <CardContent className="space-y-6">
-              {orders.length > 0 ? (
-                orders.map(order => (
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map(order => (
                   <Card key={order.id} className="bg-muted/30">
                     <CardHeader>
                       <div className="flex justify-between items-start">
@@ -621,7 +634,17 @@ export default function ProfilePage() {
                   </Card>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">You have no orders yet.</p>
+                 <div className="text-center py-10">
+                  <PackageSearch className="mx-auto h-16 w-16 text-muted-foreground/50" />
+                  <p className="mt-4 text-lg text-muted-foreground">
+                    {viewMode === 'today' ? "You haven't placed any orders today." : "You have no order history."}
+                  </p>
+                  {viewMode === 'today' && (
+                    <p className="text-sm text-muted-foreground">
+                        Try the "View All Orders" button to see your past orders.
+                    </p>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

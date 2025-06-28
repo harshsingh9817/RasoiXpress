@@ -211,7 +211,7 @@ const Header = () => {
                     type: 'order_update',
                     orderId: order.id,
                     orderStatus: order.status,
-                    link: '/profile',
+                    link: `/profile?tab=track&orderId=${order.id}`,
                 });
             }
         });
@@ -352,7 +352,7 @@ const Header = () => {
               )}
               
                {!isDelivery && !isAdmin && (
-                <Link href="/my-orders">
+                <Link href="/profile?tab=orders">
                   <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                     <ListOrdered className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">My Orders</span>
