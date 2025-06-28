@@ -8,7 +8,7 @@ interface AnimatedDeliveryScooterProps {
 }
 
 const AnimatedDeliveryScooter: FC<AnimatedDeliveryScooterProps> = ({ className, width = "100%", height = "100%" }) => {
-  const scooterBodyColor = "#A0AEC0"; // Medium Gray (Tailwind gray.500)
+  const scooterBodyColor = "hsl(var(--primary))";
   const seatColor = "#2D3748"; // Dark Gray (Tailwind gray.800 - for seat and main handlebar parts)
   const wheelTireColor = "#2D3748"; // Dark Gray (Tailwind gray.800 - for tires)
   const wheelRimColor = "#E2E8F0"; // Light Gray (Tailwind gray.200 - for rims and handlebar grips)
