@@ -107,16 +107,23 @@ export default function CheckoutPage() {
     const delay = isUpi ? 2500 : 0;
 
     setTimeout(async () => {
-        const placedOrder = await placeOrder(orderData);
-        setOrderDetails(placedOrder);
+        try {
+            const placedOrder = await placeOrder(orderData);
+            setOrderDetails(placedOrder);
+            
+            clearCart();
+            setCheckoutStep('success');
         
-        clearCart();
-        setCheckoutStep('success');
-        setIsLoading(false);
-    
-        setTimeout(() => {
-            router.push('/profile');
-        }, 8000);
+            setTimeout(() => {
+                router.push('/profile');
+            }, 8000);
+
+        } catch (error) {
+            console.error("Failed to place order:", error);
+            toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
     }, delay);
   };
 
@@ -137,15 +144,7 @@ export default function CheckoutPage() {
       date: new Date().toISOString(),
       status: 'Order Placed',
       total: grandTotal,
-      items: cartItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        category: item.category,
-        description: item.description,
-      })),
+      items: cartItems.map(item => ({ ...item })), // Pass all item properties
       shippingAddress: `${formData.address}, ${villagePart}${formData.city}, ${formData.pinCode}`,
       paymentMethod: paymentMethod,
       customerPhone: formData.phone,
