@@ -80,9 +80,6 @@ const CANCELLATION_REASONS = [
   "Other (please specify if possible)",
 ];
 
-const DELIVERY_FEE = 49.00;
-const TAX_RATE = 0.05; // 5%
-
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = {
   fullName: '',
   type: 'Home',
@@ -1029,11 +1026,11 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery Fee:</span>
-                  <span>Rs.{DELIVERY_FEE.toFixed(2)}</span>
+                  <span>Rs.{orderForBillView.deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxes ({(TAX_RATE * 100).toFixed(0)}%):</span>
-                  <span>Rs.{(calculateSubtotal(orderForBillView.items) * TAX_RATE).toFixed(2)}</span>
+                  <span className="text-muted-foreground">Taxes ({(orderForBillView.taxRate * 100).toFixed(0)}%):</span>
+                  <span>Rs.{(calculateSubtotal(orderForBillView.items) * orderForBillView.taxRate).toFixed(2)}</span>
                 </div>
                  <Separator className="my-2"/>
                 <div className="flex justify-between font-bold text-lg text-primary">

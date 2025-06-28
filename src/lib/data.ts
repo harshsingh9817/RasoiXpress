@@ -39,7 +39,9 @@ const defaultHeroData: HeroData = {
 
 const defaultPaymentSettings: PaymentSettings = {
     upiId: 'rasoixpress@okbank',
-    qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay'
+    qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay',
+    deliveryFee: 49,
+    taxRate: 0.05,
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {

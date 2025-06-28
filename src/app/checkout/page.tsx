@@ -96,8 +96,9 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData]);
 
   const subTotal = getCartTotal();
-  const deliveryFee = 49;
-  const estimatedTax = subTotal * 0.05;
+  const deliveryFee = paymentSettings?.deliveryFee ?? 49;
+  const taxRate = paymentSettings?.taxRate ?? 0.05;
+  const estimatedTax = subTotal * taxRate;
   const grandTotal = subTotal + deliveryFee + estimatedTax;
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
@@ -149,6 +150,8 @@ export default function CheckoutPage() {
       paymentMethod: paymentMethod,
       customerPhone: formData.phone,
       deliveryConfirmationCode: confirmationCode,
+      deliveryFee: deliveryFee,
+      taxRate: taxRate,
     };
     
     setPendingOrderData(newOrderData);

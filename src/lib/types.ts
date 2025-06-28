@@ -65,8 +65,8 @@ export interface Order {
   review?: Review; // Added for review
   customerPhone?: string;
   deliveryConfirmationCode?: string;
-  // The 'total' field should represent the final amount paid by the customer, including taxes and delivery.
-  // We can calculate subtotal, taxes, and delivery fee on the fly for display if needed.
+  deliveryFee: number;
+  taxRate: number;
 }
 
 export interface Address {
@@ -88,7 +88,7 @@ export interface AppNotification {
   title: string;
   message: string;
   read: boolean;
-  type: 'new_dish' | 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'delivery_assignment';
+  type: 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'delivery_assignment';
   link?: string;
   orderId?: string;
   orderStatus?: OrderStatus;
@@ -108,6 +108,8 @@ export interface HeroData {
 export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
+  deliveryFee: number;
+  taxRate: number; // e.g., 0.05 for 5%
 }
 
 export interface DailyChartData {

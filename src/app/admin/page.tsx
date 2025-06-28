@@ -7,45 +7,17 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, Sparkles, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Loader2, LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy } from 'lucide-react';
 
 export default function AdminPage() {
   const { user, isAdmin, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
-  const [isGeneratingRecs, setIsGeneratingRecs] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
       router.replace('/'); 
     }
   }, [isAdmin, isLoading, isAuthenticated, router]);
-
-  const handleGenerateRecommendations = async () => {
-    setIsGeneratingRecs(true);
-    try {
-        const response = await fetch('/api/recommend', { method: 'POST' });
-        if (!response.ok) {
-            throw new Error("Failed to get a successful response from the server.");
-        }
-        await response.json(); 
-        toast({
-            title: "Recommendations Refresh Triggered",
-            description: "New recommendations have been generated for users.",
-            variant: "default"
-        });
-    } catch (error) {
-        console.error("Failed to trigger recommendations:", error);
-        toast({
-            title: "Generation Failed",
-            description: "Could not trigger recommendation generation. Please check the server logs.",
-            variant: "destructive"
-        });
-    } finally {
-        setIsGeneratingRecs(false);
-    }
-  }
 
   if (isLoading || !isAuthenticated || !isAdmin) {
     return (
@@ -193,26 +165,6 @@ export default function AdminPage() {
           </Card>
         </Link>
 
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-                <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
-                    <Sparkles className="mr-2 h-6 w-6 text-accent" /> AI Recommendations
-                </CardTitle>
-                <CardDescription>Trigger AI to generate new dish recommendations for users.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground mb-4 text-sm">
-                    This will generate new recommendations for all users, which they will see in their notification panel on their next visit.
-                </p>
-                <Button onClick={handleGenerateRecommendations} disabled={isGeneratingRecs} className="w-full">
-                    {isGeneratingRecs ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</>
-                    ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" /> Generate Now</>
-                    )}
-                </Button>
-            </CardContent>
-        </Card>
       </div>
     </div>
   );

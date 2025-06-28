@@ -6,7 +6,7 @@ import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2, ListOrdered,
-  Package, MessageSquare, Sparkles, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, XCircle,
+  Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, XCircle,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
@@ -61,8 +61,6 @@ const getNotificationIcon = (notification: AppNotification) => {
             return <DeliveredIcon className={iconClass} />;
         case 'admin_message':
             return <MessageSquare className={iconClass} />;
-        case 'new_dish':
-            return <Sparkles className={iconClass} />;
         case 'delivery_assignment':
             return <Bike className={iconClass} />;
         case 'order_update':
@@ -231,28 +229,6 @@ const Header = () => {
             });
           }
         });
-
-        let aiNotifications: AppNotification[] = [];
-        try {
-            const response = await fetch('/api/recommend', { method: 'POST' });
-            if (response.ok) {
-                const data = await response.json();
-                if (data?.recommendations) {
-                    aiNotifications = data.recommendations.map((rec: any, index: number) => ({
-                        id: `notif-rec-${rec.restaurantId}-${rec.dishName.replace(/\s/g, '')}`,
-                        timestamp: Date.now() - (index * 1000),
-                        title: `✨ You might love ${rec.dishName}!`,
-                        message: rec.reason,
-                        read: false,
-                        type: 'new_dish' as const,
-                        link: `/`,
-                    }));
-                }
-            }
-        } catch (error) {
-            console.warn("AI recommendation fetch failed, continuing without them.");
-        }
-        generatedNotifications.push(...aiNotifications);
     }
     
     generatedNotifications.forEach(n => {
