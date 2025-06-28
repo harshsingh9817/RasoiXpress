@@ -130,7 +130,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-       <section className="relative h-64 md:h-80 w-full rounded-lg overflow-hidden shadow-xl">
+       <section className="relative h-auto md:h-80 w-full rounded-lg overflow-hidden shadow-xl flex items-center">
         {heroData?.bannerImages?.map((banner, index) => (
             <Image
                 key={index}
@@ -147,8 +147,8 @@ export default function HomePage() {
             />
         ))}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-        <div className="absolute inset-0 flex items-center justify-between gap-8 p-4 sm:p-6 lg:p-8">
-          <div className="text-white md:w-1/2 space-y-4">
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 p-4 sm:p-6 lg:p-8">
+          <div className="text-white text-center md:text-left md:w-1/2 space-y-4">
               <div role="heading" aria-level="1" className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>
                 {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
               </div>
@@ -156,8 +156,8 @@ export default function HomePage() {
                 {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
               </div>
           </div>
-          <div className="hidden md:w-1/2 md:flex justify-center text-primary-foreground">
-              <AnimatedDeliveryScooter className="w-full max-w-sm h-auto" />
+          <div className="md:w-1/2 flex justify-center text-primary-foreground">
+              <AnimatedDeliveryScooter className="w-full max-w-xs h-auto" />
           </div>
         </div>
       </section>
