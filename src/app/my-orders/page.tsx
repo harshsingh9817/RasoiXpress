@@ -1,23 +1,268 @@
-
 "use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  PackageSearch, Loader2, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft
+} from 'lucide-react';
+import Image from 'next/image';
+import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { getUserOrders, cancelOrder, submitOrderReview } from '@/lib/data';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 
-// This page is being consolidated into the /profile page.
-// This component will redirect users to the correct location.
-export default function MyOrdersRedirect() {
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Shipped', 'Out for Delivery', 'Delivered' ];
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Shipped': Truck, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
+
+const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
+
+export default function MyOrdersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+    const { toast } = useToast();
 
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
+
+    // Dialog states
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+    const [selectedCancelReason, setSelectedCancelReason] = useState<string>('');
+    const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+    const [orderForBillView, setOrderForBillView] = useState<Order | null>(null);
+    const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+    const [orderToReview, setOrderToReview] = useState<Order | null>(null);
+    const [currentRating, setCurrentRating] = useState(0);
+    const [currentReviewComment, setCurrentReviewComment] = useState('');
+
+    const loadOrders = useCallback(async () => {
+        if (!firebaseUser) return;
+        setIsLoading(true);
+        try {
+            const userOrders = await getUserOrders(firebaseUser.uid);
+            const sortedOrders = userOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setOrders(sortedOrders);
+
+            // Check for tracking param and set initial tracked order
+            const trackParam = searchParams.get('track');
+            if (trackParam) {
+                const orderToTrack = sortedOrders.find(o => o.id === trackParam);
+                setTrackedOrder(orderToTrack || null);
+            }
+        } catch (error) {
+            console.error("Failed to load user orders:", error);
+            toast({ title: "Error", description: "Could not load your orders.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firebaseUser, toast, searchParams]);
+    
     useEffect(() => {
-        router.replace('/profile?tab=orders');
-    }, [router]);
+        if (!isAuthLoading && !isAuthenticated) {
+            router.replace('/login');
+            return;
+        }
+        if (isAuthenticated && firebaseUser) {
+            loadOrders();
+        }
+    }, [isAuthenticated, isAuthLoading, router, firebaseUser, loadOrders]);
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+
+    const handleTrackOrderFromList = (order: Order) => {
+        setTrackedOrder(order);
+        router.push(`/my-orders?track=${order.id}`, { scroll: false });
+    };
+    
+    const handleBackToList = () => {
+        setTrackedOrder(null);
+        router.push('/my-orders', { scroll: false });
+    };
+    
+    const getStatusColor = (status: OrderStatus): string => {
+        switch (status) {
+          case 'Delivered': return 'text-green-600';
+          case 'Shipped': case 'Out for Delivery': return 'text-blue-600';
+          case 'Preparing': case 'Confirmed': return 'text-yellow-600';
+          case 'Order Placed': return 'text-sky-600';
+          case 'Cancelled': return 'text-red-600';
+          default: return 'text-orange-600';
+        }
+    };
+    
+    // --- DIALOG HANDLERS ---
+    const handleOpenCancelDialog = (order: Order) => {
+        if (order.status === 'Order Placed') {
+            setOrderToCancel(order);
+            setSelectedCancelReason('');
+            setIsCancelDialogOpen(true);
+        } else {
+            toast({ title: 'Cancellation Not Allowed', description: 'This order can no longer be cancelled.', variant: 'destructive' });
+        }
+    };
+
+    const handleConfirmCancellation = async () => {
+        if (!orderToCancel || !selectedCancelReason) return;
+        await cancelOrder(orderToCancel.id, selectedCancelReason);
+        toast({ title: 'Order Cancelled', description: `Order ${orderToCancel.id} has been successfully cancelled.` });
+        await loadOrders();
+        setIsCancelDialogOpen(false);
+    };
+    
+    const handleOpenBillDialog = (order: Order) => {
+        setOrderForBillView(order);
+        setIsBillDialogOpen(true);
+    };
+
+    const calculateSubtotal = (items: OrderItem[]): number => items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const handleOpenReviewDialog = (order: Order) => {
+        setOrderToReview(order);
+        setCurrentRating(order.review?.rating || 0);
+        setCurrentReviewComment(order.review?.comment || '');
+        setIsReviewDialogOpen(true);
+    };
+
+    const handleReviewSubmit = async () => {
+        if (!orderToReview || currentRating === 0) return;
+        const newReview: Review = { rating: currentRating, comment: currentReviewComment.trim() || undefined, date: new Date().toISOString().split('T')[0] };
+        await submitOrderReview(orderToReview.id, newReview);
+        toast({ title: 'Review Submitted!', description: 'Thank you for your feedback.' });
+        await loadOrders();
+        setIsReviewDialogOpen(false);
+    };
+
+
+    if (isAuthLoading || isLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
             <Loader2 className="h-16 w-16 text-primary animate-spin" />
-            <p className="mt-4 text-xl text-muted-foreground">Redirecting to your orders...</p>
+            <p className="mt-4 text-xl text-muted-foreground">
+              {isAuthLoading ? "Verifying..." : "Fetching your orders..."}
+            </p>
+          </div>
+        );
+    }
+    
+    return (
+        <div className="max-w-4xl mx-auto space-y-6">
+            <Button variant="outline" onClick={() => trackedOrder ? handleBackToList() : router.push('/')}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {trackedOrder ? 'Back to All Orders' : 'Back to Menu'}
+            </Button>
+            
+            {trackedOrder ? (
+                // --- TRACKING VIEW ---
+                <Card className="shadow-lg">
+                    <CardHeader>
+                        <CardTitle className="text-xl md:text-2xl font-headline">Track Order: {trackedOrder.id}</CardTitle>
+                        <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    {trackedOrder.status === 'Cancelled' ? (
+                        <Card className="mt-4 border-destructive bg-destructive/10">
+                            <CardHeader className="flex flex-row items-center space-x-3">
+                                <AlertTriangle className="h-8 w-8 text-destructive" />
+                                <div>
+                                    <CardTitle className="text-destructive">Order Cancelled</CardTitle>
+                                    {trackedOrder.cancellationReason && <CardDescription>Reason: {trackedOrder.cancellationReason}</CardDescription>}
+                                </div>
+                            </CardHeader>
+                        </Card>
+                    ) : (
+                        <div className="relative pt-4 pl-4">
+                            <div className="absolute left-9 top-4 bottom-0 w-0.5 bg-border -z-10" />
+                            {orderProgressSteps.map((step, index) => {
+                                const IconComponent = stepIcons[step as OrderStatus] || PackageSearch;
+                                const currentIndex = orderProgressSteps.indexOf(trackedOrder.status);
+                                const isCompleted = index < currentIndex;
+                                const isActive = index === currentIndex;
+                                return (
+                                <div key={step} className="flex items-start mb-6 last:mb-0">
+                                    <div className={cn( "flex h-10 w-10 items-center justify-center rounded-full border-2 shrink-0", isActive ? "bg-primary border-primary text-primary-foreground animate-pulse" : isCompleted ? "bg-primary/80 border-primary/80 text-primary-foreground" : "bg-muted border-border text-muted-foreground" )}>
+                                        <IconComponent className="h-5 w-5" />
+                                    </div>
+                                    <div className="ml-4 pt-1.5">
+                                        <p className={cn( "font-medium", isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground" )}>{step}</p>
+                                    </div>
+                                </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                    </CardContent>
+                </Card>
+            ) : (
+                // --- ORDER LIST VIEW ---
+                <Card className="shadow-lg">
+                    <CardHeader>
+                        <CardTitle className="text-xl md:text-2xl font-headline">My Orders</CardTitle>
+                        <CardDescription>View your order history and track current orders.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {orders.length > 0 ? (
+                           orders.map(order => (
+                             <Card key={order.id} className="bg-muted/30">
+                               <CardHeader>
+                                 <div className="flex justify-between items-start">
+                                   <div>
+                                     <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
+                                     <CardDescription>Date: {new Date(order.date).toLocaleString()} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></CardDescription>
+                                   </div>
+                                   <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
+                                 </div>
+                               </CardHeader>
+                               <CardContent className="space-y-4">
+                                  {order.review && (
+                                    <div className="pt-2 mt-2 border-t">
+                                      <p className="text-sm font-medium">Your Review:</p>
+                                      <div className="flex items-center mt-1">
+                                        {[...Array(5)].map((_, i) => <Star key={i} className={cn("h-4 w-4", i < order.review!.rating ? "fill-accent text-accent" : "text-muted-foreground")} />)}
+                                      </div>
+                                      {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">"{order.review.comment}"</p>}
+                                    </div>
+                                  )}
+                                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                                     <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
+                                     <Button variant="outline" size="sm" onClick={() => handleOpenBillDialog(order)}><FileText className="mr-2 h-4 w-4" />View Bill</Button>
+                                     {order.status === 'Order Placed' && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}
+                                     {order.status === 'Delivered' && !order.review && <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => handleOpenReviewDialog(order)}><Star className="mr-2 h-4 w-4" />Leave Review</Button>}
+                                  </div>
+                               </CardContent>
+                             </Card>
+                           ))
+                        ) : (
+                           <div className="text-center py-10">
+                             <PackageSearch className="mx-auto h-16 w-16 text-muted-foreground/50" />
+                             <p className="mt-4 text-lg text-muted-foreground">You have no order history.</p>
+                           </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+             {/* Dialogs */}
+            <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+              <DialogContent><DialogHeader><DialogTitle>Confirm Cancellation</DialogTitle><DialogDescription>Select a reason for cancelling order <span className="font-semibold">{orderToCancel?.id}</span>.</DialogDescription></DialogHeader><div className="py-4"><Select value={selectedCancelReason} onValueChange={setSelectedCancelReason}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{CANCELLATION_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div><DialogFooter><Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button><Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>Confirm</Button></DialogFooter></DialogContent>
+            </Dialog>
+            {orderForBillView && (
+              <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
+                <DialogContent><DialogHeader><DialogTitle>Bill for Order {orderForBillView.id}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{orderForBillView.deliveryFee.toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * orderForBillView.taxRate).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+              </Dialog>
+            )}
+            {orderToReview && (
+              <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+                <DialogContent><DialogHeader><DialogTitle>Review Order {orderToReview.id}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="flex space-x-1">{[1,2,3,4,5].map(v=><Star key={v} className={cn("h-8 w-8 cursor-pointer", v <= currentRating ? "fill-accent text-accent" : "text-muted-foreground")} onClick={() => setCurrentRating(v)} />)}</div><Textarea value={currentReviewComment} onChange={e=>setCurrentReviewComment(e.target.value)} placeholder="Comments..." /></div><DialogFooter><Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button><Button onClick={handleReviewSubmit} disabled={currentRating === 0}>Submit</Button></DialogFooter></DialogContent>
+              </Dialog>
+            )}
         </div>
     );
 }
