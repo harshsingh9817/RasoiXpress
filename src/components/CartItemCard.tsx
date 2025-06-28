@@ -6,7 +6,7 @@ import Image from 'next/image';
 import type { CartItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Plus, Minus, Leaf } from 'lucide-react';
+import { Trash2, Plus, Minus, Leaf } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 
@@ -71,16 +71,16 @@ const CartItemCard: FC<CartItemCardProps> = ({ item }) => {
           </Button>
         </div>
       </div>
-      <div className="text-right">
-        <p className="font-semibold text-base">Rs.{(item.price * item.quantity).toFixed(2)}</p>
+      <div className="flex flex-col items-end justify-between h-full">
+        <p className="font-semibold text-base mb-2">Rs.{(item.price * item.quantity).toFixed(2)}</p>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive mt-1"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
           onClick={() => removeFromCart(item.id)}
           aria-label={`Remove ${item.name} from cart`}
         >
-          <X className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>
