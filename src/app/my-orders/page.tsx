@@ -14,7 +14,7 @@ import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { listenToUserOrders, cancelOrder, submitOrderReview } from '@/lib/data';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -228,7 +228,7 @@ export default function MyOrdersPage() {
                                  </div>
                                </CardHeader>
                                <CardContent className="p-4 space-y-4">
-                                  {order.deliveryConfirmationCode && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                                  {order.status !== 'Cancelled' && order.deliveryConfirmationCode && (
                                     <div className="p-3 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
                                       <h3 className="font-semibold text-sm text-primary flex items-center justify-center">
                                         <ShieldCheck className="mr-2 h-4 w-4"/>
@@ -247,7 +247,7 @@ export default function MyOrdersPage() {
                                     </div>
                                   )}
 
-                                  {((order.deliveryConfirmationCode && order.status !== 'Delivered' && order.status !== 'Cancelled') || order.review) && <Separator />}
+                                  {((order.status !== 'Cancelled' && order.deliveryConfirmationCode) || order.review) && <Separator />}
 
                                   <div className="flex flex-wrap gap-2">
                                      <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
@@ -274,7 +274,76 @@ export default function MyOrdersPage() {
             </Dialog>
             {orderForBillView && (
               <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Bill for Order #{orderForBillView.id.slice(-6)}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{(orderForBillView.deliveryFee ?? 0).toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+                <DialogContent className="sm:max-w-lg">
+                    {orderForBillView && (
+                        <>
+                        <DialogHeader>
+                            <DialogTitle>Bill for Order #{orderForBillView.id.slice(-6)}</DialogTitle>
+                            <DialogDescription>
+                                Placed on {new Date(orderForBillView.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">
+                            <div>
+                                <h4 className="font-semibold mb-2 text-sm">Items Ordered</h4>
+                                <div className="space-y-2">
+                                    {orderForBillView.items.map((item: OrderItem) => (
+                                        <div key={item.id} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-3">
+                                                <Image 
+                                                    src={(item.imageUrl ?? 'https://placehold.co/40x40.png').split('?data-ai-hint=')[0].split('data-ai-hint=')[0]}
+                                                    alt={item.name ?? 'Food item'} 
+                                                    width={40} 
+                                                    height={40} 
+                                                    className="rounded-md object-cover" 
+                                                    data-ai-hint={
+                                                        item.imageUrl?.includes('data-ai-hint=')
+                                                        ? item.imageUrl.split('data-ai-hint=')[1]
+                                                        : `${item.name?.split(' ')[0].toLowerCase() || 'food'} ${item.category?.toLowerCase() || ''}`.trim()
+                                                    }
+                                                />
+                                                <div>
+                                                    <p className="font-medium">{item.name}</p>
+                                                    <p className="text-xs text-muted-foreground">x {item.quantity}</p>
+                                                </div>
+                                            </div>
+                                            <p>Rs.{(item.price * item.quantity).toFixed(2)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <Separator />
+                            <div>
+                                <h4 className="font-semibold mb-2 text-sm">Order Summary</h4>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Subtotal:</span>
+                                        <span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Delivery Fee:</span>
+                                        <span>Rs.{(orderForBillView.deliveryFee ?? 0).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Taxes:</span>
+                                        <span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span>
+                                    </div>
+                                    <Separator className="my-2"/>
+                                    <div className="flex justify-between font-bold text-base mt-2">
+                                        <span>Grand Total:</span>
+                                        <span className="text-primary">Rs.{orderForBillView.total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Close</Button>
+                            </DialogClose>
+                        </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
               </Dialog>
             )}
             {orderToReview && (
