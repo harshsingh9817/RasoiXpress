@@ -20,7 +20,15 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
+const bannerImages = [
+    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles' },
+];
 
 export default function HomePage() {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -33,6 +41,15 @@ export default function HomePage() {
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
   const [heroData, setHeroData] = useState<HeroData | null>(null);
+  const [currentBanner, setCurrentBanner] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+        setCurrentBanner((prevBanner) => (prevBanner + 1) % bannerImages.length);
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(timer); // Cleanup on unmount
+  }, []);
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -107,17 +124,33 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="bg-primary text-primary-foreground py-10 md:py-16 px-4 sm:px-6 lg:px-8 rounded-lg shadow-xl">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="text-center md:text-left md:w-1/2 space-y-4">
-              <div role="heading" aria-level="1" className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up">
+       <section className="relative h-64 md:h-80 w-full rounded-lg overflow-hidden shadow-xl">
+        {bannerImages.map((banner, index) => (
+            <Image
+                key={index}
+                src={banner.src}
+                alt={`Promotional banner ${index + 1}`}
+                layout="fill"
+                objectFit="cover"
+                priority={index === 0}
+                className={cn(
+                    "transition-opacity duration-1000 ease-in-out",
+                    currentBanner === index ? "opacity-100" : "opacity-0"
+                )}
+                data-ai-hint={banner.hint}
+            />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+        <div className="absolute inset-0 flex items-center justify-between gap-8 p-4 sm:p-6 lg:p-8">
+          <div className="text-white md:w-1/2 space-y-4">
+              <div role="heading" aria-level="1" className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>
                 {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
               </div>
-              <div className="text-lg md:text-xl text-primary-foreground/90 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <div className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
                 {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
               </div>
           </div>
-          <div className="md:w-1/2 flex justify-center text-primary-foreground">
+          <div className="hidden md:w-1/2 md:flex justify-center text-primary-foreground">
               <AnimatedDeliveryScooter className="w-full max-w-sm h-auto" />
           </div>
         </div>

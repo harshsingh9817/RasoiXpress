@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2,
+  Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2, ListOrdered,
   Package, MessageSquare, Sparkles, PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck as DeliveredIcon, XCircle,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
@@ -347,6 +347,15 @@ const Header = () => {
                   <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                     <Home className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Menu</span>
+                  </Button>
+                </Link>
+              )}
+              
+               {!isDelivery && !isAdmin && (
+                <Link href="/my-orders">
+                  <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
+                    <ListOrdered className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">My Orders</span>
                   </Button>
                 </Link>
               )}

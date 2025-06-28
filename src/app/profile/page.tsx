@@ -157,6 +157,19 @@ export default function ProfilePage() {
     if (!isAuthLoading && !isAuthenticated) {
       router.replace('/login');
     }
+    
+    if (typeof window !== 'undefined') {
+        const hash = window.location.hash;
+        if (hash.startsWith('#track-order-')) {
+            const orderIdFromHash = hash.replace('#track-order-', '');
+            if (orderIdFromHash) {
+                setActiveTab('track');
+                setTrackOrderId(orderIdFromHash);
+                findAndDisplayOrderStatus(orderIdFromHash);
+            }
+        }
+    }
+
   }, [isAuthenticated, isAuthLoading, router]);
 
   useEffect(() => {
@@ -176,8 +189,8 @@ export default function ProfilePage() {
     }
     if (!firebaseUser) return;
     
-    const userOrders = await getUserOrders(firebaseUser.uid);
-    const foundOrder = userOrders.find((o: Order) => o.id.toLowerCase() === idToTrack.toLowerCase());
+    // Instead of re-fetching, use the already loaded orders state
+    const foundOrder = orders.find((o: Order) => o.id === idToTrack);
 
     if (foundOrder) {
       setTrackedOrderDetails(foundOrder);
@@ -414,7 +427,7 @@ export default function ProfilePage() {
   };
 
 
-  if (isAuthLoading || isDataLoading) {
+  if (isAuthLoading || (isDataLoading && !orders.length)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, User, ShieldCheck, HelpCircle, Bike } from 'lucide-react';
+import { Home, User, ShieldCheck, HelpCircle, Bike, ListOrdered } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import HelpDialog from './HelpDialog';
@@ -47,6 +47,13 @@ const BottomNav = () => {
                         <Link href="/" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/'))}>
                             <Home className="h-6 w-6" />
                             <span className="text-xs font-medium">Menu</span>
+                        </Link>
+                    )}
+
+                    {!isDelivery && !isAdmin && (
+                        <Link href="/my-orders" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/my-orders'))}>
+                            <ListOrdered className="h-6 w-6" />
+                            <span className="text-xs font-medium">My Orders</span>
                         </Link>
                     )}
 
