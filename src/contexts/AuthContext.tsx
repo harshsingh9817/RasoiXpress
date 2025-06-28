@@ -73,22 +73,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Effect to handle Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setIsLoading(true);
       if (currentUser) {
         setUser(currentUser);
-        const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
-        const riderEmails = await getRiderEmails();
-        const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
-
-        const userDocRef = doc(db, 'users', currentUser.uid);
         try {
-          await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
-        } catch (e) {
-          console.error("Error updating user delivery status in Firestore:", e);
+            const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
+            const riderEmails = await getRiderEmails();
+            const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
+
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
+            
+            setIsAdmin(isAdminClaim);
+            setIsDelivery(isDeliveryClaim);
+        } catch(error) {
+            console.error("Error fetching user claims:", error);
+            // If claims fail, log user out to prevent inconsistent state
+            await firebaseSignOut(auth);
+            setIsAdmin(false);
+            setIsDelivery(false);
         }
-        
-        setIsAdmin(isAdminClaim);
-        setIsDelivery(isDeliveryClaim);
       } else {
         setUser(null);
         setIsAdmin(false);
@@ -98,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, []); // Empty dependency array ensures this runs only once on mount.
+  }, []);
 
   // Effect to handle routing based on auth state
   useEffect(() => {
