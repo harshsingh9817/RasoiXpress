@@ -1,54 +1,107 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /menuItems/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+    // --- Helper Functions ---
+    function isAdmin() {
+      // The admin is identified by a specific email address.
+      return request.auth.email == 'harshsingh9817@gmail.com';
     }
 
-    match /globals/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    function isRider() {
+      // A user is a rider if their user document has `isDelivery` set to true.
+      // This flag is set by a trusted process in the AuthProvider.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
     }
 
-    match /users/{userId} {
-      allow get, update, delete: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-
-      match /addresses/{addressId} {
-        allow read, write: if request.auth.uid == userId;
-      }
+    function isOwner(userId) {
+      // Check if the requesting user is the owner of the document.
+      return request.auth.uid == userId;
     }
 
-    match /riders/{riderId} {
-      allow get, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
 
-    match /supportTickets/{ticketId} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    // --- Collection Rules ---
+
+    // Users can read/write their own data.
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
     }
     
+    // Menu items can be read by anyone, but only written by an admin.
+    match /menuItems/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Orders can be read by owner, admin, or rider.
+    // They can be created by the owner.
+    // They can be updated by admin, rider, or by the owner for specific actions (cancel/review).
     match /orders/{orderId} {
-      function isOwner() {
-        return request.auth.uid == resource.data.userId;
-      }
+      allow get: if request.auth != null && (
+        isOwner(resource.data.userId) ||
+        isAdmin() ||
+        isRider()
+      );
 
-      function isAdmin() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      }
-      
-      function isDelivery() {
-         return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
-      }
+      // Admins and Riders can list all orders.
+      // Regular users can only list orders where their UID matches.
+      allow list: if request.auth != null && (
+        isAdmin() || 
+        isRider() ||
+        request.query.where.userId == request.auth.uid
+      );
 
-      allow read: if isAdmin() || isDelivery() || isOwner();
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow update: if isAdmin() || isDelivery();
-      allow delete: if isAdmin();
+      // Any authenticated user can create an order for themselves.
+      allow create: if request.auth != null && isOwner(request.resource.data.userId);
+
+      // Admin/Rider can update status.
+      // Owner can update to cancel or to add a review.
+      allow update: if request.auth != null && (
+        (isAdmin() || isRider()) ||
+        (isOwner(resource.data.userId) && (
+          (
+            // Allow cancelling an order that was just placed
+            resource.data.status == 'Order Placed' &&
+            request.resource.data.status == 'Cancelled' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason'])
+          ) ||
+          (
+            // Allow submitting a review on a delivered order
+            resource.data.status == 'Delivered' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['review'])
+          )
+        ))
+      );
+
+      // No one can delete orders.
+      allow delete: if false;
+    }
+
+    // Admin can manage riders. Riders and Admin can read the list.
+    match /riders/{riderId} {
+      allow read: if request.auth != null && (isAdmin() || isRider());
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Global settings can be read by anyone, but only written by admin.
+    match /globals/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Support tickets can be created by any authenticated user.
+    // They can be read and updated only by an admin.
+    match /supportTickets/{ticketId} {
+      allow read, update: if isAdmin();
+      allow create: if request.auth != null;
+    }
+
+    // Admin messages can be created by admin.
+    // They can be read by the recipient user.
+    match /adminMessages/{messageId} {
+        allow read: if isOwner(resource.data.userId);
+        allow create: if isAdmin();
     }
   }
 }
