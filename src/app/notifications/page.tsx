@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 const getNotificationIcon = (notification: AppNotification) => {
-    const iconClass = `h-6 w-6 flex-shrink-0 ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
+    const iconClass = `h-6 w-6 flex-shrink-0 transition-colors ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
     switch (notification.type) {
         case 'admin_new_order': return <Package className={iconClass} />;
         case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
@@ -39,6 +40,7 @@ export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [viewingMessage, setViewingMessage] = useState<AppNotification | null>(null);
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
     const storageKey = isAdmin 
         ? 'rasoiExpressAdminNotifications' 
@@ -63,16 +65,30 @@ export default function NotificationsPage() {
             });
             
             setNotifications(sanitizedNotifications);
-            
-            // Mark all as read when page is opened
-            const updatedNotifications = sanitizedNotifications.map((n: AppNotification) => ({...n, read: true}));
-            localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
-            window.dispatchEvent(new Event('notificationsUpdated'));
+            setInitialLoadComplete(true);
         }
 
         setIsLoading(false);
 
     }, [isAuthLoading, isAuthenticated, router, storageKey]);
+    
+    // Mark notifications as read after they have been rendered
+    useEffect(() => {
+        if (initialLoadComplete && notifications.length > 0) {
+            const hasUnread = notifications.some(n => !n.read);
+            if (hasUnread) {
+                const timer = setTimeout(() => {
+                    const updatedNotifications = notifications.map((n: AppNotification) => ({...n, read: true}));
+                    localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
+                    window.dispatchEvent(new Event('notificationsUpdated'));
+                    // We don't need to call setNotifications here because the visual change is handled by CSS
+                    // and the badge count is updated globally. The next time the component loads, it will get the new state.
+                }, 1500); // Wait 1.5s before marking as read
+
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [initialLoadComplete, notifications, storageKey]);
     
     const handleNotificationClick = (notification: AppNotification) => {
       if (notification.type === 'admin_message') {
@@ -119,10 +135,10 @@ export default function NotificationsPage() {
                     {notifications.length > 0 ? (
                         <div className="space-y-4">
                             {notifications.sort((a,b) => b.timestamp - a.timestamp).map(n => (
-                                <div key={n.id} className={cn("flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50", !n.read && "bg-primary/5 border-primary/20")} onClick={() => handleNotificationClick(n)}>
+                                <div key={n.id} className={cn("flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors duration-500", !n.read && "bg-primary/5 border-primary/20")} onClick={() => handleNotificationClick(n)}>
                                     {getNotificationIcon(n)}
                                     <div className="flex-1">
-                                        <p className={cn("font-semibold", !n.read && "text-primary")}>{n.title}</p>
+                                        <p className={cn("font-semibold transition-colors", !n.read && "text-primary")}>{n.title}</p>
                                         <p className="text-sm text-muted-foreground">{n.message}</p>
                                         <p className="text-xs text-muted-foreground mt-1">{n.timestamp ? `${formatDistanceToNow(new Date(n.timestamp))} ago` : ''}</p>
                                     </div>
