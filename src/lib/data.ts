@@ -172,7 +172,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', addressId);
+    const docRef = doc(db, 'users', userId, 'addresses', id);
     await deleteDoc(docRef);
 }
 
@@ -314,10 +314,9 @@ export async function getRiderEmails(): Promise<string[]> {
     const ridersCol = collection(db, 'riders');
     const snapshot = await getDocs(ridersCol);
     if (snapshot.empty) {
-        return ['harshsingh9817@gmail.com']; // Keep default while list is empty
+        return [];
     }
-    const emails = snapshot.docs.map(doc => doc.data().email as string);
-    return [...emails, 'harshsingh9817@gmail.com']; // Also include default
+    return snapshot.docs.map(doc => doc.data().email as string);
 }
 
 export async function addRider(fullName: string, email: string): Promise<void> {
