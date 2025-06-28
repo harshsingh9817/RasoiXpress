@@ -55,10 +55,20 @@ export default function NotificationsPage() {
 
         if (isAuthenticated) {
             const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            setNotifications(storedNotifications);
+            
+            // Sanitize timestamps: Firestore Timestamps can be stringified into objects.
+            // Convert them to a number (milliseconds) that `new Date()` can use.
+            const sanitizedNotifications = storedNotifications.map((n: any) => {
+                if (n.timestamp && typeof n.timestamp === 'object' && n.timestamp.seconds !== undefined) {
+                    return { ...n, timestamp: n.timestamp.seconds * 1000 };
+                }
+                return n;
+            });
+            
+            setNotifications(sanitizedNotifications);
             
             // Mark all as read when page is opened
-            const updatedNotifications = storedNotifications.map((n: AppNotification) => ({...n, read: true}));
+            const updatedNotifications = sanitizedNotifications.map((n: AppNotification) => ({...n, read: true}));
             localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
         }
 
@@ -106,7 +116,7 @@ export default function NotificationsPage() {
                                     <div className="flex-1">
                                         <p className={cn("font-semibold", !n.read && "text-primary")}>{n.title}</p>
                                         <p className="text-sm text-muted-foreground">{n.message}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(n.timestamp))} ago</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{n.timestamp ? `${formatDistanceToNow(new Date(n.timestamp))} ago` : ''}</p>
                                     </div>
                                 </div>
                             ))}
