@@ -227,17 +227,18 @@ export default function MyOrdersPage() {
                                    <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
                                  </div>
                                </CardHeader>
-                               <CardContent className="space-y-4">
-                                  {order.deliveryConfirmationCode && (
-                                    <div className="pt-2">
-                                        <p className="text-sm font-medium flex items-center">
-                                            <ShieldCheck className="mr-2 h-4 w-4 text-primary"/>Delivery Code: 
-                                            <span className="ml-2 font-bold tracking-widest text-muted-foreground">{order.deliveryConfirmationCode}</span>
-                                        </p>
+                               <CardContent className="p-4 space-y-4">
+                                  {order.deliveryConfirmationCode && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                                    <div className="p-3 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
+                                      <h3 className="font-semibold text-sm text-primary flex items-center justify-center">
+                                        <ShieldCheck className="mr-2 h-4 w-4"/>
+                                        Delivery Code
+                                      </h3>
+                                      <p className="text-3xl font-bold tracking-widest my-1">{order.deliveryConfirmationCode}</p>
                                     </div>
                                   )}
                                   {order.review && (
-                                    <div className="pt-2 mt-2 border-t">
+                                    <div>
                                       <p className="text-sm font-medium">Your Review:</p>
                                       <div className="flex items-center mt-1">
                                         {[...Array(5)].map((_, i) => <Star key={i} className={cn("h-4 w-4", i < order.review!.rating ? "fill-accent text-accent" : "text-muted-foreground")} />)}
@@ -245,13 +246,16 @@ export default function MyOrdersPage() {
                                       {order.review.comment && <p className="text-xs text-muted-foreground italic mt-1">"{order.review.comment}"</p>}
                                     </div>
                                   )}
-                                  <div className="flex flex-wrap gap-2 pt-4 border-t">
+
+                                  {((order.deliveryConfirmationCode && order.status !== 'Delivered' && order.status !== 'Cancelled') || order.review) && <Separator />}
+
+                                  <div className="flex flex-wrap gap-2">
                                      <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
                                      <Button variant="outline" size="sm" onClick={() => handleOpenBillDialog(order)}><FileText className="mr-2 h-4 w-4" />View Bill</Button>
                                      {order.status === 'Order Placed' && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}
                                      {order.status === 'Delivered' && !order.review && <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => handleOpenReviewDialog(order)}><Star className="mr-2 h-4 w-4" />Leave Review</Button>}
                                   </div>
-                               </CardContent>
+                                </CardContent>
                              </Card>
                            ))
                         ) : (
