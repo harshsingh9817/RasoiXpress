@@ -9,6 +9,7 @@ import CartSheet from '@/components/CartSheet';
 import BottomNav from '@/components/BottomNav';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 import LayoutClientManager from '@/components/LayoutClientManager';
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 // Configure the font
 const ptSans = PT_Sans({
@@ -29,24 +30,31 @@ export default function RootLayout({
 }>) {
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
       </head>
       <body className={`${ptSans.variable} font-body antialiased`}>
-        <AuthProvider>
-          <CartProvider>
-            <LayoutClientManager>
-              <ServiceWorkerRegistrar />
-              <Header />
-              <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8">
-                {children}
-              </main>
-              <Toaster />
-              <CartSheet />
-              <BottomNav />
-            </LayoutClientManager>
-          </CartProvider>
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <CartProvider>
+              <LayoutClientManager>
+                <ServiceWorkerRegistrar />
+                <Header />
+                <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8">
+                  {children}
+                </main>
+                <Toaster />
+                <CartSheet />
+                <BottomNav />
+              </LayoutClientManager>
+            </CartProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

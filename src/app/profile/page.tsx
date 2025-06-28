@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -13,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff, Sun, Moon, Laptop } from 'lucide-react';
 import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/lib/data';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import { useTheme } from 'next-themes';
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = { fullName: '', type: 'Home', street: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' };
 
@@ -27,6 +28,7 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState('addresses');
   const [addresses, setAddresses] = useState<AddressType[]>([]);
@@ -212,6 +214,49 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">{notificationPermission === 'denied' && "You have blocked notifications."}</p>
                 </div>
               </div>
+              <Separator />
+               <div>
+                <h4 className="font-medium mb-2">Appearance</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                    Select the theme for the application.
+                </p>
+                <RadioGroup
+                    value={theme}
+                    onValueChange={setTheme}
+                    className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+                >
+                    <div>
+                    <RadioGroupItem value="light" id="light" className="peer sr-only" />
+                    <Label
+                        htmlFor="light"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                        <Sun className="mb-3 h-6 w-6" />
+                        Light
+                    </Label>
+                    </div>
+                    <div>
+                    <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
+                    <Label
+                        htmlFor="dark"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                        <Moon className="mb-3 h-6 w-6" />
+                        Dark
+                    </Label>
+                    </div>
+                    <div>
+                    <RadioGroupItem value="system" id="system" className="peer sr-only" />
+                    <Label
+                        htmlFor="system"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                        <Laptop className="mb-3 h-6 w-6" />
+                        System
+                    </Label>
+                    </div>
+                </RadioGroup>
+                </div>
             </CardContent>
           </Card>
         </TabsContent>
