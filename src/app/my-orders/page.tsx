@@ -164,7 +164,7 @@ export default function MyOrdersPage() {
                 // --- TRACKING VIEW ---
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle className="text-xl md:text-2xl font-headline">Track Order: {trackedOrder.id}</CardTitle>
+                        <CardTitle className="text-xl md:text-2xl font-headline">Track Order: #{trackedOrder.id.slice(-6)}</CardTitle>
                         <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -199,6 +199,19 @@ export default function MyOrdersPage() {
                             })}
                         </div>
                     )}
+                    {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && trackedOrder.deliveryConfirmationCode && (
+                        <>
+                            <Separator className="my-4" />
+                            <div className="p-4 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
+                                <h3 className="font-semibold text-lg text-primary flex items-center justify-center">
+                                    <ShieldCheck className="mr-2 h-5 w-5"/>
+                                    Your Delivery Code
+                                </h3>
+                                <p className="text-4xl font-bold tracking-widest my-2">{trackedOrder.deliveryConfirmationCode}</p>
+                                <p className="text-xs text-muted-foreground">Share this code with the delivery partner to complete your delivery.</p>
+                            </div>
+                        </>
+                    )}
                     </CardContent>
                 </Card>
             ) : (
@@ -215,7 +228,7 @@ export default function MyOrdersPage() {
                                <CardHeader>
                                  <div className="flex justify-between items-start">
                                    <div>
-                                     <CardTitle className="text-lg">Order ID: {order.id}</CardTitle>
+                                     <CardTitle className="text-lg">Order ID: #{order.id.slice(-6)}</CardTitle>
                                      <CardDescription>Date: {new Date(order.date).toLocaleString()} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></CardDescription>
                                    </div>
                                    <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
@@ -252,16 +265,16 @@ export default function MyOrdersPage() {
 
              {/* Dialogs */}
             <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-              <DialogContent><DialogHeader><DialogTitle>Confirm Cancellation</DialogTitle><DialogDescription>Select a reason for cancelling order <span className="font-semibold">{orderToCancel?.id}</span>.</DialogDescription></DialogHeader><div className="py-4"><Select value={selectedCancelReason} onValueChange={setSelectedCancelReason}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{CANCELLATION_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div><DialogFooter><Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button><Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>Confirm</Button></DialogFooter></DialogContent>
+              <DialogContent><DialogHeader><DialogTitle>Confirm Cancellation</DialogTitle><DialogDescription>Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.slice(-6)}</span>.</DialogDescription></DialogHeader><div className="py-4"><Select value={selectedCancelReason} onValueChange={setSelectedCancelReason}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{CANCELLATION_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div><DialogFooter><Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button><Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>Confirm</Button></DialogFooter></DialogContent>
             </Dialog>
             {orderForBillView && (
               <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Bill for Order {orderForBillView.id}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{(orderForBillView.deliveryFee ?? 0).toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+                <DialogContent><DialogHeader><DialogTitle>Bill for Order #{orderForBillView.id.slice(-6)}</DialogTitle></DialogHeader><div className="max-h-[60vh] overflow-y-auto pr-2 text-sm space-y-2">{orderForBillView.items.map(i=><div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>Rs.{(i.price * i.quantity).toFixed(2)}</span></div>)}<Separator /><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{calculateSubtotal(orderForBillView.items).toFixed(2)}</span></div><div className="flex justify-between"><span>Delivery:</span><span>Rs.{(orderForBillView.deliveryFee ?? 0).toFixed(2)}</span></div><div className="flex justify-between"><span>Taxes:</span><span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold"><span>Total:</span><span>Rs.{orderForBillView.total.toFixed(2)}</span></div></div><DialogFooter><Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
               </Dialog>
             )}
             {orderToReview && (
               <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Review Order {orderToReview.id}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="flex space-x-1">{[1,2,3,4,5].map(v=><Star key={v} className={cn("h-8 w-8 cursor-pointer", v <= currentRating ? "fill-accent text-accent" : "text-muted-foreground")} onClick={() => setCurrentRating(v)} />)}</div><Textarea value={currentReviewComment} onChange={e=>setCurrentReviewComment(e.target.value)} placeholder="Comments..." /></div><DialogFooter><Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button><Button onClick={handleReviewSubmit} disabled={currentRating === 0}>Submit</Button></DialogFooter></DialogContent>
+                <DialogContent><DialogHeader><DialogTitle>Review Order #{orderToReview.id.slice(-6)}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="flex space-x-1">{[1,2,3,4,5].map(v=><Star key={v} className={cn("h-8 w-8 cursor-pointer", v <= currentRating ? "fill-accent text-accent" : "text-muted-foreground")} onClick={() => setCurrentRating(v)} />)}</div><Textarea value={currentReviewComment} onChange={e=>setCurrentReviewComment(e.target.value)} placeholder="Comments..." /></div><DialogFooter><Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button><Button onClick={handleReviewSubmit} disabled={currentRating === 0}>Submit</Button></DialogFooter></DialogContent>
               </Dialog>
             )}
         </div>

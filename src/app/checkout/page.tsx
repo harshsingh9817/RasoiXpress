@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
@@ -13,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, Shield, QrCode, ArrowLeft } from 'lucide-react';
+import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -143,7 +144,7 @@ export default function CheckoutPage() {
         <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Placed!</h1>
         <p className="text-lg text-muted-foreground max-w-md">You can track your order on the "My Orders" page.</p>
         {orderDetails?.deliveryConfirmationCode && (
-           <Card className="mt-6 text-center p-4 border-dashed"><CardHeader className="p-2"><CardTitle className="text-lg text-primary"><Shield className="mr-2 h-5 w-5 inline"/>Delivery Code</CardTitle></CardHeader><CardContent className="p-2"><p className="text-4xl font-bold tracking-widest">{orderDetails.deliveryConfirmationCode}</p><p className="text-xs text-muted-foreground mt-2">Share this with the delivery partner.</p></CardContent></Card>
+           <Card className="mt-6 text-center p-4 border-dashed"><CardHeader className="p-2"><CardTitle className="text-lg text-primary"><ShieldCheck className="mr-2 h-5 w-5 inline"/>Delivery Code</CardTitle></CardHeader><CardContent className="p-2"><p className="text-4xl font-bold tracking-widest">{orderDetails.deliveryConfirmationCode}</p><p className="text-xs text-muted-foreground mt-2">Share this with the delivery partner.</p></CardContent></Card>
         )}
         <div className="mt-8 flex gap-4">
             <Button onClick={() => router.push('/my-orders')} size="lg">Go to My Orders</Button>
@@ -156,7 +157,34 @@ export default function CheckoutPage() {
 
   if (checkoutStep === 'payment') {
       return (
-          <div className="max-w-md mx-auto"><Card><CardHeader><CardTitle>Complete Payment</CardTitle><CardDescription>Scan the QR to pay.</CardDescription></CardHeader><CardContent className="flex flex-col items-center gap-4">{paymentSettings ? <Image src={paymentSettings.qrCodeImageUrl} alt="UPI QR Code" width={250} height={250} data-ai-hint="qr code"/> : <Skeleton className="h-[250px] w-[250px]" />}<div><p className="text-sm text-muted-foreground">Or pay to:</p>{paymentSettings ? <p className="font-semibold text-lg">{paymentSettings.upiId}</p> : <Skeleton className="h-6 w-48 mt-1" />}</div><Separator /><div className="w-full text-center"><p className="text-muted-foreground">Amount</p><p className="text-4xl font-bold text-primary">Rs.{grandTotal.toFixed(2)}</p></div></CardContent><CardFooter className="flex-col gap-4"><Button onClick={() => finalizeOrder(pendingOrderData!)} disabled={isLoading} className="w-full">{isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Verifying...</> : <><CheckCircle className="mr-2 h-5 w-5"/>I Have Paid</>}</Button><Button variant="outline" onClick={() => setCheckoutStep('details')} disabled={isLoading} className="w-full"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button></CardFooter></Card></div>
+          <div className="max-w-md mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Complete Payment</CardTitle>
+                <CardDescription>Scan the QR to pay.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4">
+                {paymentSettings ? <Image src={paymentSettings.qrCodeImageUrl} alt="UPI QR Code" width={250} height={250} data-ai-hint="qr code"/> : <Skeleton className="h-[250px] w-[250px]" />}
+                <div>
+                  <p className="text-sm text-muted-foreground">Or pay to:</p>
+                  {paymentSettings ? <p className="font-semibold text-lg">{paymentSettings.upiId}</p> : <Skeleton className="h-6 w-48 mt-1" />}
+                </div>
+                <Separator />
+                <div className="w-full text-center">
+                  <p className="text-muted-foreground">Amount</p>
+                  <p className="text-4xl font-bold text-primary">Rs.{grandTotal.toFixed(2)}</p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex-col gap-4">
+                <Button onClick={() => finalizeOrder(pendingOrderData!)} disabled={isLoading} className="w-full">
+                  {isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Verifying...</> : <><CheckCircle className="mr-2 h-5 w-5"/>I Have Paid</>}
+                </Button>
+                <Button variant="outline" onClick={() => setCheckoutStep('details')} disabled={isLoading} className="w-full">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
       )
   }
 
