@@ -17,6 +17,7 @@ import {
   Query,
   DocumentData,
   onSnapshot,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
@@ -129,7 +130,13 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status });
+    const dataToUpdate: { status: Order['status']; deliveryConfirmationCode?: any } = { status };
+
+    if (status === 'Delivered') {
+        dataToUpdate.deliveryConfirmationCode = deleteField();
+    }
+
+    await updateDoc(docRef, dataToUpdate);
 }
 
 export async function acceptOrderForDelivery(orderId: string, riderId: string, riderName: string): Promise<void> {
