@@ -142,7 +142,21 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { review });
+
+    // Create a clean review object to avoid passing 'undefined' to Firestore.
+    const cleanReview: { [key: string]: any } = {
+        rating: review.rating,
+        date: review.date,
+    };
+
+    // Only add the comment field if it has non-whitespace content.
+    if (review.comment && review.comment.trim()) {
+        cleanReview.comment = review.comment.trim();
+    }
+
+    // Overwriting the 'review' map field with the clean object will
+    // add/update the comment, or remove it if it's empty.
+    await updateDoc(docRef, { review: cleanReview });
 }
 
 export async function getAllOrders(): Promise<Order[]> {
