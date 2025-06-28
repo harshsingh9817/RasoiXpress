@@ -114,12 +114,16 @@ const Header = () => {
             }
 
             if (notif) {
-                // For the very first data load, only show notifications for recent events to avoid a flood.
-                if (isInitialLoad.current && notif.timestamp < twentyFourHoursAgo) {
-                    return; // Don't generate a visible notification for very old events on first load.
-                }
+                // We found a new event that has never had a notification. Add it to our list to be saved.
                 generatedNotifications.push(notif);
-                showSystemNotification(notif.title, { body: notif.message, tag: notif.id });
+
+                // Now, decide if we should show a pop-up system notification for it.
+                // We don't show pop-ups for very old events on the very first app load.
+                const shouldShowSystemAlert = !(isInitialLoad.current && notif.timestamp < twentyFourHoursAgo);
+                
+                if (shouldShowSystemAlert) {
+                    showSystemNotification(notif.title, { body: notif.message, tag: notif.id });
+                }
             }
         });
 
