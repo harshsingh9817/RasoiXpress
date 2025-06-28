@@ -61,30 +61,29 @@ export default function AdminOrdersPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  useEffect(() => {
-    if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
-      router.replace("/");
-    }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router]);
-
   const loadOrders = useCallback(async () => {
-    if (isAuthenticated && isAdmin) {
-      setIsDataLoading(true);
-      try {
-        const allOrders = await getAllOrders();
-        setOrders(allOrders);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
-      } finally {
-        setIsDataLoading(false);
-      }
+    setIsDataLoading(true);
+    try {
+      const allOrders = await getAllOrders();
+      setOrders(allOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
+    } finally {
+      setIsDataLoading(false);
     }
-  }, [isAuthenticated, isAdmin, toast]);
-
+  }, [toast]);
+  
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    if (isAuthLoading) {
+        return; // Wait for auth to resolve
+    }
+    if (isAuthenticated && isAdmin) {
+        loadOrders();
+    } else {
+        router.replace("/");
+    }
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, loadOrders]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
