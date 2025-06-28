@@ -19,14 +19,22 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 
+const defaultBanners: BannerImage[] = [
+    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles' },
+];
+
 const defaultHeroData: HeroData = {
     headline: 'Home Delivery In Nagra With Rasoi Xpress',
     subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
+    bannerImages: defaultBanners,
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -199,12 +207,11 @@ export async function setDefaultAddress(userId: string, addressIdToSetDefault: s
 export async function getHeroData(): Promise<HeroData> {
     const docRef = doc(db, 'globals', 'hero');
     const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
-        // Return default data but do not write to DB.
-        // The admin page is responsible for creating the document on save.
+    const data = docSnap.data();
+    if (!data || !data.bannerImages || data.bannerImages.length === 0) {
         return defaultHeroData;
     }
-    return docSnap.data() as HeroData;
+    return data as HeroData;
 }
 
 export async function updateHeroData(data: HeroData): Promise<void> {
@@ -217,8 +224,6 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     const docRef = doc(db, 'globals', 'paymentSettings');
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        // Return default data but do not write to DB.
-        // The admin page is responsible for creating the document on save.
         return defaultPaymentSettings;
     }
     return docSnap.data() as PaymentSettings;

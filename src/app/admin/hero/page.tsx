@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,12 +27,19 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Loader2, Save } from "lucide-react";
+import { LayoutTemplate, Loader2, Save, PlusCircle, Trash2 } from "lucide-react";
+
+const bannerSchema = z.object({
+  src: z.string().url("Please enter a valid image URL."),
+  hint: z.string().min(1, "AI hint is required (e.g., 'pizza meal')."),
+});
 
 const heroSchema = z.object({
   headline: z.string().min(10, "Headline must be at least 10 characters long."),
   subheadline: z.string().min(10, "Subheadline must be at least 10 characters long."),
+  bannerImages: z.array(bannerSchema).min(1, "You must have at least one banner image."),
 });
 
 type HeroFormValues = z.infer<typeof heroSchema>;
@@ -48,7 +55,13 @@ export default function HeroManagementPage() {
     defaultValues: {
       headline: "",
       subheadline: "",
+      bannerImages: [],
     },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "bannerImages",
   });
 
   useEffect(() => {
@@ -97,57 +110,117 @@ export default function HeroManagementPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center">
-            <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
-          </CardTitle>
-          <CardDescription>
-            Update the main headline and subheadline displayed on the homepage banner.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="headline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Main Headline</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter the main headline" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="subheadline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subheadline</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Enter the supporting text" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" /> Save Changes
-                  </>
-                )}
-              </Button>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+                <CardHeader>
+                  <CardTitle className="text-2xl font-headline flex items-center">
+                    <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
+                  </CardTitle>
+                  <CardDescription>
+                    Update the text and rotating banner images displayed on the homepage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <FormField
+                    control={form.control}
+                    name="headline"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Main Headline</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter the main headline" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="subheadline"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Subheadline</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter the supporting text" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-lg font-medium">Manage Banners</h3>
+                    <p className="text-sm text-muted-foreground">Add or remove banner images for the homepage carousel.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                        <div className="flex-1 space-y-2">
+                           <FormField
+                            control={form.control}
+                            name={`bannerImages.${index}.src`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Image URL</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="https://placehold.co/1280x400.png" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                           <FormField
+                            control={form.control}
+                            name={`bannerImages.${index}.hint`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>AI Hint</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="e.g., pizza meal" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="mt-7">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove banner</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                   <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => append({ src: 'https://placehold.co/1280x400.png', hint: 'new banner' })}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Banner
+                    </Button>
+                    <FormMessage>{form.formState.errors.bannerImages?.message}</FormMessage>
+
+                </CardContent>
+
+                <CardContent>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" /> Save All Changes
+                      </>
+                    )}
+                  </Button>
+              </CardContent>
             </form>
-          </Form>
-        </CardContent>
+        </Form>
       </Card>
     </div>
   );

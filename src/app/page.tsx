@@ -23,13 +23,6 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-const bannerImages = [
-    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles' },
-];
-
 export default function HomePage() {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -44,12 +37,17 @@ export default function HomePage() {
   const [currentBanner, setCurrentBanner] = useState(0);
 
   useEffect(() => {
+    // Only run the timer if there are images to cycle through
+    if (!heroData || !heroData.bannerImages || heroData.bannerImages.length === 0) {
+      return;
+    }
+
     const timer = setInterval(() => {
-        setCurrentBanner((prevBanner) => (prevBanner + 1) % bannerImages.length);
+      setCurrentBanner((prevBanner) => (prevBanner + 1) % heroData.bannerImages.length);
     }, 5000); // Change image every 5 seconds
 
     return () => clearInterval(timer); // Cleanup on unmount
-  }, []);
+  }, [heroData]); // Re-run when heroData changes
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -125,7 +123,7 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
        <section className="relative h-64 md:h-80 w-full rounded-lg overflow-hidden shadow-xl">
-        {bannerImages.map((banner, index) => (
+        {heroData?.bannerImages?.map((banner, index) => (
             <Image
                 key={index}
                 src={banner.src}

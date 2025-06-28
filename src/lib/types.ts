@@ -1,5 +1,6 @@
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -93,10 +94,15 @@ export interface AppNotification {
   orderStatus?: OrderStatus;
 }
 
+export interface BannerImage {
+  src: string;
+  hint: string;
+}
+
 export interface HeroData {
   headline: string;
   subheadline: string;
-  backgroundImageUrl?: string;
+  bannerImages: BannerImage[];
 }
 
 export interface PaymentSettings {
