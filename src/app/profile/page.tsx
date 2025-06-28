@@ -18,7 +18,7 @@ import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/lib/data';
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = { fullName: '', type: 'Home', street: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' };
 
@@ -135,10 +135,10 @@ export default function ProfilePage() {
   if (isAuthLoading || (isDataLoading && !addresses.length)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">{isAuthLoading ? "Loading profile..." : "Fetching your data..."}</p>
+        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading profile..." : "Fetching your data..."}</p>
       </div>
     );
   }

@@ -19,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Send, Mail } from 'lucide-react';
 import { sendSupportMessage } from '@/lib/data';
-import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 interface HelpDialogProps {
   isOpen: boolean;
@@ -137,7 +137,7 @@ const HelpDialog: React.FC<HelpDialogProps> = ({ isOpen, onOpenChange }) => {
             <Button type="submit" disabled={isSending}>
               {isSending ? (
                 <>
-                  <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Sending...
+                  <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Sending...
                 </>
               ) : (
                 <>

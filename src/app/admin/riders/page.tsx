@@ -51,8 +51,7 @@ import {
     FormLabel,
     FormMessage,
   } from "@/components/ui/form";
-import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
-import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
+import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 
 
 const riderSchema = z.object({
@@ -147,10 +146,10 @@ export default function RiderManagementPage() {
   if (isLoading || (!isAuthenticated && !isLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-xl text-muted-foreground mt-4">
           Verifying access...
         </p>
       </div>
@@ -201,7 +200,7 @@ export default function RiderManagementPage() {
                         <Button type="submit" disabled={form.formState.isSubmitting}>
                             {form.formState.isSubmitting ? (
                             <>
-                                <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Adding...
+                                <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Adding...
                             </>
                             ) : (
                             <>
@@ -225,8 +224,8 @@ export default function RiderManagementPage() {
             <CardContent>
             {isDataLoading ? (
                 <div className="flex items-center justify-center h-40">
-                    <div className="w-32 h-32 text-primary">
-                        <AnimatedFoodPackingAndLoading />
+                    <div className="w-24 h-24 text-primary">
+                        <AnimatedPlateSpinner />
                     </div>
                 </div>
             ) : (

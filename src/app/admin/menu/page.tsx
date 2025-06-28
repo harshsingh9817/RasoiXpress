@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import MenuItemFormDialog from "@/components/admin/MenuItemFormDialog";
 import { useToast } from "@/hooks/use-toast";
-import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
+import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 
 
 export default function MenuManagementPage() {
@@ -115,10 +115,10 @@ export default function MenuManagementPage() {
   if (isLoading || (!isAuthenticated && !isLoading) || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-xl text-muted-foreground mt-4">
           {isLoading ? "Verifying access..." : isDataLoading ? "Loading menu..." : "Access Denied. Redirecting..."}
         </p>
       </div>

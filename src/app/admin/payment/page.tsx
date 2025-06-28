@@ -14,15 +14,15 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription as CardDescriptionElement
 } from "@/components/ui/card";
 import {
   Form,
   FormControl,
-  FormDescription as FormDescriptionComponent,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -32,8 +32,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, Save, QrCode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
-import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
+import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 
 const paymentSettingsSchema = z.object({
   upiId: z.string().min(3, "UPI ID must be at least 3 characters long.").regex(/@/, "Please enter a valid UPI ID."),
@@ -99,10 +98,10 @@ export default function PaymentSettingsPage() {
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">Verifying access...</p>
+        <p className="text-xl text-muted-foreground mt-4">Verifying access...</p>
       </div>
     );
   }
@@ -116,9 +115,9 @@ export default function PaymentSettingsPage() {
               <CardTitle className="text-2xl font-headline flex items-center">
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Fee Settings
               </CardTitle>
-              <CardDescription>
+              <CardDescriptionElement>
                 Configure UPI, QR code, delivery fees, and tax rates for checkout.
-              </CardDescription>
+              </CardDescriptionElement>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8">
               <div className="space-y-6">
@@ -178,9 +177,9 @@ export default function PaymentSettingsPage() {
                                     <Input type="number" step="0.01" {...field} />
                                 </FormControl>
                                 <FormMessage />
-                                <FormDescriptionComponent className="text-xs">
+                                <FormDescription className="text-xs">
                                     Enter as decimal, e.g., 0.05 for 5%.
-                                </FormDescriptionComponent>
+                                </FormDescription>
                                 </FormItem>
                             )}
                         />
@@ -217,7 +216,7 @@ export default function PaymentSettingsPage() {
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
-                      <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Saving...
+                      <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> Saving...
                     </>
                   ) : (
                     <>

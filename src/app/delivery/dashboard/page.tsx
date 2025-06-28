@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { listenToAllOrders } from '@/lib/data';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -92,10 +92,10 @@ export default function DeliveryDashboard() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-xl text-muted-foreground mt-4">
           {isAuthLoading ? "Verifying delivery access..." : "Loading orders..."}
         </p>
       </div>
@@ -121,7 +121,7 @@ export default function DeliveryDashboard() {
                 {myActiveOrders.length > 0 ? (
                     myActiveOrders.map(order => <OrderCard key={order.id} order={order} />)
                 ) : (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 bg-card rounded-lg">
+                    <div className="col-span-1 md:col-span-2 lg:grid-cols-3 text-center py-12 bg-card rounded-lg">
                         <Bike className="mx-auto h-24 w-24 text-muted-foreground/50" />
                         <h2 className="mt-4 text-2xl font-semibold">All Caught Up!</h2>
                         <p className="text-muted-foreground">You don't have any active deliveries right now.</p>
@@ -139,7 +139,7 @@ export default function DeliveryDashboard() {
                 {availableOrders.length > 0 ? (
                     availableOrders.map(order => <OrderCard key={order.id} order={order} isAvailable />)
                 ) : (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 bg-card rounded-lg">
+                    <div className="col-span-1 md:col-span-2 lg:grid-cols-3 text-center py-12 bg-card rounded-lg">
                         <PackageSearch className="mx-auto h-24 w-24 text-muted-foreground/50" />
                         <h2 className="mt-4 text-2xl font-semibold">No Available Orders</h2>
                         <p className="text-muted-foreground">There are no new orders waiting for pickup.</p>

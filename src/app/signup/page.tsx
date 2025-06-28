@@ -12,8 +12,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
-import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -70,10 +69,10 @@ export default function SignupPage() {
   if (isAuthLoading || (!isAuthLoading && isAuthenticated)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">Loading...</p>
+        <p className="text-xl text-muted-foreground mt-4">Loading...</p>
       </div>
     );
   }
@@ -160,7 +159,7 @@ export default function SignupPage() {
               </div>
             </div>
              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
-              {isSubmitting ? <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> : <UserPlus className="mr-2 h-5 w-5" />}
+              {isSubmitting ? <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> : <UserPlus className="mr-2 h-5 w-5" />}
               {isSubmitting ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>

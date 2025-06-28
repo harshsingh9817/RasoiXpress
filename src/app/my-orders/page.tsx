@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered' ];
 const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
@@ -139,10 +139,10 @@ export default function MyOrdersPage() {
     if (isAuthLoading || isLoading) {
         return (
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-            <div className="w-40 h-40 text-primary">
-                <AnimatedFoodPackingAndLoading />
+            <div className="w-32 h-32 text-primary">
+                <AnimatedPlateSpinner />
             </div>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-xl text-muted-foreground mt-4">
               {isAuthLoading ? "Verifying..." : "Fetching your orders..."}
             </p>
           </div>

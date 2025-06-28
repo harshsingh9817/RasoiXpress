@@ -35,8 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { LifeBuoy, CheckCircle, Mail, Send, CornerUpLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
-import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
+import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 
 export default function SupportPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -127,10 +126,10 @@ export default function SupportPage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="w-40 h-40 text-primary">
-            <AnimatedFoodPackingAndLoading />
+        <div className="w-32 h-32 text-primary">
+            <AnimatedPlateSpinner />
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-xl text-muted-foreground mt-4">
           {isAuthLoading ? "Verifying access..." : "Loading tickets..."}
         </p>
       </div>
@@ -232,7 +231,7 @@ export default function SupportPage() {
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" disabled={isSendingReply}>Cancel</Button></DialogClose>
                 <Button onClick={handleSendReply} disabled={isSendingReply || !replyMessage.trim()}>
-                    {isSendingReply ? <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> : <Send className="mr-2 h-4 w-4"/>}
+                    {isSendingReply ? <div className="w-8 h-8 mr-2"><AnimatedPlateSpinner /></div> : <Send className="mr-2 h-4 w-4"/>}
                     {isSendingReply ? 'Sending...' : 'Send Reply'}
                 </Button>
             </DialogFooter>
