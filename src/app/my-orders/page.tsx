@@ -228,6 +228,18 @@ export default function MyOrdersPage() {
                                  </div>
                                </CardHeader>
                                <CardContent className="p-4 space-y-4">
+                                  <div className="space-y-2">
+                                      <p className="text-sm font-medium">Items:</p>
+                                      <div className="pl-2 space-y-1">
+                                          {order.items.map((item: OrderItem) => (
+                                              <div key={item.id} className="flex justify-between text-sm text-muted-foreground">
+                                                  <p>{item.name} &times; {item.quantity}</p>
+                                                  <p>Rs.{(item.price * item.quantity).toFixed(2)}</p>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                                  
                                   {order.status !== 'Cancelled' && order.deliveryConfirmationCode && (
                                     <div className="p-3 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
                                       <h3 className="font-semibold text-sm text-primary flex items-center justify-center">
@@ -237,6 +249,7 @@ export default function MyOrdersPage() {
                                       <p className="text-3xl font-bold tracking-widest my-1">{order.deliveryConfirmationCode}</p>
                                     </div>
                                   )}
+
                                   {order.review && (
                                     <div>
                                       <p className="text-sm font-medium">Your Review:</p>
@@ -247,7 +260,7 @@ export default function MyOrdersPage() {
                                     </div>
                                   )}
 
-                                  {((order.status !== 'Cancelled' && order.deliveryConfirmationCode) || order.review) && <Separator />}
+                                  <Separator />
 
                                   <div className="flex flex-wrap gap-2">
                                      <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
