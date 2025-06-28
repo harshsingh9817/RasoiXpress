@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -84,6 +83,18 @@ export default function NotificationsPage() {
       }
     };
 
+    const handleGoBack = () => {
+        // A simple router.back() might not work if the user navigated here directly.
+        // This provides a sensible, predictable fallback based on the user's role.
+        if (isAdmin) {
+            router.push('/admin');
+        } else if (isDelivery) {
+            router.push('/delivery/dashboard');
+        } else {
+            router.push('/');
+        }
+    };
+
     if (isLoading || isAuthLoading) {
         return (
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -95,7 +106,7 @@ export default function NotificationsPage() {
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">
-            <Button variant="outline" onClick={() => router.back()}>
+            <Button variant="outline" onClick={handleGoBack}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
             </Button>
 
