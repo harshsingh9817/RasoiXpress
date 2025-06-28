@@ -132,6 +132,34 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     await updateDoc(docRef, { status });
 }
 
+export async function acceptOrderForDelivery(orderId: string, riderId: string, riderName: string): Promise<void> {
+    const orderRef = doc(db, 'orders', orderId);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const orderDoc = await transaction.get(orderRef);
+            if (!orderDoc.exists()) {
+                throw "Order does not exist.";
+            }
+
+            const orderData = orderDoc.data();
+            if (orderData.deliveryRiderId) {
+                throw "This order has already been accepted by another rider.";
+            }
+
+            transaction.update(orderRef, {
+                status: 'Out for Delivery',
+                deliveryRiderId: riderId,
+                deliveryRiderName: riderName,
+            });
+        });
+    } catch (e: any) {
+        console.error("Accept order transaction failed: ", e);
+        // Re-throw the error to be caught by the calling component
+        throw new Error(e);
+    }
+}
+
+
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { 

@@ -18,7 +18,7 @@ const getNotificationIcon = (notification: AppNotification) => {
         case 'admin_new_order': return <Package className={iconClass} />;
         case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
         case 'admin_message': return <MessageSquare className={iconClass} />;
-        case 'delivery_assignment': return <Bike className={iconClass} />;
+        case 'delivery_available': return <Bike className={iconClass} />;
         case 'order_update':
             if (notification.orderStatus) {
                 switch (notification.orderStatus) {

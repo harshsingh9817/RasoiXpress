@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateOrderStatus, listenToOrderById } from '@/lib/data';
+import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery } from '@/lib/data';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 
@@ -27,7 +27,7 @@ const statusIcons: Record<OrderStatus, React.ElementType> = {
 };
 
 export default function DeliveryOrderDetailPage() {
-  const { isDelivery, isLoading: isAuthLoading } = useAuth();
+  const { user, isDelivery, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
   const orderId = params.id as string;
@@ -37,6 +37,7 @@ export default function DeliveryOrderDetailPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
+  const [isAccepting, setIsAccepting] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && !isDelivery) {
@@ -69,6 +70,25 @@ export default function DeliveryOrderDetailPage() {
         toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
     }
   };
+  
+  const handleAcceptOrder = async () => {
+    if (!order || !user) return;
+    setIsAccepting(true);
+    try {
+        await acceptOrderForDelivery(order.id, user.uid, user.displayName || user.email || 'Unnamed Rider');
+        toast({
+            title: 'Order Accepted!',
+            description: `You are now assigned to deliver order #${order.id.slice(-6)}.`,
+        });
+        // The real-time listener will update the view automatically.
+    } catch (error: any) {
+        console.error("Failed to accept order", error);
+        toast({ title: "Failed to Accept", description: error.message || "Could not accept this order.", variant: "destructive" });
+    } finally {
+        setIsAccepting(false);
+    }
+  };
+
 
   const handleOpenConfirmDialog = () => {
     setEnteredCode('');
@@ -223,7 +243,17 @@ export default function DeliveryOrderDetailPage() {
 
             </CardContent>
             <CardFooter>
-               {order.status === 'Out for Delivery' && (
+               {order.status === 'Confirmed' && !order.deliveryRiderId && (
+                  <Button 
+                    className="w-full text-lg py-6"
+                    onClick={handleAcceptOrder}
+                    disabled={isAccepting}
+                  >
+                    {isAccepting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Bike className="mr-2 h-5 w-5" />}
+                    {isAccepting ? 'Accepting...' : 'Accept for Delivery'}
+                  </Button>
+               )}
+               {order.status === 'Out for Delivery' && order.deliveryRiderId === user?.uid && (
                   <Button 
                     className="w-full text-lg py-6"
                     onClick={handleOpenConfirmDialog}

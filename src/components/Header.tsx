@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -87,11 +88,11 @@ const Header = () => {
                        notif = { id, timestamp: now, title: `Order Delivered`, message: `Order #${order.id.slice(-6)} for ${order.customerName} has been delivered.`, read: false, type: 'admin_order_delivered', orderId: order.id, link: '/admin/orders' };
                     }
                 }
-            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Out for Delivery') {
+            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Confirmed' && !(item as Order).deliveryRiderId) {
                 const order = item as Order;
                 id = `notif-delivery-new-order-${order.id}`;
                 if (!existingNotifications.some(n => n.id === id)) {
-                   notif = { id, timestamp: now, title: `New Delivery!`, message: `Pick up order #${order.id.slice(-6)} for ${order.customerName}.`, read: false, type: 'delivery_assignment', orderId: order.id, link: `/delivery/orders/${order.id}` };
+                   notif = { id, timestamp: now, title: `New Delivery Available!`, message: `Order #${order.id.slice(-6)} is ready for pickup.`, read: false, type: 'delivery_available', orderId: order.id, link: `/delivery/orders/${order.id}` };
                 }
             } else if (type === 'order' && 'status' in item) {
                 const order = item as Order;
@@ -145,13 +146,20 @@ const Header = () => {
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
-  if (isAuthLoading || !isAuthenticated) return null;
+  if (isAuthLoading) return (
+    <header className="sticky top-0 z-50 w-full border-b bg-sidebar-background/95 backdrop-blur">
+      <div className="container flex h-16 items-center justify-between">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-8 w-24" />
+      </div>
+    </header>
+  );
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-sidebar-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/" aria-label="Home"><RasoiXpressLogo /></Link>
+          <Link href={isDelivery ? '/delivery/dashboard' : '/'} aria-label="Home"><RasoiXpressLogo /></Link>
           
           <nav className="hidden md:flex items-center space-x-2">
             {!isDelivery && <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>}
@@ -159,25 +167,34 @@ const Header = () => {
             <Button variant="ghost" onClick={() => setIsHelpDialogOpen(true)}><HelpCircle className="mr-2 h-4 w-4" />Help</Button>
             {isDelivery && <Link href="/delivery/dashboard"><Button variant="ghost"><Bike className="mr-2 h-4 w-4" />Rider Panel</Button></Link>}
             {isAdmin && <Link href="/admin"><Button variant="ghost" className="text-red-600"><ShieldCheck className="mr-2 h-4 w-4" />Admin</Button></Link>}
-            <Link href={isDelivery ? "/delivery/profile" : "/profile"}><Button variant="ghost"><User className="mr-2 h-4 w-4" />Profile</Button></Link>
             
-            <Link href="/notifications">
-              <Button variant="outline" size="icon" className="relative rounded-full">
-                <Bell className="h-5 w-5 text-accent" />
-                {isClient && unreadNotificationCount > 0 && <Badge className="absolute -right-2 -top-2 h-6 w-6 justify-center rounded-full p-0">{unreadNotificationCount}</Badge>}
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+                <Link href={isDelivery ? "/delivery/profile" : "/profile"}><Button variant="ghost"><User className="mr-2 h-4 w-4" />Profile</Button></Link>
+            ) : (
+                <Link href="/login"><Button variant="ghost"><LogIn className="mr-2 h-4 w-4"/>Login</Button></Link>
+            )}
+            
+            {isAuthenticated && (
+                <Link href="/notifications">
+                <Button variant="outline" size="icon" className="relative rounded-full">
+                    <Bell className="h-5 w-5 text-accent" />
+                    {isClient && unreadNotificationCount > 0 && <Badge className="absolute -right-2 -top-2 h-6 w-6 justify-center rounded-full p-0">{unreadNotificationCount}</Badge>}
+                </Button>
+                </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-2 md:hidden">
-            <Link href="/notifications">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-6 w-6" />
-                {isClient && unreadNotificationCount > 0 && (
-                  <Badge variant="destructive" className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]">{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Badge>
-                )}
-              </Button>
-            </Link>
+            {isAuthenticated && (
+                <Link href="/notifications">
+                <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-6 w-6" />
+                    {isClient && unreadNotificationCount > 0 && (
+                    <Badge variant="destructive" className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]">{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Badge>
+                    )}
+                </Button>
+                </Link>
+            )}
           </div>
         </div>
       </header>

@@ -64,6 +64,8 @@ export interface Order {
   deliveryConfirmationCode?: string;
   deliveryFee: number;
   taxRate: number;
+  deliveryRiderId?: string;
+  deliveryRiderName?: string;
 }
 
 export interface Address {
@@ -85,7 +87,7 @@ export interface AppNotification {
   title: string;
   message: string;
   read: boolean;
-  type: 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'delivery_assignment';
+  type: 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'delivery_available';
   link?: string;
   orderId?: string;
   orderStatus?: OrderStatus;
