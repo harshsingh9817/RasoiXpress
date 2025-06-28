@@ -214,12 +214,16 @@ export default function AdminOrdersPage() {
                                 <div key={item.id} className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-3">
                                         <Image 
-                                            src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
-                                            alt={item.name} 
+                                            src={(item.imageUrl ?? 'https://placehold.co/40x40.png').split('?data-ai-hint=')[0].split('data-ai-hint=')[0]}
+                                            alt={item.name ?? 'Food item'} 
                                             width={40} 
                                             height={40} 
                                             className="rounded-md object-cover" 
-                                            data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
+                                            data-ai-hint={
+                                                item.imageUrl?.includes('data-ai-hint=')
+                                                ? item.imageUrl.split('data-ai-hint=')[1]
+                                                : `${item.name?.split(' ')[0].toLowerCase() || 'food'} ${item.category?.toLowerCase() || ''}`.trim()
+                                            }
                                         />
                                         <div>
                                             <p className="font-medium">{item.name}</p>

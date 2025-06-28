@@ -505,12 +505,16 @@ export default function ProfilePage() {
                           <li key={item.id + item.name} className="flex items-center justify-between text-sm text-muted-foreground">
                             <div className="flex items-center">
                               <Image
-                                src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
-                                alt={item.name}
+                                src={(item.imageUrl ?? 'https://placehold.co/40x40.png').split('?data-ai-hint=')[0].split('data-ai-hint=')[0]}
+                                alt={item.name ?? 'Food item'}
                                 width={40}
                                 height={40}
                                 className="rounded mr-2"
-                                data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
+                                data-ai-hint={
+                                    item.imageUrl?.includes('data-ai-hint=')
+                                    ? item.imageUrl.split('data-ai-hint=')[1]
+                                    : `${item.name?.split(' ')[0].toLowerCase() || 'food'} ${item.category?.toLowerCase() || ''}`.trim()
+                                }
                               />
                               <span>{item.name} (x{item.quantity})</span>
                             </div>
