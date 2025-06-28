@@ -106,6 +106,17 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     return { ...orderData, id: docRef.id } as Order;
 }
 
+export async function getOrderById(orderId: string): Promise<Order | null> {
+    const docRef = doc(db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Order;
+    }
+
+    return null;
+}
+
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status });
@@ -303,10 +314,10 @@ export async function getRiderEmails(): Promise<string[]> {
     const ridersCol = collection(db, 'riders');
     const snapshot = await getDocs(ridersCol);
     if (snapshot.empty) {
-        return ['harshsunil9817@gmail.com']; // Keep default while list is empty
+        return ['harshsingh9817@gmail.com']; // Keep default while list is empty
     }
     const emails = snapshot.docs.map(doc => doc.data().email as string);
-    return [...emails, 'harshsunil9817@gmail.com']; // Also include default
+    return [...emails, 'harshsingh9817@gmail.com']; // Also include default
 }
 
 export async function addRider(fullName: string, email: string): Promise<void> {

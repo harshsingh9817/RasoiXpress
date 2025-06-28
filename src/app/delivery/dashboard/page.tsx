@@ -4,16 +4,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, PhoneCall, KeyRound, MapPin, ClipboardList } from 'lucide-react';
+import { Loader2, Bike, PackageCheck, ChefHat, Truck, User, MapPin, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { updateOrderStatus, getAllOrders } from '@/lib/data';
+import { getAllOrders } from '@/lib/data';
+import Link from 'next/link';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -31,9 +28,6 @@ export default function DeliveryDashboard() {
   const { toast } = useToast();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null);
-  const [enteredCode, setEnteredCode] = useState('');
 
   useEffect(() => {
     if (!isAuthLoading && !isDelivery) {
@@ -69,47 +63,6 @@ export default function DeliveryDashboard() {
     loadActiveOrders();
   }, [loadActiveOrders]);
 
-  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    try {
-        await updateOrderStatus(orderId, newStatus);
-        toast({
-            title: 'Order Updated!',
-            description: `Order ${orderId.slice(-5)} is now marked as ${newStatus}.`,
-        });
-        await loadActiveOrders();
-    } catch (error) {
-        console.error("Failed to update status", error);
-        toast({ title: "Update Failed", description: "Could not update order status.", variant: "destructive" });
-    }
-  };
-
-  const handleOpenConfirmDialog = (order: Order) => {
-    setOrderToConfirm(order);
-    setEnteredCode('');
-    setIsConfirmDialogOpen(true);
-  };
-
-  const handleConfirmDelivery = () => {
-    if (!orderToConfirm || !enteredCode) return;
-
-    if (enteredCode === orderToConfirm.deliveryConfirmationCode) {
-      handleUpdateStatus(orderToConfirm.id, 'Delivered');
-      setIsConfirmDialogOpen(false);
-      setOrderToConfirm(null);
-      toast({
-        title: 'Delivery Confirmed!',
-        description: `Order ${orderToConfirm.id.slice(-5)} marked as delivered.`,
-        variant: 'default',
-      });
-    } else {
-      toast({
-        title: 'Incorrect Code',
-        description: 'The confirmation code is incorrect. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -137,69 +90,35 @@ export default function DeliveryDashboard() {
         {activeOrders.length > 0 ? activeOrders.map(order => {
             const Icon = statusIcons[order.status] || ClipboardList;
             return (
-                <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span>Order #{order.id.slice(-6)}</span>
-                             <Badge variant={order.status === 'Shipped' || order.status === 'Out for Delivery' ? 'default' : 'secondary'}>
-                               <Icon className="mr-1.5 h-3 w-3" />
-                               {order.status}
-                             </Badge>
-                        </CardTitle>
-                        <CardDescription>
-                            Placed on: {new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 flex-grow">
-                        <div className="space-y-1 text-sm">
-                            <p className="font-semibold flex items-center"><User className="mr-2 h-4 w-4 text-muted-foreground"/>Customer:</p>
-                            <p className="pl-6 text-muted-foreground">{order.customerName}</p>
-                        </div>
-                        {order.customerPhone && (
-                           <div className="space-y-1 text-sm">
-                              <p className="font-semibold flex items-center"><PhoneCall className="mr-2 h-4 w-4 text-muted-foreground"/>Contact:</p>
-                               <div className="pl-6 flex items-center justify-between">
-                                 <p className="text-muted-foreground">{order.customerPhone}</p>
-                                  <Button size="sm" variant="outline" asChild>
-                                      <a href={`tel:${order.customerPhone}`}>Call</a>
-                                  </Button>
-                               </div>
-                           </div>
-                        )}
-                         <div className="space-y-1 text-sm">
-                            <p className="font-semibold flex items-center"><MapPin className="mr-2 h-4 w-4 text-muted-foreground"/>Address:</p>
-                            <p className="pl-6 text-muted-foreground">{order.shippingAddress}</p>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                            <p className="font-semibold flex items-center"><ClipboardList className="mr-2 h-4 w-4 text-muted-foreground"/>Items:</p>
-                            <ul className="pl-6 text-muted-foreground list-disc list-inside">
-                                {order.items.map(item => (
-                                    <li key={item.id}>{item.name} (x{item.quantity})</li>
-                                ))}
-                            </ul>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                       {order.status === 'Shipped' && (
-                          <Button
-                            className="w-full"
-                            onClick={() => handleUpdateStatus(order.id, 'Out for Delivery')}
-                          >
-                            <Bike className="mr-2 h-4 w-4" />
-                            Start Delivery
-                          </Button>
-                       )}
-                       {order.status === 'Out for Delivery' && (
-                          <Button 
-                            className="w-full" 
-                            onClick={() => handleOpenConfirmDialog(order)}
-                          >
-                            <KeyRound className="mr-2 h-4 w-4" />
-                            Confirm Delivery
-                          </Button>
-                       )}
-                    </CardFooter>
-                </Card>
+                <Link href={`/delivery/orders/${order.id}`} key={order.id} className="block h-full group">
+                    <Card className="shadow-lg hover:shadow-xl transition-shadow flex flex-col h-full group-hover:border-primary">
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                <span>Order #{order.id.slice(-6)}</span>
+                                <Badge variant={order.status === 'Shipped' || order.status === 'Out for Delivery' ? 'default' : 'secondary'}>
+                                <Icon className="mr-1.5 h-3 w-3" />
+                                {order.status}
+                                </Badge>
+                            </CardTitle>
+                            <CardDescription>
+                                Placed: {new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 flex-grow">
+                            <div className="space-y-1 text-sm">
+                                <p className="font-semibold flex items-center"><User className="mr-2 h-4 w-4 text-muted-foreground"/>Customer:</p>
+                                <p className="pl-6 text-muted-foreground">{order.customerName}</p>
+                            </div>
+                            <div className="space-y-1 text-sm">
+                                <p className="font-semibold flex items-center"><MapPin className="mr-2 h-4 w-4 text-muted-foreground"/>Address:</p>
+                                <p className="pl-6 text-muted-foreground line-clamp-2">{order.shippingAddress}</p>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                           <p className="text-xs text-muted-foreground w-full text-center group-hover:text-primary transition-colors">Click to view details & actions</p>
+                        </CardFooter>
+                    </Card>
+                </Link>
             )
         }) : (
             <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12">
@@ -209,34 +128,6 @@ export default function DeliveryDashboard() {
             </div>
         )}
       </div>
-
-      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Confirm Delivery</DialogTitle>
-                <DialogDescription>
-                    Enter the 4-digit code provided by the customer to confirm that the order has been delivered.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="confirmation-code">Delivery Code</Label>
-                    <Input
-                        id="confirmation-code"
-                        value={enteredCode}
-                        onChange={(e) => setEnteredCode(e.target.value)}
-                        placeholder="1234"
-                        maxLength={4}
-                        className="text-center text-2xl tracking-[1rem]"
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleConfirmDelivery} disabled={!enteredCode || enteredCode.length < 4}>Confirm</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

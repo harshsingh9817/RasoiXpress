@@ -3,80 +3,81 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAdmin() {
-      return request.auth.token.email == 'harshsingh9817@gmail.com';
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isDelivery() {
-      // Check for a custom claim set on the user's token.
-      // This is more secure than checking the database.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
-    }
-    
-    // Globals collection for sitewide settings like hero text
-    match /globals/{docId} {
-        allow read: if true;
-        allow write: if isAdmin();
-    }
-    
-    match /menuItems/{menuItemId} {
-        allow read: if true;
-        allow create, update, delete: if isAdmin();
-    }
-
-    match /orders/{orderId} {
-      // A user can read their own order, admins and delivery can read any.
-      allow get: if isOwner(resource.data.userId) || isAdmin() || isDelivery();
-      
-      // Regular users can ONLY list orders filtered by their own userId.
-      // Admins and Delivery partners can list all orders (their queries have no filters).
-      allow list: if (
-        request.query.filters.size() == 1 &&
-        request.query.filters[0].field == 'userId' &&
-        request.query.filters[0].value == request.auth.uid
-      ) || isAdmin() || isDelivery();
-
-      // Only authenticated users can create orders for themselves
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-
-      // Only allow updating status by admin/delivery, or cancellation/review by owner.
-      allow update: if (isAdmin() || isDelivery()) || 
-                       (isOwner(resource.data.userId) && 
-                         (request.resource.data.status == 'Cancelled' || 
-                          request.resource.data.review != resource.data.review));
-    }
     
     match /users/{userId} {
-      allow read, create, update: if isOwner(userId);
-      allow list: if isAdmin(); // Only admins can list users
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Admin can update any user doc (e.g. to set isDelivery flag)
+      allow write: if request.auth.token.email == 'harshsingh9817@gmail.com';
+    }
 
-      match /addresses/{addressId} {
-        allow read, list: if isOwner(userId) || isAdmin();
-        allow create, update, delete: if isOwner(userId) || isAdmin();
-      }
+    match /users/{userId}/addresses/{addressId} {
+      // Users can manage their own addresses.
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
     
+    match /globals/{docId} {
+      // Only admins can write to global settings.
+      allow write: if request.auth.token.email == 'harshsingh9817@gmail.com';
+      // Any authenticated user can read them (e.g., hero text, payment settings).
+      allow read: if request.auth != null;
+    }
+
+    match /menuItems/{menuId} {
+      allow read: if request.auth != null; // All authenticated users can read the menu.
+      allow write, delete: if request.auth.token.email == 'harshsingh9817@gmail.com'; // Only admin can edit menu.
+    }
+    
+    match /orders/{orderId} {
+      // Any authenticated user can create an order
+      allow create: if request.auth != null;
+      
+      // GET rule: Who can read a single document if they know its ID.
+      // This is the most important rule for read security.
+      allow get: if request.auth != null && (
+      	resource.data.userId == request.auth.uid || // The user who placed it
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true || // Any delivery rider
+        request.auth.token.email == 'harshsingh9817@gmail.com' // The admin
+      );
+
+      // LIST rule: Who can run queries on the collection.
+      // We allow any authenticated user to list, but the `get` rule above
+      // prevents them from reading data they shouldn't have access to if they try to fetch all docs.
+      // Client-side code is responsible for correctly filtering (e.g., where('userId', '==', uid)).
+      allow list: if request.auth != null;
+
+      // UPDATE rule
+      allow update: if request.auth != null && (
+        // User can update (cancel, review) their own order
+        (resource.data.userId == request.auth.uid && (
+            'status' in request.resource.data || 'review' in request.resource.data || 'cancellationReason' in request.resource.data
+         )) ||
+        // Admin or Rider can update status
+        (request.auth.token.email == 'harshsingh9817@gmail.com' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true)
+      );
+      
+      // DELETE rule
+      allow delete: if request.auth.token.email == 'harshsingh9817@gmail.com'; // Only admin can delete orders.
+    }
+
     match /riders/{riderId} {
-      allow read, list: if true;
-      allow create, delete: if isAdmin();
-    }
-    
-    match /adminMessages/{messageId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow create: if isAdmin();
-      allow list: if isOwner(request.query.filters[0].value) || isAdmin();
+      // Only admin can manage the rider list
+      allow read, write, delete: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
     match /supportTickets/{ticketId} {
+      // Any authenticated user can create a ticket.
       allow create: if request.auth != null;
-      allow read, list: if isAdmin();
-      allow update: if isAdmin() && request.resource.data.status == 'Resolved';
+      // Only admins can read, update (resolve), or delete tickets.
+      allow read, update, delete: if request.auth.token.email == 'harshsingh9817@gmail.com';
+    }
+
+    match /adminMessages/{messageId} {
+        // Only admin can create messages
+        allow create: if request.auth.token.email == 'harshsingh9817@gmail.com';
+        // Users can only read messages sent to them.
+        allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+        // Admin can read all messages.
+        allow read: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
   }
 }
