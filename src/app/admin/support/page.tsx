@@ -32,7 +32,7 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, LifeBuoy, CheckCircle, Mail, MessageSquare, CornerUpLeft } from "lucide-react";
+import { Loader2, LifeBuoy, CheckCircle, Mail, Send, CornerUpLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 
