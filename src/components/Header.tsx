@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -55,6 +54,13 @@ const Header = () => {
 
     const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : `rasoiExpressUserNotifications_${user.uid}`;
     
+    const syncNotificationsFromStorage = () => {
+        const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        setNotifications(storedNotifications);
+    };
+    
+    window.addEventListener('notificationsUpdated', syncNotificationsFromStorage);
+    
     const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order') => {
         const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
@@ -90,11 +96,10 @@ const Header = () => {
         });
 
         if (generatedNotifications.length > 0) {
-            setNotifications(prev => {
-                const all = [...prev, ...generatedNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
-                localStorage.setItem(storageKey, JSON.stringify(all));
-                return all;
-            });
+            const currentNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const all = [...currentNotifications, ...generatedNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
+            localStorage.setItem(storageKey, JSON.stringify(all));
+            setNotifications(all);
         }
     };
 
@@ -108,12 +113,12 @@ const Header = () => {
     }
     
     // Load initial from storage & stop loading spinner
-    const initialNotifs = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    setNotifications(initialNotifs);
+    syncNotificationsFromStorage();
     setIsLoadingNotifications(false);
 
     return () => {
         unsubscribers.forEach(unsub => unsub());
+        window.removeEventListener('notificationsUpdated', syncNotificationsFromStorage);
     };
 
 }, [isClient, isAuthenticated, user, isAdmin, isDelivery, isAuthLoading]);

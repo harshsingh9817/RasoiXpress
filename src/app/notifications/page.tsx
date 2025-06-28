@@ -55,8 +55,6 @@ export default function NotificationsPage() {
         if (isAuthenticated) {
             const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
             
-            // Sanitize timestamps: Firestore Timestamps can be stringified into objects.
-            // Convert them to a number (milliseconds) that `new Date()` can use.
             const sanitizedNotifications = storedNotifications.map((n: any) => {
                 if (n.timestamp && typeof n.timestamp === 'object' && n.timestamp.seconds !== undefined) {
                     return { ...n, timestamp: n.timestamp.seconds * 1000 };
@@ -69,6 +67,7 @@ export default function NotificationsPage() {
             // Mark all as read when page is opened
             const updatedNotifications = sanitizedNotifications.map((n: AppNotification) => ({...n, read: true}));
             localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
+            window.dispatchEvent(new Event('notificationsUpdated'));
         }
 
         setIsLoading(false);
@@ -84,8 +83,6 @@ export default function NotificationsPage() {
     };
 
     const handleGoBack = () => {
-        // A simple router.back() might not work if the user navigated here directly.
-        // This provides a sensible, predictable fallback based on the user's role.
         if (isAdmin) {
             router.push('/admin');
         } else if (isDelivery) {
@@ -121,7 +118,7 @@ export default function NotificationsPage() {
                 <CardContent>
                     {notifications.length > 0 ? (
                         <div className="space-y-4">
-                            {notifications.map(n => (
+                            {notifications.sort((a,b) => b.timestamp - a.timestamp).map(n => (
                                 <div key={n.id} className={cn("flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50", !n.read && "bg-primary/5 border-primary/20")} onClick={() => handleNotificationClick(n)}>
                                     {getNotificationIcon(n)}
                                     <div className="flex-1">
