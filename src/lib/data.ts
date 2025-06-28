@@ -142,20 +142,13 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-
-    // Create a clean review object to avoid passing 'undefined' to Firestore.
     const cleanReview: { [key: string]: any } = {
         rating: review.rating,
         date: review.date,
     };
-
-    // Only add the comment field if it has non-whitespace content.
     if (review.comment && review.comment.trim()) {
         cleanReview.comment = review.comment.trim();
     }
-
-    // Overwriting the 'review' map field with the clean object will
-    // add/update the comment, or remove it if it's empty.
     await updateDoc(docRef, { review: cleanReview });
 }
 
@@ -232,7 +225,14 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
     const messagesCol = collection(db, 'adminMessages');
     const q = query(messagesCol, where('userId', '==', userId), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+        const messages = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp?.toMillis() || Date.now(),
+            }
+        }) as AdminMessage[];
         callback(messages);
     }, (error) => {
         console.error("Error listening to user admin messages:", error);
@@ -368,15 +368,6 @@ export async function getAdminMessages(): Promise<AdminMessage[]> {
     const q = query(messagesCol, orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
-}
-
-export async function getUserAdminMessages(userId: string): Promise<AdminMessage[]> {
-    if (!userId) return [];
-    const messagesCol = collection(db, 'adminMessages');
-    const q = query(messagesCol, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
-    return messages.sort((a,b) => b.timestamp - a.timestamp);
 }
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {

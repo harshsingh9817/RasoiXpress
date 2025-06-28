@@ -52,7 +52,11 @@ const Header = () => {
 
     setIsLoadingNotifications(true);
 
-    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : `rasoiExpressUserNotifications_${user.uid}`;
+    const storageKey = isAdmin 
+        ? 'rasoiExpressAdminNotifications' 
+        : isDelivery 
+        ? 'rasoiExpressDeliveryNotifications' 
+        : `rasoiExpressUserNotifications_${user.uid}`;
     
     const syncNotificationsFromStorage = () => {
         const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -61,29 +65,44 @@ const Header = () => {
     
     window.addEventListener('notificationsUpdated', syncNotificationsFromStorage);
     
-    const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order') => {
+    const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order') => {
         const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
 
         newItems.forEach(item => {
             let id: string, notif: AppNotification | null = null;
+            const now = Date.now();
 
-            if (type === 'admin_order' && 'status' in item && item.status === 'Order Placed') {
+            if (type === 'admin_order' && 'status' in item) {
                 const order = item as Order;
-                id = `notif-admin-new-order-${order.id}`;
+                if (order.status === 'Order Placed') {
+                    id = `notif-admin-new-order-${order.id}`;
+                    if (!existingNotifications.some(n => n.id === id)) {
+                       notif = { id, timestamp: now, title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
+                    }
+                }
+                if (order.status === 'Delivered') {
+                    id = `notif-admin-order-delivered-${order.id}`;
+                    if (!existingNotifications.some(n => n.id === id)) {
+                       notif = { id, timestamp: now, title: `Order Delivered`, message: `Order #${order.id.slice(-6)} for ${order.customerName} has been delivered.`, read: false, type: 'admin_order_delivered', orderId: order.id, link: '/admin/orders' };
+                    }
+                }
+            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Out for Delivery') {
+                const order = item as Order;
+                id = `notif-delivery-new-order-${order.id}`;
                 if (!existingNotifications.some(n => n.id === id)) {
-                   notif = { id, timestamp: new Date(order.date).getTime(), title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
+                   notif = { id, timestamp: now, title: `New Delivery!`, message: `Pick up order #${order.id.slice(-6)} for ${order.customerName}.`, read: false, type: 'delivery_assignment', orderId: order.id, link: `/delivery/orders/${order.id}` };
                 }
             } else if (type === 'order' && 'status' in item) {
                 const order = item as Order;
-                id = `notif-${order.id}-${order.status}`;
+                id = `notif-user-${order.id}-${order.status}`;
                 if (!existingNotifications.some(n => n.id === id) && orderStatusNotificationMap[order.status]) {
                     const details = orderStatusNotificationMap[order.status]!;
-                    notif = { id, timestamp: new Date(order.date).getTime(), title: `${details.title}`, message: details.message, read: false, type: 'order_update', orderId: order.id, orderStatus: order.status, link: `/my-orders?track=${order.id}` };
+                    notif = { id, timestamp: now, title: `${details.title}`, message: details.message, read: false, type: 'order_update', orderId: order.id, orderStatus: order.status, link: `/my-orders?track=${order.id}` };
                 }
             } else if (type === 'message' && 'title' in item) {
                 const msg = item as AdminMessage;
-                id = `notif-${msg.id}`;
+                id = `notif-message-${msg.id}`;
                 if (!existingNotifications.some(n => n.id === id)) {
                     notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' };
                 }
@@ -97,7 +116,7 @@ const Header = () => {
 
         if (generatedNotifications.length > 0) {
             const currentNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const all = [...currentNotifications, ...generatedNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
+            const all = [...generatedNotifications, ...currentNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
             localStorage.setItem(storageKey, JSON.stringify(all));
             setNotifications(all);
         }
@@ -107,12 +126,13 @@ const Header = () => {
 
     if (isAdmin) {
         unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'admin_order')));
-    } else if (!isDelivery) {
+    } else if (isDelivery) {
+        unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'delivery_order')));
+    } else {
         unsubscribers.push(listenToUserOrders(user.uid, orders => processNotifications(orders, 'order')));
         unsubscribers.push(listenToUserAdminMessages(user.uid, messages => processNotifications(messages, 'message')));
     }
     
-    // Load initial from storage & stop loading spinner
     syncNotificationsFromStorage();
     setIsLoadingNotifications(false);
 
@@ -133,7 +153,6 @@ const Header = () => {
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" aria-label="Home"><RasoiXpressLogo /></Link>
           
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-2">
             {!isDelivery && <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>}
             {!isDelivery && !isAdmin && <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>}
@@ -150,7 +169,6 @@ const Header = () => {
             </Link>
           </nav>
 
-           {/* Mobile Nav Actions */}
           <div className="flex items-center gap-2 md:hidden">
             <Link href="/notifications">
               <Button variant="ghost" size="icon" className="relative">
