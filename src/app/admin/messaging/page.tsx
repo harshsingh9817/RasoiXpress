@@ -37,8 +37,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageSquare, Send } from "lucide-react";
 
+const ALL_USERS_VALUE = "--all-users--";
+
 const messageSchema = z.object({
-  userId: z.string().min(1, "Please select a user."),
+  userId: z.string().min(1, "Please select a user or 'All Users'."),
   title: z.string().min(5, "Title must be at least 5 characters.").max(50, "Title cannot exceed 50 characters."),
   message: z.string().min(10, "Message must be at least 10 characters.").max(500, "Message cannot exceed 500 characters."),
 });
@@ -78,24 +80,38 @@ export default function MessagingPage() {
   const onSubmit = async (data: MessageFormValues) => {
     setIsSubmitting(true);
     try {
-      const selectedUser = users.find(u => u.id === data.userId);
-      if (!selectedUser) {
-        toast({ title: "User not found", variant: "destructive" });
-        return;
+      if (data.userId === ALL_USERS_VALUE) {
+        // Broadcast to all users
+        const allPromises = users.map(user => 
+            sendAdminMessage(user.id, user.email, data.title, data.message)
+        );
+        await Promise.all(allPromises);
+        toast({
+          title: "Message Broadcast!",
+          description: `Your message has been sent to all ${users.length} users.`,
+        });
+
+      } else {
+        // Send to a single user
+        const selectedUser = users.find(u => u.id === data.userId);
+        if (!selectedUser) {
+          toast({ title: "User not found", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+        }
+        await sendAdminMessage(selectedUser.id, selectedUser.email, data.title, data.message);
+        toast({
+          title: "Message Sent!",
+          description: `Your message has been sent to ${selectedUser.email}.`,
+        });
       }
-
-      await sendAdminMessage(selectedUser.id, selectedUser.email, data.title, data.message);
-
-      toast({
-        title: "Message Sent!",
-        description: `Your message has been sent to ${selectedUser.email}.`,
-      });
+      
       form.reset({ userId: '', title: '', message: '' });
     } catch (error) {
-      console.error("Failed to send message", error);
+      console.error("Failed to send message(s)", error);
       toast({
         title: "Failed to Send",
-        description: "An error occurred while sending the message.",
+        description: "An error occurred while sending the message(s).",
         variant: "destructive",
       });
     } finally {
@@ -117,10 +133,10 @@ export default function MessagingPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center">
-            <MessageSquare className="mr-3 h-6 w-6 text-primary" /> Send a Message
+            <MessageSquare className="mr-3 h-6 w-6 text-primary" /> Send a Notification
           </CardTitle>
           <CardDescription>
-            Send a direct notification to a specific user. The message will appear in their notification panel.
+            Send a direct notification to a specific user or broadcast a message to all users.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -131,7 +147,7 @@ export default function MessagingPage() {
                 name="userId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Select User</FormLabel>
+                    <FormLabel>Recipient</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -139,6 +155,7 @@ export default function MessagingPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value={ALL_USERS_VALUE}>All Users</SelectItem>
                         {users.length > 0 ? (
                           users.map(user => (
                             <SelectItem key={user.id} value={user.id}>

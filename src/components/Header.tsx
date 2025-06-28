@@ -14,8 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { AppNotification, Order, OrderStatus, AdminMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders } from '@/lib/data';
@@ -29,38 +28,13 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
   'Cancelled': { title: 'Order Cancelled', message: 'Your order has been successfully cancelled.' },
 };
 
-const getNotificationIcon = (notification: AppNotification) => {
-    const iconClass = `h-5 w-5 flex-shrink-0 ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
-    switch (notification.type) {
-        case 'admin_new_order': return <Package className={iconClass} />;
-        case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
-        case 'admin_message': return <MessageSquare className={iconClass} />;
-        case 'delivery_assignment': return <Bike className={iconClass} />;
-        case 'order_update':
-            if (notification.orderStatus) {
-                switch (notification.orderStatus) {
-                    case 'Order Placed': return <PackagePlus className={iconClass} />;
-                    case 'Confirmed': return <ClipboardCheck className={iconClass} />;
-                    case 'Preparing': return <ChefHat className={iconClass} />;
-                    case 'Out for Delivery': return <Bike className={iconClass} />;
-                    case 'Delivered': return <DeliveredIcon className={iconClass} />;
-                    case 'Cancelled': return <XCircle className={iconClass} />;
-                }
-            }
-    }
-    return <Bell className={iconClass} />;
-}
-
 const Header = () => {
   const { user, isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   
-  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
-  const [viewingMessage, setViewingMessage] = useState<AppNotification | null>(null);
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => { setIsClient(true); }, []);
@@ -79,7 +53,7 @@ const Header = () => {
 
     setIsLoadingNotifications(true);
 
-    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : 'rasoiExpressUserNotifications';
+    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : `rasoiExpressUserNotifications_${user.uid}`;
     
     const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order') => {
         const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -146,20 +120,6 @@ const Header = () => {
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
-  const handleNotificationClick = (notification: AppNotification) => {
-    const updatedNotifications = notifications.map(n => n.id === notification.id ? { ...n, read: true } : n);
-    setNotifications(updatedNotifications);
-    const storageKey = isAdmin ? 'rasoiExpressAdminNotifications' : isDelivery ? 'rasoiExpressDeliveryNotifications' : 'rasoiExpressUserNotifications';
-    localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
-
-    if (notification.type === 'admin_message') {
-        setViewingMessage(notification);
-    } else if (notification.link) {
-        router.push(notification.link);
-    }
-    setIsNotificationPanelOpen(false);
-  };
-
   if (isAuthLoading || !isAuthenticated) return null;
 
   return (
@@ -174,22 +134,17 @@ const Header = () => {
             {isDelivery && <Link href="/delivery/dashboard"><Button variant="ghost"><Bike className="mr-2 h-4 w-4" />Rider Panel</Button></Link>}
             {isAdmin && <Link href="/admin"><Button variant="ghost" className="text-red-600"><ShieldCheck className="mr-2 h-4 w-4" />Admin</Button></Link>}
             <Link href={isDelivery ? "/delivery/profile" : "/profile"}><Button variant="ghost"><User className="mr-2 h-4 w-4" />Profile</Button></Link>
-            <Popover open={isNotificationPanelOpen} onOpenChange={setIsNotificationPanelOpen}>
-              <PopoverTrigger asChild><Button variant="outline" size="icon" className="relative rounded-full"><Bell className="h-5 w-5 text-accent" />{isClient && unreadNotificationCount > 0 && <Badge className="absolute -right-2 -top-2 h-6 w-6 justify-center rounded-full p-0">{unreadNotificationCount}</Badge>}</Button></PopoverTrigger>
-              <PopoverContent className="w-96 p-0" align="end">
-                <div className="p-4 font-medium border-b">Notifications</div>
-                {isLoadingNotifications ? <div className="p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div> : notifications.length > 0 ? (
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.map(n => <div key={n.id} className={`flex items-start p-3 border-b hover:bg-muted/50 cursor-pointer ${!n.read && 'bg-primary/5'}`} onClick={() => handleNotificationClick(n)}>{getNotificationIcon(n)}<div className="flex-1 ml-3"><p className={`font-semibold text-sm ${!n.read && 'text-primary'}`}>{n.title}</p><p className="text-xs text-muted-foreground">{n.message}</p></div></div>)}
-                  </div>
-                ) : <p className="p-4 text-sm text-center text-muted-foreground">No new notifications.</p>}
-              </PopoverContent>
-            </Popover>
+            
+            <Link href="/notifications">
+              <Button variant="outline" size="icon" className="relative rounded-full">
+                <Bell className="h-5 w-5 text-accent" />
+                {isClient && unreadNotificationCount > 0 && <Badge className="absolute -right-2 -top-2 h-6 w-6 justify-center rounded-full p-0">{unreadNotificationCount}</Badge>}
+              </Button>
+            </Link>
           </nav>
         </div>
       </header>
       <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
-      <Dialog open={!!viewingMessage} onOpenChange={(isOpen) => !isOpen && setViewingMessage(null)}><DialogContent><DialogHeader><DialogTitle>{viewingMessage?.title}</DialogTitle></DialogHeader><div className="py-4">{viewingMessage?.message}</div></DialogContent></Dialog>
     </>
   );
 };

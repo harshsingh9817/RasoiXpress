@@ -149,5 +149,7 @@ export interface SupportTicket {
   userName?: string;
   message: string;
   timestamp: any;
-  status: 'Open' | 'Resolved';
+  status: 'Open' | 'Replied' | 'Resolved';
+  reply?: string;
+  repliedAt?: any;
 }

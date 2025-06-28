@@ -125,9 +125,9 @@ export default function AdminPage() {
             <CardHeader>
               <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
                   <MessageSquare className="mr-2 h-6 w-6 text-primary"/>
-                  Send Messages
+                  Send Notifications
               </CardTitle>
-              <CardDescription>Send direct messages to your customers.</CardDescription>
+              <CardDescription>Send direct messages or broadcast offers to users.</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Click here to send personalized notifications to users.</p>

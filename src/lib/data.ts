@@ -248,7 +248,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', addressId);
+    const docRef = doc(db, 'users', userId, 'addresses', id);
     await deleteDoc(docRef);
 }
 
@@ -432,6 +432,27 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
             timestamp: data.timestamp?.toMillis() || Date.now(),
         }
     }) as SupportTicket[];
+}
+
+export async function replyToSupportTicket(
+    ticketId: string,
+    userId: string,
+    userEmail: string,
+    replyText: string
+): Promise<void> {
+    const ticketRef = doc(db, 'supportTickets', ticketId);
+    await updateDoc(ticketRef, {
+        status: 'Replied',
+        reply: replyText,
+        repliedAt: serverTimestamp(),
+    });
+
+    await sendAdminMessage(
+        userId,
+        userEmail,
+        `Re: Your Support Ticket #${ticketId.slice(-6)}`,
+        replyText
+    );
 }
 
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
