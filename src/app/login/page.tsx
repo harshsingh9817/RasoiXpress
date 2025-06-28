@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { KeyRound, LogInIcon, Loader2, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, LogInIcon, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -20,6 +20,8 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -76,8 +78,10 @@ export default function LoginPage() {
   if (pageLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Loading...</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -137,7 +141,7 @@ export default function LoginPage() {
                     </div>
                   </div>
                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isSubmitting || isAuthLoading}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogInIcon className="mr-2 h-5 w-5" />}
+                    {isSubmitting ? <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> : <LogInIcon className="mr-2 h-5 w-5" />}
                     {isSubmitting ? 'Logging In...' : 'Log In'}
                   </Button>
               </form>
@@ -201,7 +205,7 @@ export default function LoginPage() {
                   </DialogClose>
                   <Button type="submit" disabled={isSendingReset}>
                   {isSendingReset ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
+                      <><div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Sending...</>
                   ) : (
                       "Send Reset Link"
                   )}

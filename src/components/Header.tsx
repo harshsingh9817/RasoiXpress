@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2, ListOrdered,
+  Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, ListOrdered,
   Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';

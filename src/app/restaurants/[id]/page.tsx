@@ -7,7 +7,7 @@ import { useParams, notFound, useRouter } from 'next/navigation';
 import { getMenuItems, getRestaurantById } from '@/lib/data';
 import type { Restaurant, MenuItem } from '@/lib/types';
 import MenuItemCard from '@/components/MenuItemCard';
-import { Star, Clock, Leaf, Filter, Award, TrendingUp, Loader2 } from 'lucide-react';
+import { Star, Clock, Leaf, Filter, Award, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 export default function RestaurantDetailPage() {
   const params = useParams(); 
@@ -103,8 +104,10 @@ export default function RestaurantDetailPage() {
   if (isAuthLoading || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">Verifying access...</p>
       </div>
     );
   }
@@ -112,8 +115,10 @@ export default function RestaurantDetailPage() {
   if (isLoading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-          <Loader2 className="h-16 w-16 text-primary animate-spin" />
-          <p className="mt-4 text-xl text-muted-foreground">Loading details...</p>
+          <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+          </div>
+          <p className="text-xl text-muted-foreground">Loading details...</p>
         </div>
       );
   }

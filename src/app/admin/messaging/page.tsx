@@ -35,7 +35,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
+import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
 
 const ALL_USERS_VALUE = "--all-users--";
 
@@ -122,8 +124,10 @@ export default function MessagingPage() {
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">Verifying access...</p>
       </div>
     );
   }
@@ -206,7 +210,7 @@ export default function MessagingPage() {
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
+                    <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Sending...
                   </>
                 ) : (
                   <>

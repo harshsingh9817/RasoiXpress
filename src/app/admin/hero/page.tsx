@@ -29,7 +29,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Loader2, Save, PlusCircle, Trash2 } from "lucide-react";
+import { LayoutTemplate, Save, PlusCircle, Trash2 } from "lucide-react";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
+import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
 
 const bannerSchema = z.object({
   src: z.string().url("Please enter a valid image URL."),
@@ -101,8 +103,10 @@ export default function HeroManagementPage() {
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">Verifying access...</p>
       </div>
     );
   }
@@ -210,7 +214,7 @@ export default function HeroManagementPage() {
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                        <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Saving...
                       </>
                     ) : (
                       <>

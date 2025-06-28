@@ -8,7 +8,7 @@ import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Utensils, Leaf, Filter, TrendingUp, Loader2 } from 'lucide-react';
+import { Utensils, Leaf, Filter, TrendingUp } from 'lucide-react';
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 export default function HomePage() {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -121,8 +122,10 @@ export default function HomePage() {
   if (isAuthLoading || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">Verifying access...</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">Verifying access...</p>
       </div>
     );
   }

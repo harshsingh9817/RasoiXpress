@@ -14,11 +14,13 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, Loader2, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
+import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
@@ -131,8 +133,10 @@ export default function CheckoutPage() {
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">{isAuthLoading ? "Loading..." : "Getting ready..."}</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">{isAuthLoading ? "Loading..." : "Getting ready..."}</p>
       </div>
     );
   }
@@ -177,7 +181,7 @@ export default function CheckoutPage() {
               </CardContent>
               <CardFooter className="flex-col gap-4">
                 <Button onClick={() => finalizeOrder(pendingOrderData!)} disabled={isLoading} className="w-full">
-                  {isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Verifying...</> : <><CheckCircle className="mr-2 h-5 w-5"/>I Have Paid</>}
+                  {isLoading ? <><div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div>Verifying...</> : <><CheckCircle className="mr-2 h-5 w-5"/>I Have Paid</>}
                 </Button>
                 <Button variant="outline" onClick={() => setCheckoutStep('details')} disabled={isLoading} className="w-full">
                   <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
@@ -192,7 +196,7 @@ export default function CheckoutPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <h1 className="text-3xl md:text-4xl font-headline font-bold text-center">Checkout</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card><CardHeader><CardTitle>Shipping & Payment</CardTitle></CardHeader><form onSubmit={handleProceedToPayment}><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>{savedAddresses.length > 0 && <div className="space-y-2"><Label>Saved Addresses</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}>{`${addr.fullName}: ${addr.street}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}<div className="space-y-2"><Label>Street</Label><Input name="address" value={formData.address} onChange={handleInputChange} required /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0} className="w-full">{isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PackageCheck className="mr-2 h-5 w-5" />} Place Order (Rs.{grandTotal.toFixed(2)})</Button></CardFooter></form></Card>
+        <Card><CardHeader><CardTitle>Shipping & Payment</CardTitle></CardHeader><form onSubmit={handleProceedToPayment}><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>{savedAddresses.length > 0 && <div className="space-y-2"><Label>Saved Addresses</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}>{`${addr.fullName}: ${addr.street}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}<div className="space-y-2"><Label>Street</Label><Input name="address" value={formData.address} onChange={handleInputChange} required /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0} className="w-full">{isLoading ? <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
         <Card><CardHeader><CardTitle>Order Summary</CardTitle><CardDescription>{getCartItemCount()} item(s)</CardDescription></CardHeader><CardContent className="space-y-4">{cartItems.length > 0 ? <div className="max-h-96 overflow-y-auto pr-2 space-y-3">{cartItems.map(item => <CartItemCard key={item.id} item={item} />)}</div> : <p>Cart is empty.</p>}<Separator /><div className="space-y-2 text-lg"><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div><div className="flex justify-between text-sm"><span>Delivery:</span><span>Rs.{deliveryFee.toFixed(2)}</span></div><div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{estimatedTax.toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div></div></CardContent><CardFooter><Button variant="outline" onClick={() => router.push('/')} className="w-full"><Home className="mr-2 h-4 w-4" /> Continue Shopping</Button></CardFooter></Card>
       </div>
     </div>

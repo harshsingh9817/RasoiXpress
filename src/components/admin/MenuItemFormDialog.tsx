@@ -28,7 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { addMenuItem, updateMenuItem } from "@/lib/data";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import AnimatedDeliveryScooter from "@/components/icons/AnimatedDeliveryScooter";
 
 const menuItemSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
@@ -257,8 +257,8 @@ export default function MenuItemFormDialog({
             </div>
             <DialogFooter className="pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {menuItem ? "Save Changes" : "Create Item"}
+                {isSubmitting && <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div>}
+                {isSubmitting ? 'Saving...' : (menuItem ? "Save Changes" : "Create Item")}
               </Button>
             </DialogFooter>
           </form>

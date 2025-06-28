@@ -21,8 +21,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { Loader2, BarChart2, DollarSign, TrendingUp, ShoppingBag } from "lucide-react";
+import { BarChart2, DollarSign, TrendingUp, ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
 
 export default function AnalyticsPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -68,8 +69,10 @@ export default function AnalyticsPage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isAuthLoading ? "Verifying access..." : "Crunching the numbers..."}
         </p>
       </div>

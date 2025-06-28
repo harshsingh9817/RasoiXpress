@@ -8,9 +8,10 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Bell, ArrowLeft, Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle } from "lucide-react";
+import { Bell, ArrowLeft, Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
 
 const getNotificationIcon = (notification: AppNotification) => {
     const iconClass = `h-6 w-6 flex-shrink-0 transition-colors ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
@@ -111,8 +112,10 @@ export default function NotificationsPage() {
     if (isLoading || isAuthLoading) {
         return (
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-            <Loader2 className="h-16 w-16 text-primary animate-spin" />
-            <p className="mt-4 text-xl text-muted-foreground">Loading notifications...</p>
+            <div className="w-40 h-40 text-primary">
+                <AnimatedFoodPackingAndLoading />
+            </div>
+            <p className="text-xl text-muted-foreground">Loading notifications...</p>
           </div>
         );
     }

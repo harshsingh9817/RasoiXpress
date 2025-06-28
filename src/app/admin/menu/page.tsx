@@ -38,13 +38,13 @@ import {
   PlusCircle,
   Edit,
   Trash2,
-  Loader2,
   Utensils,
   CheckCircle,
   XCircle,
 } from "lucide-react";
 import MenuItemFormDialog from "@/components/admin/MenuItemFormDialog";
 import { useToast } from "@/hooks/use-toast";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
 
 
 export default function MenuManagementPage() {
@@ -115,8 +115,10 @@ export default function MenuManagementPage() {
   if (isLoading || (!isAuthenticated && !isLoading) || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isLoading ? "Verifying access..." : isDataLoading ? "Loading menu..." : "Access Denied. Redirecting..."}
         </p>
       </div>

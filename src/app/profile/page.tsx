@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -12,11 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff } from 'lucide-react';
+import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff } from 'lucide-react';
 import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/lib/data';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = { fullName: '', type: 'Home', street: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' };
 
@@ -133,8 +135,10 @@ export default function ProfilePage() {
   if (isAuthLoading || (isDataLoading && !addresses.length)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">{isAuthLoading ? "Loading profile..." : "Fetching your data..."}</p>
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">{isAuthLoading ? "Loading profile..." : "Fetching your data..."}</p>
       </div>
     );
   }

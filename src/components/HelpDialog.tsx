@@ -17,8 +17,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Loader2, Mail } from 'lucide-react';
+import { Send, Mail } from 'lucide-react';
 import { sendSupportMessage } from '@/lib/data';
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 interface HelpDialogProps {
   isOpen: boolean;
@@ -136,7 +137,7 @@ const HelpDialog: React.FC<HelpDialogProps> = ({ isOpen, onOpenChange }) => {
             <Button type="submit" disabled={isSending}>
               {isSending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
+                  <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> Sending...
                 </>
               ) : (
                 <>

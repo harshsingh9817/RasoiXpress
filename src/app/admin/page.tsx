@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy } from 'lucide-react';
+import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy } from 'lucide-react';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 export default function AdminPage() {
   const { user, isAdmin, isLoading, isAuthenticated, logout } = useAuth();
@@ -22,8 +23,10 @@ export default function AdminPage() {
   if (isLoading || !isAuthenticated || !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isLoading ? "Verifying access..." : "Access Denied. Redirecting..."}
         </p>
       </div>

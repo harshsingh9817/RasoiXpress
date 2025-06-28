@@ -5,13 +5,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, User, MapPin, ClipboardList, PackageSearch } from 'lucide-react';
+import { Bike, PackageCheck, ChefHat, User, MapPin, ClipboardList, PackageSearch } from 'lucide-react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { listenToAllOrders } from '@/lib/data';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -91,8 +92,10 @@ export default function DeliveryDashboard() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isAuthLoading ? "Verifying delivery access..." : "Loading orders..."}
         </p>
       </div>

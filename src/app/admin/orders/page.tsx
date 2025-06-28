@@ -37,10 +37,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ClipboardList, PackageSearch, Eye, PhoneCall } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import AnimatedFoodPackingAndLoading from "@/components/icons/AnimatedFoodPackingAndLoading";
 
 const ALL_ORDER_STATUSES: OrderStatus[] = [
   'Order Placed',
@@ -110,8 +111,10 @@ export default function AdminOrdersPage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isAuthLoading ? "Verifying access..." : "Loading orders..."}
         </p>
       </div>

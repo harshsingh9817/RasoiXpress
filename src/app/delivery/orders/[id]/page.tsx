@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery } from '@/lib/data';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -132,8 +134,10 @@ export default function DeliveryOrderDetailPage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isAuthLoading ? "Verifying access..." : "Loading order details..."}
         </p>
       </div>
@@ -249,7 +253,7 @@ export default function DeliveryOrderDetailPage() {
                     onClick={handleAcceptOrder}
                     disabled={isAccepting}
                   >
-                    {isAccepting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Bike className="mr-2 h-5 w-5" />}
+                    {isAccepting ? <div className="w-12 h-8 mr-2"><AnimatedDeliveryScooter /></div> : <Bike className="mr-2 h-5 w-5" />}
                     {isAccepting ? 'Accepting...' : 'Accept for Delivery'}
                   </Button>
                )}

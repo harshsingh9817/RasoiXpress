@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, LogOut, PackageSearch, Eye, ClipboardList } from 'lucide-react';
+import { LogOut, PackageSearch, Eye, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { getAllOrders } from '@/lib/data';
@@ -21,6 +21,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
+import AnimatedFoodPackingAndLoading from '@/components/icons/AnimatedFoodPackingAndLoading';
 
 export default function RiderProfilePage() {
   const router = useRouter();
@@ -71,8 +72,10 @@ export default function RiderProfilePage() {
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="mt-4 text-xl text-muted-foreground">
+        <div className="w-40 h-40 text-primary">
+            <AnimatedFoodPackingAndLoading />
+        </div>
+        <p className="text-xl text-muted-foreground">
           {isAuthLoading ? "Verifying..." : "Loading data..."}
         </p>
       </div>
