@@ -189,7 +189,8 @@ export async function getHeroData(): Promise<HeroData> {
     const docRef = doc(db, 'globals', 'hero');
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        await setDoc(docRef, defaultHeroData);
+        // Return default data but do not write to DB.
+        // The admin page is responsible for creating the document on save.
         return defaultHeroData;
     }
     return docSnap.data() as HeroData;
@@ -205,7 +206,8 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     const docRef = doc(db, 'globals', 'paymentSettings');
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        await setDoc(docRef, defaultPaymentSettings);
+        // Return default data but do not write to DB.
+        // The admin page is responsible for creating the document on save.
         return defaultPaymentSettings;
     }
     return docSnap.data() as PaymentSettings;
