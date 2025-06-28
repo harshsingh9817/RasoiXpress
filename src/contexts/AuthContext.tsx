@@ -10,14 +10,13 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  getIdTokenResult,
   updateProfile,
   sendPasswordResetEmail,
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getRiderEmails } from '@/lib/data';
@@ -71,62 +70,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { toast } = useToast();
 
+  // Effect to handle Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setIsLoading(true);
-      if (!currentUser) {
-        setIsAdmin(false);
-        setIsDelivery(false);
-        setUser(null);
-        
-        const publicPaths = ['/login', '/signup', '/delivery/login'];
-        const isPublicPath = publicPaths.includes(pathname);
-        
-        if (!isPublicPath) {
-            if (pathname.startsWith('/delivery')) {
-                router.replace('/delivery/login');
-            } else if (pathname !== '/') {
-                router.replace('/login');
-            }
+      if (currentUser) {
+        setUser(currentUser);
+        const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
+        const riderEmails = await getRiderEmails();
+        const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
+
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        try {
+          await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
+        } catch (e) {
+          console.error("Error updating user delivery status in Firestore:", e);
         }
         
-        setIsLoading(false);
-        return;
-      }
-
-      setUser(currentUser);
-      
-      const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
-      const riderEmails = await getRiderEmails();
-      const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
-
-      // This ensures the user document has the correct isDelivery flag for security rules.
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      try {
-        await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
-      } catch (e) {
-        console.error("Error updating user delivery status in Firestore:", e);
-      }
-        
-      setIsAdmin(isAdminClaim);
-      setIsDelivery(isDeliveryClaim);
-
-      const isLoginPage = pathname === '/login' || pathname === '/signup';
-      const isDeliveryLoginPage = pathname === '/delivery/login';
-
-      if (isDeliveryClaim) {
-        if (!pathname.startsWith('/delivery')) router.replace('/delivery/dashboard');
-      } else if (isAdminClaim) {
-        if (isLoginPage || isDeliveryLoginPage) router.replace('/admin');
+        setIsAdmin(isAdminClaim);
+        setIsDelivery(isDeliveryClaim);
       } else {
-        if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) router.replace('/');
+        setUser(null);
+        setIsAdmin(false);
+        setIsDelivery(false);
       }
-
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [pathname, router]); 
+  }, []); // Empty dependency array ensures this runs only once on mount.
+
+  // Effect to handle routing based on auth state
+  useEffect(() => {
+    if (isLoading) {
+      return; // Wait until auth state is confirmed
+    }
+
+    const isAuthenticated = !!user;
+    const publicPaths = ['/login', '/signup'];
+    const deliveryPublicPath = '/delivery/login';
+
+    const isPublicPath = publicPaths.includes(pathname);
+    const isDeliveryPublicPath = pathname === deliveryPublicPath;
+
+    if (!isAuthenticated) {
+      // User is not authenticated
+      if (!isPublicPath && !isDeliveryPublicPath) {
+        // And is on a protected route
+        if (pathname.startsWith('/delivery')) {
+          router.replace(deliveryPublicPath);
+        } else {
+          router.replace('/login');
+        }
+      }
+    } else {
+      // User is authenticated
+      if (isDelivery) {
+        // User is a delivery partner
+        if (!pathname.startsWith('/delivery')) {
+          router.replace('/delivery/dashboard');
+        }
+      } else if (isAdmin) {
+        // User is an admin
+        if (isPublicPath || isDeliveryPublicPath) {
+          router.replace('/admin');
+        }
+      } else {
+        // User is a regular customer
+        if (isPublicPath || isDeliveryPublicPath || pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+          router.replace('/');
+        }
+      }
+    }
+  }, [user, isAdmin, isDelivery, isLoading, pathname, router]);
 
   const sendPasswordReset = async (email: string) => {
     if (!email) {
@@ -240,7 +256,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await signInWithPopup(auth, provider);
       await manageUserInFirestore(userCredential.user);
       toast({ title: 'Logged In!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
-      router.push('/');
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
@@ -298,25 +313,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    const wasDelivery = isDelivery;
     try {
       await firebaseSignOut(auth);
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
-      if (wasDelivery) {
-          router.push('/delivery/login');
-      } else {
-          router.push('/login');
-      }
     } catch (error: any) {
       console.error("Firebase logout error:", error);
       toast({ title: 'Logout Failed', description: error.message || 'Could not log out.', variant: 'destructive' });
     }
   };
 
-  const isAuthenticated = !!user;
-
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isDelivery, login, signInWithGoogle, signup, logout, isLoading, sendPasswordReset }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isAdmin, isDelivery, login, signInWithGoogle, signup, logout, isLoading, sendPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );
