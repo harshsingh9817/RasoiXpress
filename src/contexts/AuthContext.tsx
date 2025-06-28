@@ -96,34 +96,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(currentUser);
       
-      try {
-        const idTokenResult = await getIdTokenResult(currentUser, true);
-        const riderEmails = await getRiderEmails();
-        const isAdminClaim = !!idTokenResult.claims.admin;
-        const isDeliveryClaim = !!idTokenResult.claims.delivery || riderEmails.includes(currentUser.email || '');
+      const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
+      const riderEmails = await getRiderEmails();
+      const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
         
-        setIsAdmin(isAdminClaim);
-        setIsDelivery(isDeliveryClaim);
+      setIsAdmin(isAdminClaim);
+      setIsDelivery(isDeliveryClaim);
 
-        const isLoginPage = pathname === '/login' || pathname === '/signup';
-        const isDeliveryLoginPage = pathname === '/delivery/login';
+      const isLoginPage = pathname === '/login' || pathname === '/signup';
+      const isDeliveryLoginPage = pathname === '/delivery/login';
 
-        if (isDeliveryClaim) {
-          if (!pathname.startsWith('/delivery')) router.replace('/delivery/dashboard');
-        } else if (isAdminClaim) {
-          if (isLoginPage || isDeliveryLoginPage) router.replace('/admin');
-        } else {
-          if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) router.replace('/');
-        }
-
-      } catch (error) {
-        console.error("Error getting user claims:", error);
-        setIsAdmin(false);
-        setIsDelivery(false);
-        if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
-          router.replace('/');
-        }
+      if (isDeliveryClaim) {
+        if (!pathname.startsWith('/delivery')) router.replace('/delivery/dashboard');
+      } else if (isAdminClaim) {
+        if (isLoginPage || isDeliveryLoginPage) router.replace('/admin');
+      } else {
+        if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) router.replace('/');
       }
+
       setIsLoading(false);
     });
 
