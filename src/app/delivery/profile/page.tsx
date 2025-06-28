@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, LogOut, PackageSearch, Eye, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -83,12 +83,6 @@ export default function RiderProfilePage() {
     <div className="max-w-5xl mx-auto space-y-8">
       <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-6 bg-primary/5 rounded-xl shadow-xl border border-primary/20">
         <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/30 shadow-lg">
-          <AvatarImage
-            key={firebaseUser?.photoURL || 'default-avatar-key'}
-            src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'R'}`}
-            alt={firebaseUser?.displayName || 'Rider profile photo'}
-            data-ai-hint="profile avatar"
-          />
           <AvatarFallback className="text-4xl">
             {firebaseUser?.displayName?.charAt(0).toUpperCase() || firebaseUser?.email?.charAt(0).toUpperCase() || 'R'}
           </AvatarFallback>

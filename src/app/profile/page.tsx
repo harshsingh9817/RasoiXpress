@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, type ReactNode, useRef, useCallback } from 'react';
+import { useState, useEffect, type FormEvent, type ReactNode, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -30,16 +30,13 @@ import {
 } from "@/components/ui/select";
 import {
   ListOrdered, MapPin, PackageSearch, Settings, User, Edit3, Trash2, PlusCircle, Loader2, LogOut,
-  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Camera, Ban, FileText, Info, Star, ShieldCheck,
+  PackagePlus, ClipboardCheck, ChefHat, Truck, Bike, PackageCheck, AlertTriangle, XCircle, HomeIcon as AddressHomeIcon, Phone, Smartphone, CreditCard, Wallet, Ban, FileText, Info, Star, ShieldCheck,
   Bell, BellOff, Calendar
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, Address as AddressType, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { auth, storage } from '@/lib/firebase';
-import { updateProfile } from 'firebase/auth';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   getUserOrders,
   getAddresses,
@@ -96,8 +93,6 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const { user: firebaseUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [activeTab, setActiveTab] = useState('orders');
   const [trackOrderId, setTrackOrderId] = useState('');
@@ -278,46 +273,6 @@ export default function ProfilePage() {
     setIsAddressDialogOpen(false);
   };
 
-  const handlePhotoEditClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) {
-      return;
-    }
-    const file = event.target.files[0];
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid File Type', description: 'Please select an image file.', variant: 'destructive' });
-      return;
-    }
-    if (!firebaseUser || !auth.currentUser) {
-      toast({ title: 'Error', description: 'You must be logged in to change your profile photo.', variant: 'destructive' });
-      return;
-    }
-
-    setIsUploadingPhoto(true);
-    try {
-      const filePath = `profileImages/${firebaseUser.uid}/${file.name}`;
-      const imageRef = storageRef(storage, filePath);
-
-      await uploadBytes(imageRef, file);
-      const downloadURL = await getDownloadURL(imageRef);
-
-      await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      
-      toast({ title: 'Profile Photo Updated!', description: 'Your new photo is now active.', variant: 'default' });
-    } catch (error: any) {
-      console.error("Error uploading profile photo:", error);
-      toast({ title: 'Upload Failed', description: error.message || 'Could not update profile photo.', variant: 'destructive' });
-    } finally {
-      setIsUploadingPhoto(false);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-
   const handleOpenCancelDialog = (order: Order) => {
     if (order.status === 'Order Placed') {
       setOrderToCancel(order);
@@ -443,30 +398,11 @@ export default function ProfilePage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
        <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-6 bg-primary/5 rounded-xl shadow-xl border border-primary/20">
-        <div className="relative">
-          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/30 shadow-lg ring-2 ring-primary/20">
-            <AvatarImage
-              key={firebaseUser?.photoURL || 'default-avatar-key'}
-              src={firebaseUser?.photoURL || `https://placehold.co/128x128.png?text=${firebaseUser?.displayName?.charAt(0) || firebaseUser?.email?.charAt(0) || 'U'}`}
-              alt={firebaseUser?.displayName || 'User profile photo'}
-              data-ai-hint="profile avatar"
-            />
-            <AvatarFallback className="text-4xl">
-              {firebaseUser?.displayName?.charAt(0).toUpperCase() || firebaseUser?.email?.charAt(0).toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute bottom-1 right-1 rounded-full bg-background/90 hover:bg-muted h-9 w-9 border-2 border-primary/30 shadow-md hover:border-primary/50"
-            onClick={handlePhotoEditClick}
-            aria-label="Edit profile photo"
-            disabled={isUploadingPhoto}
-          >
-            {isUploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 text-primary/80" />}
-          </Button>
-        </div>
+        <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/30 shadow-lg ring-2 ring-primary/20">
+          <AvatarFallback className="text-4xl">
+            {firebaseUser?.displayName?.charAt(0).toUpperCase() || firebaseUser?.email?.charAt(0).toUpperCase() || 'U'}
+          </AvatarFallback>
+        </Avatar>
         <div className="text-center md:text-left flex-1">
           <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary mb-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] animate-fade-in-up">
             {firebaseUser?.displayName || firebaseUser?.email || 'Welcome, User!'}
