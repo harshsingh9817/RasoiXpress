@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect, type FormEvent, useCallback } from 'react';
+import { useState, useEffect, type FormEvent, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, Loader2, ListOrdered,
@@ -37,6 +37,8 @@ const Header = () => {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
 
   const [isClient, setIsClient] = useState(false);
+  const isInitialLoad = useRef(true);
+
   useEffect(() => { setIsClient(true); }, []);
 
   const showSystemNotification = (title: string, options: NotificationOptions) => {
@@ -47,6 +49,7 @@ const Header = () => {
 
   useEffect(() => {
     if (!isClient || !isAuthenticated || isAuthLoading || !user) {
+      isInitialLoad.current = true; // Reset for next login
       setIsLoadingNotifications(false);
       return;
     }
@@ -69,6 +72,7 @@ const Header = () => {
     const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order') => {
         const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
+        const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
         newItems.forEach(item => {
             let id: string, notif: AppNotification | null = null;
@@ -110,16 +114,25 @@ const Header = () => {
             }
 
             if (notif) {
+                // For the very first data load, only show notifications for recent events to avoid a flood.
+                if (isInitialLoad.current && notif.timestamp < twentyFourHoursAgo) {
+                    return; // Don't generate a visible notification for very old events on first load.
+                }
                 generatedNotifications.push(notif);
                 showSystemNotification(notif.title, { body: notif.message, tag: notif.id });
             }
         });
 
+        // After the first processing batch, subsequent runs are real-time updates.
+        if (isInitialLoad.current) {
+            isInitialLoad.current = false;
+        }
+
         if (generatedNotifications.length > 0) {
-            const currentNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const all = [...generatedNotifications, ...currentNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
+            const all = [...generatedNotifications, ...existingNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
             localStorage.setItem(storageKey, JSON.stringify(all));
             setNotifications(all);
+            window.dispatchEvent(new Event('notificationsUpdated'));
         }
     };
 
@@ -176,9 +189,9 @@ const Header = () => {
             
             {isAuthenticated && (
                 <Link href="/notifications">
-                <Button variant="outline" size="icon" className="relative rounded-full">
-                    <Bell className="h-5 w-5 text-accent" />
-                    {isClient && unreadNotificationCount > 0 && <Badge className="absolute -right-2 -top-2 h-6 w-6 justify-center rounded-full p-0">{unreadNotificationCount}</Badge>}
+                <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-6 w-6" />
+                    {isClient && unreadNotificationCount > 0 && <Badge variant="destructive" className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]">{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Badge>}
                 </Button>
                 </Link>
             )}
