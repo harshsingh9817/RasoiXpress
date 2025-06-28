@@ -328,6 +328,8 @@ const Header = () => {
       return null;
   }
 
+  const profileLink = isDelivery ? "/delivery/profile" : "/profile";
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar-background/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar-background/70">
@@ -372,7 +374,7 @@ const Header = () => {
                 </Link>
               )}
 
-              <Link href="/profile">
+              <Link href={profileLink}>
                 <Button variant="ghost" className="text-sm font-medium px-2 sm:px-3">
                   <User className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Profile</span>

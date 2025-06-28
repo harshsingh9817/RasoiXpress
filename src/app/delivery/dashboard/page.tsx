@@ -26,7 +26,7 @@ const statusIcons: Record<OrderStatus, React.ElementType> = {
 };
 
 export default function DeliveryDashboard() {
-  const { user, isDelivery, isLoading: isAuthLoading, logout } = useAuth();
+  const { user, isDelivery, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
@@ -131,7 +131,6 @@ export default function DeliveryDashboard() {
                 Welcome, {user?.displayName || user?.email}! Here are the active orders.
             </p>
         </div>
-        <Button onClick={logout} variant="outline">Logout</Button>
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

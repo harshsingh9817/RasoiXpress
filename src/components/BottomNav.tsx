@@ -37,6 +37,8 @@ const BottomNav = () => {
         return isActive ? 'text-primary' : 'text-muted-foreground';
     };
 
+    const profileLink = isDelivery ? "/delivery/profile" : "/profile";
+
     return (
         <>
             <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
@@ -54,7 +56,7 @@ const BottomNav = () => {
                     </button>
 
                     {isDelivery && (
-                         <Link href="/delivery/dashboard" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/delivery', true))}>
+                         <Link href="/delivery/dashboard" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/delivery/dashboard'))}>
                             <Bike className="h-6 w-6" />
                             <span className="text-xs font-medium">Dashboard</span>
                         </Link>
@@ -67,7 +69,7 @@ const BottomNav = () => {
                         </Link>
                     )}
 
-                    <Link href="/profile" className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass('/profile', true))}>
+                    <Link href={profileLink} className={cn("flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-colors hover:text-primary", getActiveClass(profileLink, true))}>
                         <User className="h-6 w-6" />
                         <span className="text-xs font-medium">Profile</span>
                     </Link>
