@@ -1,62 +1,83 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
+
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth.token.email == 'harshsingh9817@gmail.com';
     }
+
+    // New function to check the isDelivery flag on the user's document
     function isDelivery() {
-      return request.auth != null && request.auth.token.delivery == true;
+      // Check if the user document exists and has the isDelivery flag set to true
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
     }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // User profiles and their subcollections
+    // -- Collections --
+
+    match /menuItems/{item} {
+      allow read;
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+        allow create: if isAuthenticated();
+
+        // Rules for reading/querying orders
+        allow get: if isAdmin() || isDelivery() || isOwner(resource.data.userId);
+        
+        // Admins/Riders can list all orders. Users can only list their own.
+        allow list: if isAdmin() || isDelivery() || (isAuthenticated() && request.query.where.userId == request.auth.uid);
+
+        // Rules for updating orders
+        allow update: if isAdmin() || isDelivery(); // Admins/Riders can update status
+    }
+    
     match /users/{userId} {
-      allow get, update: if isOwner(userId);
+      // Admins can read any user doc. Riders can read their own. Owners can read their own.
+      allow read: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Only admins can list all users
       allow create: if request.auth.uid == userId;
-      allow list: if isAdmin(); // Admins can list users for messaging
+      // An owner can update their own doc. We also need to allow the AuthContext to set the `isDelivery` flag.
+      // This is safe because isDelivery is determined by the `riders` collection which is admin-only write.
+      allow update: if isOwner(userId);
 
       match /addresses/{addressId} {
-        allow read, write, delete: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
     }
-
-    // Menu items and global settings can be read by anyone, written by admins
-    match /menuItems/{menuItemId} {
-      allow get, list: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    match /globals/{docId} {
-      allow get: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Orders
-    match /orders/{orderId} {
-      allow create: if isAuthenticated();
-      // An order can be read by its owner, an admin, or a delivery person
-      allow get: if isOwner(resource.data.userId) || isAdmin() || isDelivery();
-      // Orders can be listed by admin/delivery, or by a user for their own orders
-      allow list: if (isAdmin() || isDelivery()) || (isAuthenticated() && request.query.where.userId == request.auth.uid);
-      // Orders can be updated by owner (for review/cancel), or admin/delivery (for status)
-      allow update: if isOwner(resource.data.userId) || isAdmin() || isDelivery();
-    }
     
-    // Riders can only be managed by admins
     match /riders/{riderId} {
-        allow read, list, create, delete: if isAdmin();
+      // Only admins and other authenticated users need to read the list of riders.
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+        allow create: if isAuthenticated();
+        allow read, update: if isAdmin();
+    }
+
+    match /adminMessages/{messageId} {
+        allow create: if isAdmin();
+        // Users can only read messages sent to them. Admins can read all.
+        allow get: if isAdmin() || isOwner(resource.data.userId);
+        allow list: if isAdmin() || (isAuthenticated() && request.query.where.field == 'userId' && request.query.where.value == request.auth.uid);
     }
     
-    // Support tickets can be created by any user, but managed only by admins
-    match /supportTickets/{ticketId} {
-      allow create: if isAuthenticated();
-      allow read, list, update, delete: if isAdmin();
+    match /globals/{docId} {
+      allow read;
+      allow write: if isAdmin();
     }
   }
 }

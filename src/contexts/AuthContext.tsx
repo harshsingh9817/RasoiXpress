@@ -17,7 +17,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getRiderEmails } from '@/lib/data';
@@ -99,6 +99,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
       const riderEmails = await getRiderEmails();
       const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
+
+      // This ensures the user document has the correct isDelivery flag for security rules.
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      try {
+        await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
+      } catch (e) {
+        console.error("Error updating user delivery status in Firestore:", e);
+      }
         
       setIsAdmin(isAdminClaim);
       setIsDelivery(isDeliveryClaim);
