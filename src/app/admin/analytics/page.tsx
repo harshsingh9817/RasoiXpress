@@ -82,11 +82,11 @@ export default function AnalyticsPage() {
   const chartConfig = {
     revenue: {
       label: "Revenue",
-      color: "hsl(var(--primary))",
+      color: "hsl(var(--accent))",
     },
     profit: {
       label: "Profit (Est.)",
-      color: "hsl(var(--accent))",
+      color: "hsl(142.1, 76.2%, 36.3%)",
     },
     loss: {
       label: "Loss (Cancelled)",
