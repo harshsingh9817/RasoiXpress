@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -41,10 +41,20 @@ import {
   Utensils,
   CheckCircle,
   XCircle,
+  Search,
+  PackageSearch
 } from "lucide-react";
 import MenuItemFormDialog from "@/components/admin/MenuItemFormDialog";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 
 export default function MenuManagementPage() {
@@ -58,6 +68,13 @@ export default function MenuManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+
+  // New state for filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterVegetarian, setFilterVegetarian] = useState('All');
+  const [filterPopular, setFilterPopular] = useState('All');
+
 
   const loadItems = useCallback(async () => {
     setIsDataLoading(true);
@@ -81,6 +98,37 @@ export default function MenuManagementPage() {
         loadItems();
     }
   }, [isAdmin, isLoading, isAuthenticated, router, loadItems]);
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(menuItems.map(item => item.category));
+    return ['All', ...Array.from(categories)];
+  }, [menuItems]);
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+        const term = searchTerm.toLowerCase();
+        if (term && !(item.name.toLowerCase().includes(term) || item.description.toLowerCase().includes(term))) {
+            return false;
+        }
+
+        if (filterCategory !== 'All' && item.category !== filterCategory) {
+            return false;
+        }
+
+        if (filterVegetarian !== 'All') {
+            const isVeg = filterVegetarian === 'Yes';
+            if (item.isVegetarian !== isVeg) return false;
+        }
+
+        if (filterPopular !== 'All') {
+            const isPop = filterPopular === 'Yes';
+            if (item.isPopular !== isPop) return false;
+        }
+
+        return true;
+    });
+  }, [menuItems, searchTerm, filterCategory, filterVegetarian, filterPopular]);
+
 
   const handleAddNew = () => {
     setSelectedItem(null);
@@ -112,7 +160,7 @@ export default function MenuManagementPage() {
     setItemToDelete(null);
   }
 
-  if (isLoading || (!isAuthenticated && !isLoading) || isDataLoading) {
+  if (isLoading || (!isAuthenticated && !isLoading) || (isDataLoading && menuItems.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary">
@@ -128,19 +176,64 @@ export default function MenuManagementPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-headline flex items-center">
-              <Utensils className="mr-3 h-6 w-6 text-primary" /> Menu Management
-            </CardTitle>
-            <CardDescription>
-              Add, edit, or remove food items available across all restaurants.
-            </CardDescription>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-2xl font-headline flex items-center">
+                  <Utensils className="mr-3 h-6 w-6 text-primary" /> Menu Management
+                </CardTitle>
+                <CardDescription>
+                  Add, edit, or remove food items available across all restaurants.
+                </CardDescription>
+              </div>
+              <Button onClick={handleAddNew}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Item
+              </Button>
           </div>
-          <Button onClick={handleAddNew}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Item
-          </Button>
+           <div className="flex flex-col md:flex-row items-center gap-4 pt-6">
+              <div className="relative w-full md:w-auto md:flex-grow">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex w-full md:w-auto items-center gap-4">
+                 <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniqueCategories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                    </SelectContent>
+                 </Select>
+                 <Select value={filterVegetarian} onValueChange={setFilterVegetarian}>
+                    <SelectTrigger className="w-full md:w-[150px]">
+                        <SelectValue placeholder="Vegetarian?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">Veg & Non-Veg</SelectItem>
+                        <SelectItem value="Yes">Vegetarian</SelectItem>
+                        <SelectItem value="No">Non-Veg</SelectItem>
+                    </SelectContent>
+                 </Select>
+                 <Select value={filterPopular} onValueChange={setFilterPopular}>
+                    <SelectTrigger className="w-full md:w-[150px]">
+                        <SelectValue placeholder="Popular?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Items</SelectItem>
+                        <SelectItem value="Yes">Popular</SelectItem>
+                        <SelectItem value="No">Not Popular</SelectItem>
+                    </SelectContent>
+                 </Select>
+              </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -156,8 +249,8 @@ export default function MenuManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {menuItems.length > 0 ? (
-                menuItems.map((item) => (
+              {filteredMenuItems.length > 0 ? (
+                filteredMenuItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Image
@@ -197,7 +290,8 @@ export default function MenuManagementPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
-                    No menu items found. Add one to get started!
+                    <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
+                    {menuItems.length === 0 ? "No menu items found. Add one to get started!" : "No menu items match your search."}
                   </TableCell>
                 </TableRow>
               )}
