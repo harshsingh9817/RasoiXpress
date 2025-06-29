@@ -358,10 +358,9 @@ export async function updatePaymentSettings(data: PaymentSettings): Promise<void
 // --- Analytics Data ---
 export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
     const allOrders = await getAllOrders();
-    const allDeliveredOrders = allOrders.filter(o => o.status === 'Delivered');
-
-    const filteredDeliveredOrders = dateRange?.from && dateRange.to
-        ? allDeliveredOrders.filter(order => {
+    
+    const filteredOrders = dateRange?.from && dateRange.to
+        ? allOrders.filter(order => {
             const orderDate = new Date(order.date);
             const from = new Date(dateRange.from);
             from.setHours(0, 0, 0, 0);
@@ -369,19 +368,32 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
             to.setHours(23, 59, 59, 999);
             return orderDate >= from && orderDate <= to;
         })
-        : allDeliveredOrders;
+        : allOrders;
 
-    const totalRevenue = filteredDeliveredOrders.reduce((sum, order) => sum + order.total, 0);
+    const deliveredOrders = filteredOrders.filter(o => o.status === 'Delivered');
+    const cancelledOrders = filteredOrders.filter(o => o.status === 'Cancelled');
+
+    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
     const totalProfit = totalRevenue * 0.30;
-    const totalOrders = filteredDeliveredOrders.length;
+    const totalOrders = deliveredOrders.length;
     
-    const dailyData: Map<string, { revenue: number; profit: number }> = new Map();
+    const totalLoss = cancelledOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalCancelledOrders = cancelledOrders.length;
+    
+    const dailyData: Map<string, { revenue: number; profit: number; loss: number }> = new Map();
 
-    filteredDeliveredOrders.forEach(order => {
+    deliveredOrders.forEach(order => {
         const date = new Date(order.date).toISOString().split('T')[0];
-        const dayData = dailyData.get(date) || { revenue: 0, profit: 0 };
+        const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
         dayData.revenue += order.total;
         dayData.profit += order.total * 0.30;
+        dailyData.set(date, dayData);
+    });
+
+    cancelledOrders.forEach(order => {
+        const date = new Date(order.date).toISOString().split('T')[0];
+        const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
+        dayData.loss += order.total;
         dailyData.set(date, dayData);
     });
     
@@ -391,7 +403,7 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
         while (currentDate <= endDate) {
             const dateString = currentDate.toISOString().split('T')[0];
             if (!dailyData.has(dateString)) {
-                dailyData.set(dateString, { revenue: 0, profit: 0 });
+                dailyData.set(dateString, { revenue: 0, profit: 0, loss: 0 });
             }
             currentDate.setDate(currentDate.getDate() + 1);
         }
@@ -405,6 +417,8 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
         totalRevenue,
         totalProfit,
         totalOrders,
+        totalLoss,
+        totalCancelledOrders,
         chartData,
     };
 }

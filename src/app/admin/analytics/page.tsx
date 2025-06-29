@@ -21,7 +21,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { BarChart2, DollarSign, TrendingUp, ShoppingBag, Filter, X } from "lucide-react";
+import { BarChart2, DollarSign, TrendingUp, ShoppingBag, Filter, X, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { DatePickerWithRange } from "@/components/ui/date-picker-with-range";
@@ -88,6 +88,10 @@ export default function AnalyticsPage() {
       label: "Profit (Est.)",
       color: "hsl(var(--accent))",
     },
+    loss: {
+      label: "Loss (Cancelled)",
+      color: "hsl(var(--destructive))",
+    },
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -133,7 +137,7 @@ export default function AnalyticsPage() {
         </CardHeader>
       </Card>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -162,6 +166,16 @@ export default function AnalyticsPage() {
               <CardContent>
                   <div className="text-2xl font-bold">+{analyticsData.totalOrders}</div>
                   <p className="text-xs text-muted-foreground">Total orders successfully delivered</p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Loss (Cancelled)</CardTitle>
+                  <TrendingDown className="h-4 w-4 text-destructive"/>
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold text-destructive">Rs.{analyticsData.totalLoss.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">From {analyticsData.totalCancelledOrders} cancelled orders</p>
               </CardContent>
           </Card>
       </div>
@@ -197,6 +211,7 @@ export default function AnalyticsPage() {
                               <ChartLegend content={<ChartLegendContent />} />
                              <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4}/>
                              <Bar dataKey="profit" fill="var(--color-profit)" radius={4}/>
+                             <Bar dataKey="loss" fill="var(--color-loss)" radius={4}/>
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartContainer>

@@ -116,12 +116,15 @@ export interface DailyChartData {
   date: string;
   revenue: number;
   profit: number;
+  loss: number;
 }
 
 export interface AnalyticsData {
     totalRevenue: number;
     totalProfit: number;
     totalOrders: number;
+    totalLoss: number;
+    totalCancelledOrders: number;
     chartData: DailyChartData[];
 }
 
