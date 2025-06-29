@@ -17,6 +17,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -40,6 +41,7 @@ const menuItemSchema = z.object({
   isPopular: z.boolean().default(false),
   weight: z.string().optional(),
   ingredients: z.string().optional(),
+  taxRate: z.coerce.number().min(0, "Tax rate must be zero or more.").max(1, "Tax rate should be a decimal (e.g., 0.05 for 5%).").optional(),
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
@@ -72,7 +74,7 @@ export default function MenuItemFormDialog({
   useEffect(() => {
     if (isOpen) {
         if (menuItem) {
-          reset(menuItem);
+          reset({...menuItem, taxRate: menuItem.taxRate || undefined});
         } else {
           reset({
             name: "",
@@ -84,6 +86,7 @@ export default function MenuItemFormDialog({
             isPopular: false,
             weight: "",
             ingredients: "",
+            taxRate: undefined,
           });
         }
     }
@@ -92,11 +95,12 @@ export default function MenuItemFormDialog({
   const onSubmit = async (data: MenuItemFormValues) => {
     setIsSubmitting(true);
     try {
+      const dataToSave = { ...data, taxRate: data.taxRate || 0 };
       if (menuItem) {
-        await updateMenuItem({ ...data, id: menuItem.id });
+        await updateMenuItem({ ...dataToSave, id: menuItem.id });
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
       } else {
-        await addMenuItem(data);
+        await addMenuItem(dataToSave);
         toast({ title: "Menu Item Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();
@@ -192,12 +196,26 @@ export default function MenuItemFormDialog({
               )}
             />
             <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="taxRate"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Tax Rate (Optional)</FormLabel>
+                      <FormControl>
+                          <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
+                      </FormControl>
+                      <FormDescription className="text-xs">Enter as decimal, e.g., 0.05 for 5%. Leave blank for 0% tax.</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                />
                  <FormField
                   control={form.control}
                   name="weight"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Weight (optional)</FormLabel>
+                      <FormLabel>Weight (Optional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Approx. 450g" {...field} />
                       </FormControl>
@@ -205,20 +223,20 @@ export default function MenuItemFormDialog({
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="ingredients"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ingredients (optional, comma-separated)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Flour, Tomato, Cheese" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
             </div>
+            <FormField
+              control={form.control}
+              name="ingredients"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ingredients (optional, comma-separated)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Flour, Tomato, Cheese" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="flex items-center space-x-8 pt-2">
               <FormField
                 control={form.control}

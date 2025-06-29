@@ -342,7 +342,7 @@ export default function MyOrdersPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Taxes:</span>
-                                        <span>Rs.{(calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0)).toFixed(2)}</span>
+                                        <span>Rs.{(orderForBillView.totalTax ?? (calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0))).toFixed(2)}</span>
                                     </div>
                                     <Separator className="my-2"/>
                                     <div className="flex justify-between font-bold text-base mt-2">

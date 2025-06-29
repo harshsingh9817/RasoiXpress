@@ -38,7 +38,6 @@ const paymentSettingsSchema = z.object({
   upiId: z.string().min(3, "UPI ID must be at least 3 characters long.").regex(/@/, "Please enter a valid UPI ID."),
   qrCodeImageUrl: z.string().url("Please enter a valid image URL."),
   deliveryFee: z.coerce.number().min(0, "Delivery fee must be zero or more."),
-  taxRate: z.coerce.number().min(0, "Tax rate must be zero or more.").max(1, "Tax rate should be a decimal (e.g., 0.05 for 5%)."),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -55,7 +54,6 @@ export default function PaymentSettingsPage() {
       upiId: "",
       qrCodeImageUrl: "",
       deliveryFee: 49,
-      taxRate: 0.05,
     },
   });
 
@@ -116,7 +114,7 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Fee Settings
               </CardTitle>
               <CardDescriptionElement>
-                Configure UPI, QR code, delivery fees, and tax rates for checkout.
+                Configure UPI, QR code, and delivery fees for checkout. Item-specific taxes can be managed from the Menu page.
               </CardDescriptionElement>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8">
@@ -152,7 +150,7 @@ export default function PaymentSettingsPage() {
                  </div>
                  <Separator />
                  <div>
-                    <h3 className="text-lg font-medium mb-2">Fees & Taxes</h3>
+                    <h3 className="text-lg font-medium mb-2">Global Fees</h3>
                     <div className="grid grid-cols-2 gap-4">
                          <FormField
                             control={form.control}
@@ -164,22 +162,6 @@ export default function PaymentSettingsPage() {
                                     <Input type="number" step="1" {...field} />
                                 </FormControl>
                                 <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="taxRate"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Tax Rate</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="0.01" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                <FormDescription className="text-xs">
-                                    Enter as decimal, e.g., 0.05 for 5%.
-                                </FormDescription>
                                 </FormItem>
                             )}
                         />

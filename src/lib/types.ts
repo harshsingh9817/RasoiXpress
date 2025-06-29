@@ -23,6 +23,7 @@ export interface MenuItem {
   isPopular?: boolean;
   weight?: string; // e.g., "250g", "Approx. 300g"
   ingredients?: string; // e.g., "Flour, Tomato, Cheese, Basil" or comma-separated
+  taxRate?: number; // e.g., 0.05 for 5% tax
 }
 
 export interface CartItem extends MenuItem {
@@ -63,7 +64,8 @@ export interface Order {
   customerPhone?: string;
   deliveryConfirmationCode?: string;
   deliveryFee: number;
-  taxRate: number;
+  taxRate?: number; // Kept for backward compatibility with old orders
+  totalTax: number; // New field to store the calculated total tax
   deliveryRiderId?: string;
   deliveryRiderName?: string;
 }
@@ -108,7 +110,6 @@ export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
   deliveryFee: number;
-  taxRate: number; // e.g., 0.05 for 5%
 }
 
 export interface DailyChartData {

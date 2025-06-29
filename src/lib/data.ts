@@ -42,7 +42,6 @@ const defaultPaymentSettings: PaymentSettings = {
     upiId: 'rasoixpress@okbank',
     qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay',
     deliveryFee: 49,
-    taxRate: 0.05,
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {
@@ -346,6 +345,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     const docRef = doc(db, 'globals', 'paymentSettings');
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
+        await setDoc(docRef, defaultPaymentSettings);
         return defaultPaymentSettings;
     }
     return docSnap.data() as PaymentSettings;
@@ -534,4 +534,3 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
-
