@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { LayoutTemplate, Save, PlusCircle, Trash2 } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const bannerSchema = z.object({
   src: z.string().url("Please enter a valid image URL."),
@@ -40,7 +41,7 @@ const bannerSchema = z.object({
 const heroSchema = z.object({
   headline: z.string().min(10, "Headline must be at least 10 characters long."),
   subheadline: z.string().min(10, "Subheadline must be at least 10 characters long."),
-  orderingTime: z.string().min(5, "Ordering time must be at least 5 characters long."),
+  orderingTime: z.string().min(1, "Ordering time must be set."),
   bannerImages: z.array(bannerSchema).min(1, "You must have at least one banner image."),
 });
 
@@ -51,13 +52,15 @@ export default function HeroManagementPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [startTime, setStartTime] = useState("10:00 AM");
+  const [endTime, setEndTime] = useState("10:00 PM");
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
     defaultValues: {
       headline: "",
       subheadline: "",
-      orderingTime: "",
+      orderingTime: "10:00 AM - 10:00 PM",
       bannerImages: [],
     },
   });
@@ -76,10 +79,28 @@ export default function HeroManagementPage() {
       const loadData = async () => {
         const data = await getHeroData();
         form.reset(data);
+        if (data.orderingTime && data.orderingTime.includes(' - ')) {
+            const [start, end] = data.orderingTime.split(' - ');
+            setStartTime(start.trim());
+            setEndTime(end.trim());
+        }
       }
       loadData();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
+
+  useEffect(() => {
+    form.setValue('orderingTime', `${startTime} - ${endTime}`, { shouldValidate: true });
+  }, [startTime, endTime, form]);
+
+  const timeSlots = Array.from({ length: 48 }, (_, i) => {
+    const totalMinutes = i * 30;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  });
 
   const onSubmit = async (data: HeroFormValues) => {
     setIsSubmitting(true);
@@ -156,19 +177,38 @@ export default function HeroManagementPage() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="orderingTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ordering Time</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., 10:00 AM - 10:00 PM" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <FormLabel>Ordering Time</FormLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground mb-1">Opening Time</p>
+                            <Select value={startTime} onValueChange={setStartTime}>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Start time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                {timeSlots.map(time => (
+                                    <SelectItem key={`start-${time}`} value={time}>{time}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground mb-1">Closing Time</p>
+                            <Select value={endTime} onValueChange={setEndTime}>
+                                <SelectTrigger>
+                                <SelectValue placeholder="End time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                {timeSlots.map(time => (
+                                    <SelectItem key={`end-${time}`} value={time}>{time}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <FormMessage>{form.formState.errors.orderingTime?.message}</FormMessage>
+                  </div>
                   
                   <Separator />
 
