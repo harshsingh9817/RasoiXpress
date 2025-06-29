@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy } from 'lucide-react';
+import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy, Store } from 'lucide-react';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 export default function AdminPage() {
@@ -76,6 +76,21 @@ export default function AdminPage() {
                     <p className="text-muted-foreground">Click here to browse all customer orders in the system.</p>
                 </CardContent>
             </Card>
+        </Link>
+
+        <Link href="/admin/restaurants" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <Store className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Restaurants
+              </CardTitle>
+              <CardDescription>Manage restaurant partners and view payouts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to add or edit restaurant partner details.</p>
+            </CardContent>
+          </Card>
         </Link>
 
         <Link href="/admin/hero" className="block h-full">

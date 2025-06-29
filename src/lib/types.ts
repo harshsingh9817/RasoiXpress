@@ -1,4 +1,5 @@
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -158,4 +159,13 @@ export interface SupportTicket {
   status: 'Open' | 'Replied' | 'Resolved';
   reply?: string;
   repliedAt?: any;
+}
+
+export interface RestaurantPartner {
+  id: string;
+  restaurantName: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
+  totalPayouts: number;
 }
