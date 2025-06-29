@@ -121,13 +121,15 @@ export default function DeliveryOrderDetailPage() {
     const handleGetDirections = () => {
     if (!order) return;
     setIsGettingLocation(true);
+    const destination = encodeURIComponent(`${order.customerName}, ${order.shippingAddress}`);
+
     if (!navigator.geolocation) {
         toast({
             title: "Geolocation not supported",
             description: "Your browser doesn't support location services. Opening Maps with destination only.",
             variant: "destructive",
         });
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.shippingAddress)}`, '_blank', 'noopener,noreferrer');
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener,noreferrer');
         setIsGettingLocation(false);
         return;
     }
@@ -135,7 +137,6 @@ export default function DeliveryOrderDetailPage() {
         (position) => {
             const { latitude, longitude } = position.coords;
             const origin = `${latitude},${longitude}`;
-            const destination = encodeURIComponent(order.shippingAddress);
             const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
             window.open(mapsUrl, '_blank', 'noopener,noreferrer');
             setIsGettingLocation(false);
@@ -151,7 +152,7 @@ export default function DeliveryOrderDetailPage() {
                 description: description,
                 variant: "destructive",
             });
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.shippingAddress)}`, '_blank', 'noopener,noreferrer');
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener,noreferrer');
             setIsGettingLocation(false);
         }
     );
