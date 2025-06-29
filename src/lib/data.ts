@@ -486,7 +486,7 @@ export async function getRiderEmails(): Promise<string[]> {
     return snapshot.docs.map(doc => doc.data().email as string);
 }
 
-export async function addRider(fullName: string, email: string): Promise<void> {
+export async function addRider(fullName: string, email: string, phone: string): Promise<void> {
     const ridersCol = collection(db, 'riders');
     const lowercasedEmail = email.toLowerCase();
     const q = query(ridersCol, where("email", "==", lowercasedEmail));
@@ -494,7 +494,7 @@ export async function addRider(fullName: string, email: string): Promise<void> {
     if (!snapshot.empty) {
         throw new Error("A rider with this email already exists.");
     }
-    await addDoc(ridersCol, { fullName, email: lowercasedEmail });
+    await addDoc(ridersCol, { fullName, email: lowercasedEmail, phone });
 }
 
 export async function deleteRider(riderId: string): Promise<void> {

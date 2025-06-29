@@ -40,6 +40,7 @@ import {
   Trash2,
   Bike,
   User,
+  Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 const riderSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
   email: z.string().email("Please enter a valid email address."),
+  phone: z.string().regex(/^\d{10,}$/, "Please enter a valid phone number."),
 });
 
 type RiderFormValues = z.infer<typeof riderSchema>;
@@ -76,6 +78,7 @@ export default function RiderManagementPage() {
     defaultValues: {
       fullName: "",
       email: "",
+      phone: "",
     },
   });
 
@@ -125,7 +128,7 @@ export default function RiderManagementPage() {
   
   const onSubmit = async (data: RiderFormValues) => {
     try {
-      await addRider(data.fullName, data.email);
+      await addRider(data.fullName, data.email, data.phone);
       toast({
         title: "Rider Added",
         description: `${data.fullName} can now sign up with ${data.email} to be a delivery partner.`,
@@ -197,6 +200,19 @@ export default function RiderManagementPage() {
                             </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <FormControl>
+                                <Input type="tel" placeholder="9876543210" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
                         <Button type="submit" disabled={form.formState.isSubmitting}>
                             {form.formState.isSubmitting ? (
                             <>
@@ -234,6 +250,7 @@ export default function RiderManagementPage() {
                     <TableRow>
                         <TableHead>Full Name</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -243,17 +260,25 @@ export default function RiderManagementPage() {
                         <TableRow key={rider.id}>
                             <TableCell className="font-medium">{rider.fullName}</TableCell>
                             <TableCell>{rider.email}</TableCell>
+                            <TableCell>{rider.phone}</TableCell>
                             <TableCell className="text-right">
-                                <Button variant="destructive" size="icon" onClick={() => handleDelete(rider)}>
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Remove Rider</span>
-                                </Button>
+                                <div className="flex justify-end gap-2">
+                                    <Button asChild variant="outline" size="icon">
+                                        <a href={`tel:${rider.phone}`} aria-label={`Call ${rider.fullName}`}>
+                                            <Phone className="h-4 w-4" />
+                                        </a>
+                                    </Button>
+                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(rider)}>
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Remove Rider</span>
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center">
+                        <TableCell colSpan={4} className="h-24 text-center">
                             No riders found.
                         </TableCell>
                         </TableRow>

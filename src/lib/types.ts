@@ -148,6 +148,7 @@ export interface Rider {
   id: string;
   fullName: string;
   email: string;
+  phone: string;
 }
 
 export interface SupportTicket {
