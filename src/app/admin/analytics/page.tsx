@@ -21,9 +21,12 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { BarChart2, DollarSign, TrendingUp, ShoppingBag } from "lucide-react";
+import { BarChart2, DollarSign, TrendingUp, ShoppingBag, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import { DatePickerWithRange } from "@/components/ui/date-picker-with-range";
+import type { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
 
 export default function AnalyticsPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -31,11 +34,13 @@ export default function AnalyticsPage() {
   const { toast } = useToast();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
 
-  const loadAnalytics = useCallback(async () => {
+  const loadAnalytics = useCallback(async (filterDate?: DateRange) => {
     setIsDataLoading(true);
     try {
-        const data = await getAnalyticsData();
+        const range = filterDate?.from && filterDate.to ? { from: filterDate.from, to: filterDate.to } : undefined;
+        const data = await getAnalyticsData(range);
         setAnalyticsData(data);
     } catch (error) {
         console.error("Failed to load analytics data", error);
@@ -54,6 +59,19 @@ export default function AnalyticsPage() {
       loadAnalytics();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, loadAnalytics]);
+
+  const handleFilter = () => {
+    if (date?.from && date?.to) {
+        loadAnalytics(date);
+    } else {
+        toast({ title: "Invalid Date Range", description: "Please select both a start and end date.", variant: "destructive" });
+    }
+  };
+
+  const handleReset = () => {
+    setDate(undefined);
+    loadAnalytics();
+  };
   
   const chartConfig = {
     revenue: {
@@ -91,8 +109,21 @@ export default function AnalyticsPage() {
             <BarChart2 className="mr-3 h-6 w-6 text-primary" /> Business Analytics
           </CardTitle>
           <CardDescription>
-            An overview of your sales, revenue, and performance metrics.
+            An overview of your sales and revenue. Use the date picker to filter results.
           </CardDescription>
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t mt-4">
+                <DatePickerWithRange date={date} onDateChange={setDate} />
+                <div className="flex gap-2">
+                    <Button onClick={handleFilter}>
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filter
+                    </Button>
+                    <Button variant="outline" onClick={handleReset}>
+                        <X className="mr-2 h-4 w-4" />
+                        Reset
+                    </Button>
+                </div>
+            </div>
         </CardHeader>
       </Card>
       
@@ -132,7 +163,7 @@ export default function AnalyticsPage() {
       <Card>
           <CardHeader>
               <CardTitle>Daily Performance</CardTitle>
-              <CardDescription>Revenue and estimated profit over the last 7 days.</CardDescription>
+              <CardDescription>Daily performance for the selected period.</CardDescription>
           </CardHeader>
           <CardContent>
               {analyticsData.chartData.length > 0 ? (
@@ -166,8 +197,8 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-[250px] text-center">
                     <BarChart2 className="h-12 w-12 text-muted-foreground/50 mb-2"/>
-                    <p className="text-muted-foreground">Not enough data to display a chart.</p>
-                    <p className="text-xs text-muted-foreground">Complete some orders to see performance data.</p>
+                    <p className="text-muted-foreground">No data to display for the selected period.</p>
+                    <p className="text-xs text-muted-foreground">Try selecting a different date range or resetting the filter.</p>
                 </div>
               )}
           </CardContent>

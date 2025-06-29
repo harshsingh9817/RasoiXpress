@@ -356,32 +356,46 @@ export async function updatePaymentSettings(data: PaymentSettings): Promise<void
 }
 
 // --- Analytics Data ---
-export async function getAnalyticsData(): Promise<AnalyticsData> {
-    const orders = await getAllOrders();
-    const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
+    const allOrders = await getAllOrders();
+    const allDeliveredOrders = allOrders.filter(o => o.status === 'Delivered');
 
-    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
+    const filteredDeliveredOrders = dateRange?.from && dateRange.to
+        ? allDeliveredOrders.filter(order => {
+            const orderDate = new Date(order.date);
+            const from = new Date(dateRange.from);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(dateRange.to);
+            to.setHours(23, 59, 59, 999);
+            return orderDate >= from && orderDate <= to;
+        })
+        : allDeliveredOrders;
+
+    const totalRevenue = filteredDeliveredOrders.reduce((sum, order) => sum + order.total, 0);
     const totalProfit = totalRevenue * 0.30;
-    const totalOrders = deliveredOrders.length;
+    const totalOrders = filteredDeliveredOrders.length;
     
     const dailyData: Map<string, { revenue: number; profit: number }> = new Map();
-    
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateString = d.toISOString().split('T')[0];
-        dailyData.set(dateString, { revenue: 0, profit: 0 });
-    }
 
-    deliveredOrders.forEach(order => {
+    filteredDeliveredOrders.forEach(order => {
         const date = new Date(order.date).toISOString().split('T')[0];
-        if (dailyData.has(date)) {
-            const currentDay = dailyData.get(date)!;
-            currentDay.revenue += order.total;
-            currentDay.profit += order.total * 0.30;
-            dailyData.set(date, currentDay);
-        }
+        const dayData = dailyData.get(date) || { revenue: 0, profit: 0 };
+        dayData.revenue += order.total;
+        dayData.profit += order.total * 0.30;
+        dailyData.set(date, dayData);
     });
+    
+    if (dateRange?.from && dateRange.to) {
+        let currentDate = new Date(dateRange.from);
+        let endDate = new Date(dateRange.to);
+        while (currentDate <= endDate) {
+            const dateString = currentDate.toISOString().split('T')[0];
+            if (!dailyData.has(dateString)) {
+                dailyData.set(dateString, { revenue: 0, profit: 0 });
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+    }
     
     const chartData: DailyChartData[] = Array.from(dailyData.entries())
       .map(([date, data]) => ({ date, ...data }))
