@@ -1,14 +1,13 @@
-
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { addRider, getRiders, deleteRider } from "@/lib/data";
-import type { Rider } from "@/lib/types";
+import { addRider, getRiders, deleteRider, getAllOrders } from "@/lib/data";
+import type { Rider, Order } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +40,7 @@ import {
   Bike,
   User,
   Phone,
+  ClipboardCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,7 @@ export default function RiderManagementPage() {
   const { toast } = useToast();
 
   const [riders, setRiders] = useState<Rider[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [riderToDelete, setRiderToDelete] = useState<Rider | null>(null);
@@ -82,14 +83,18 @@ export default function RiderManagementPage() {
     },
   });
 
-  const loadRiders = useCallback(async () => {
+  const loadPageData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const items = await getRiders();
-        setRiders(items);
+        const [riderItems, orderItems] = await Promise.all([
+            getRiders(),
+            getAllOrders()
+        ]);
+        setRiders(riderItems);
+        setOrders(orderItems);
     } catch (error) {
-        console.error("Failed to load riders", error);
-        toast({ title: "Error", description: "Could not load rider list.", variant: "destructive" });
+        console.error("Failed to load page data", error);
+        toast({ title: "Error", description: "Could not load riders and orders.", variant: "destructive" });
     } finally {
         setIsDataLoading(false);
     }
@@ -101,9 +106,19 @@ export default function RiderManagementPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-        loadRiders();
+        loadPageData();
     }
-  }, [isAdmin, isLoading, isAuthenticated, router, loadRiders]);
+  }, [isAdmin, isLoading, isAuthenticated, router, loadPageData]);
+
+  const ridersWithStats = useMemo(() => {
+    if (!riders || !orders) return [];
+    return riders.map(rider => {
+        const deliveredCount = orders.filter(order =>
+            order.deliveryRiderId === rider.id && order.status === 'Delivered'
+        ).length;
+        return { ...rider, deliveredCount };
+    });
+  }, [riders, orders]);
 
 
   const handleDelete = (rider: Rider) => {
@@ -116,7 +131,7 @@ export default function RiderManagementPage() {
         try {
             await deleteRider(riderToDelete.id);
             toast({ title: "Rider Removed", description: `${riderToDelete.fullName} has been removed from the delivery team.`});
-            await loadRiders(); // Refresh list after delete
+            await loadPageData(); // Refresh list after delete
         } catch (error) {
             console.error("Failed to delete rider", error);
             toast({ title: "Delete Failed", description: "Could not remove the rider.", variant: "destructive" });
@@ -134,7 +149,7 @@ export default function RiderManagementPage() {
         description: `${data.fullName} can now sign up with ${data.email} to be a delivery partner.`,
       });
       form.reset();
-      await loadRiders();
+      await loadPageData();
     } catch (error: any) {
       console.error("Failed to add rider", error);
       toast({
@@ -251,16 +266,23 @@ export default function RiderManagementPage() {
                         <TableHead>Full Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead className="text-center">Delivered</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {riders.length > 0 ? (
-                        riders.map((rider) => (
+                    {ridersWithStats.length > 0 ? (
+                        ridersWithStats.map((rider) => (
                         <TableRow key={rider.id}>
                             <TableCell className="font-medium">{rider.fullName}</TableCell>
                             <TableCell>{rider.email}</TableCell>
                             <TableCell>{rider.phone}</TableCell>
+                            <TableCell className="text-center font-medium">
+                                <div className="flex items-center justify-center gap-1">
+                                    <ClipboardCheck className="h-4 w-4 text-green-600" />
+                                    {rider.deliveredCount}
+                                </div>
+                            </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
                                     <Button asChild variant="outline" size="icon">
@@ -278,7 +300,7 @@ export default function RiderManagementPage() {
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                             No riders found.
                         </TableCell>
                         </TableRow>
