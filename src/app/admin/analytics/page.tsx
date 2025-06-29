@@ -4,8 +4,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAnalyticsData } from "@/lib/data";
-import type { AnalyticsData } from "@/lib/types";
+import { listenToAllOrders, processAnalyticsData } from "@/lib/data";
+import type { AnalyticsData, Order } from "@/lib/types";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   Card,
@@ -35,19 +35,22 @@ export default function AnalyticsPage() {
   const { toast } = useToast();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const [date, setDate] = useState<DateRange | undefined>(undefined);
+  
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 6),
+    to: new Date(),
+  });
 
-  const loadAnalytics = useCallback(async (filterDate?: DateRange) => {
-    setIsDataLoading(true);
+  const updateAnalyticsDisplay = useCallback((orders: Order[], filterDate?: DateRange) => {
     try {
-        const range = filterDate?.from && filterDate.to ? { from: filterDate.from, to: filterDate.to } : undefined;
-        const data = await getAnalyticsData(range);
-        setAnalyticsData(data);
+      const range = filterDate?.from && filterDate.to ? { from: filterDate.from, to: filterDate.to } : undefined;
+      const data = processAnalyticsData(orders, range);
+      setAnalyticsData(data);
     } catch (error) {
-        console.error("Failed to load analytics data", error);
-        toast({ title: "Error", description: "Could not load analytics.", variant: "destructive" });
-    } finally {
-        setIsDataLoading(false);
+      console.error("Failed to process analytics data", error);
+      toast({ title: "Error", description: "Could not process analytics.", variant: "destructive" });
     }
   }, [toast]);
 
@@ -57,26 +60,33 @@ export default function AnalyticsPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      const defaultDateRange = {
-        from: subDays(new Date(), 6),
-        to: new Date(),
-      };
-      setDate(defaultDateRange);
-      loadAnalytics(defaultDateRange);
+      const unsubscribe = listenToAllOrders((orders) => {
+        setAllOrders(orders);
+        updateAnalyticsDisplay(orders, date);
+        if (isDataLoading) {
+            setIsDataLoading(false);
+        }
+      });
+      return () => unsubscribe();
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, loadAnalytics]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, date, updateAnalyticsDisplay, isDataLoading]);
+
 
   const handleFilter = () => {
     if (date?.from && date?.to) {
-        loadAnalytics(date);
+        updateAnalyticsDisplay(allOrders, date);
     } else {
         toast({ title: "Invalid Date Range", description: "Please select both a start and end date.", variant: "destructive" });
     }
   };
 
   const handleReset = () => {
-    setDate(undefined);
-    loadAnalytics();
+    const defaultDateRange = {
+      from: subDays(new Date(), 6),
+      to: new Date(),
+    };
+    setDate(defaultDateRange);
+    updateAnalyticsDisplay(allOrders, defaultDateRange);
   };
   
   const chartConfig = {
@@ -119,7 +129,7 @@ export default function AnalyticsPage() {
             <BarChart2 className="mr-3 h-6 w-6 text-primary" /> Business Analytics
           </CardTitle>
           <CardDescription>
-            An overview of your sales and revenue. Use the date picker to filter results.
+            An overview of your sales and revenue. Updates in real-time. Use the date picker to filter results.
           </CardDescription>
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t mt-4">
                 <DatePickerWithRange date={date} onDateChange={setDate} />

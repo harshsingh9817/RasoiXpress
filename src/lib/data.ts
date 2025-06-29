@@ -371,9 +371,7 @@ export async function updatePaymentSettings(data: PaymentSettings): Promise<void
 }
 
 // --- Analytics Data ---
-export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
-    const allOrders = await getAllOrders();
-    
+export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): AnalyticsData {
     const filteredOrders = dateRange?.from && dateRange.to
         ? allOrders.filter(order => {
             const orderDate = new Date(order.date);
@@ -436,6 +434,11 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
         totalCancelledOrders,
         chartData,
     };
+}
+
+export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
+    const allOrders = await getAllOrders();
+    return processAnalyticsData(allOrders, dateRange);
 }
 
 // --- Admin Messaging ---
