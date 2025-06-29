@@ -124,10 +124,10 @@ export default function RestaurantManagementPage() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-2xl font-headline flex items-center">
-                  <Store className="mr-3 h-6 w-6 text-primary" /> Restaurant Management
+                  <Store className="mr-3 h-6 w-6 text-primary" /> Restaurant Partner Database
                 </CardTitle>
                 <CardDescription>
-                  Add, edit, or remove restaurant partners and manage payouts.
+                  Manage restaurant partner data here, much like an Excel sheet. Only admins can modify this data.
                 </CardDescription>
               </div>
               <Button onClick={handleAddNew}>

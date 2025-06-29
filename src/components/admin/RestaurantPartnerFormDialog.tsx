@@ -110,9 +110,9 @@ export default function RestaurantPartnerFormDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{partner ? "Edit Restaurant Partner" : "Add New Restaurant Partner"}</DialogTitle>
+          <DialogTitle>{partner ? "Edit Partner Entry" : "Add New Partner Entry"}</DialogTitle>
           <DialogDescription>
-            Fill in the details for the restaurant partner.
+            Fill in the data for the restaurant partner entry.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
