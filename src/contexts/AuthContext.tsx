@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // User is authenticated
       if (isDelivery) {
         // User is a delivery partner
-        if (!pathname.startsWith('/delivery')) {
+        if (!pathname.startsWith('/delivery') && pathname !== '/notifications') {
           router.replace('/delivery/dashboard');
         }
       } else if (isAdmin) {
