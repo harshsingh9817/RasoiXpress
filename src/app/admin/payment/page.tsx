@@ -37,7 +37,6 @@ import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 const paymentSettingsSchema = z.object({
   upiId: z.string().min(3, "UPI ID must be at least 3 characters long.").regex(/@/, "Please enter a valid UPI ID."),
   qrCodeImageUrl: z.string().url("Please enter a valid image URL."),
-  deliveryFee: z.coerce.number().min(0, "Delivery fee must be zero or more."),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -53,7 +52,6 @@ export default function PaymentSettingsPage() {
     defaultValues: {
       upiId: "",
       qrCodeImageUrl: "",
-      deliveryFee: 49,
     },
   });
 
@@ -79,7 +77,7 @@ export default function PaymentSettingsPage() {
       await updatePaymentSettings(data);
       toast({
         title: "Settings Updated",
-        description: "Payment and fee settings have been successfully updated.",
+        description: "Payment settings have been successfully updated.",
       });
     } catch (error) {
       console.error("Failed to save payment settings", error);
@@ -111,10 +109,10 @@ export default function PaymentSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-headline flex items-center">
-                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Fee Settings
+                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment Settings
               </CardTitle>
               <CardDescriptionElement>
-                Configure UPI, QR code, and delivery fees for checkout. Item-specific taxes can be managed from the Menu page.
+                Configure UPI and QR code for checkout. Item-specific taxes and fees can be managed from the Menu page.
               </CardDescriptionElement>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8">
@@ -147,25 +145,6 @@ export default function PaymentSettingsPage() {
                         </FormItem>
                         )}
                     />
-                 </div>
-                 <Separator />
-                 <div>
-                    <h3 className="text-lg font-medium mb-2">Global Fees</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                         <FormField
-                            control={form.control}
-                            name="deliveryFee"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Delivery Fee (Rs.)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="1" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
                  </div>
               </div>
               <div className="space-y-4">

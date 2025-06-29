@@ -52,7 +52,7 @@ export default function CheckoutPage() {
         const defaultAddress = addresses.find(addr => addr.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
-          setFormData(prev => ({ ...prev, fullName: defaultAddress.fullName || user.displayName || '', address: defaultAddress.street, village: defaultAddress.village || '', city: defaultAddress.city, pinCode: defaultAddress.pinCode, phone: defaultAddress.phone || '' }));
+          setFormData(prev => ({ ...prev, fullName: defaultAddress.fullName || user.displayName || '', address: selectedAddr.street, village: selectedAddr.village || '', city: selectedAddr.city, pinCode: selectedAddr.pinCode, phone: selectedAddr.phone || '' }));
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
@@ -76,7 +76,7 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData]);
 
   const subTotal = getCartTotal();
-  const deliveryFee = paymentSettings?.deliveryFee ?? 49;
+  const deliveryFee = cartItems.reduce((acc, item) => acc + ((item.deliveryFee || 0) * item.quantity), 0);
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);

@@ -42,6 +42,7 @@ const menuItemSchema = z.object({
   weight: z.string().optional(),
   ingredients: z.string().optional(),
   taxRate: z.coerce.number().min(0, "Tax rate must be zero or more.").max(1, "Tax rate should be a decimal (e.g., 0.05 for 5%).").optional(),
+  deliveryFee: z.coerce.number().min(0, "Delivery fee must be zero or more.").optional(),
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
@@ -74,7 +75,11 @@ export default function MenuItemFormDialog({
   useEffect(() => {
     if (isOpen) {
         if (menuItem) {
-          reset({...menuItem, taxRate: menuItem.taxRate || undefined});
+          reset({
+            ...menuItem, 
+            taxRate: menuItem.taxRate || undefined,
+            deliveryFee: menuItem.deliveryFee || undefined,
+        });
         } else {
           reset({
             name: "",
@@ -87,6 +92,7 @@ export default function MenuItemFormDialog({
             weight: "",
             ingredients: "",
             taxRate: undefined,
+            deliveryFee: undefined,
           });
         }
     }
@@ -95,7 +101,7 @@ export default function MenuItemFormDialog({
   const onSubmit = async (data: MenuItemFormValues) => {
     setIsSubmitting(true);
     try {
-      const dataToSave = { ...data, taxRate: data.taxRate || 0 };
+      const dataToSave = { ...data };
       if (menuItem) {
         await updateMenuItem({ ...dataToSave, id: menuItem.id });
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
@@ -210,20 +216,34 @@ export default function MenuItemFormDialog({
                       </FormItem>
                   )}
                 />
-                 <FormField
+                <FormField
                   control={form.control}
-                  name="weight"
+                  name="deliveryFee"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Weight (Optional)</FormLabel>
+                      <FormItem>
+                      <FormLabel>Delivery Fee (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Approx. 450g" {...field} />
+                          <Input type="number" step="1" {...field} value={field.value ?? ''} placeholder="e.g. 10"/>
                       </FormControl>
+                      <FormDescription className="text-xs">Per-item fee. Leave blank for 0.</FormDescription>
                       <FormMessage />
-                    </FormItem>
+                      </FormItem>
                   )}
                 />
             </div>
+             <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Weight (Optional)</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Approx. 450g" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
             <FormField
               control={form.control}
               name="ingredients"

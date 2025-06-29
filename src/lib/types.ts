@@ -24,6 +24,7 @@ export interface MenuItem {
   weight?: string; // e.g., "250g", "Approx. 300g"
   ingredients?: string; // e.g., "Flour, Tomato, Cheese, Basil" or comma-separated
   taxRate?: number; // e.g., 0.05 for 5% tax
+  deliveryFee?: number;
 }
 
 export interface CartItem extends MenuItem {
@@ -109,7 +110,6 @@ export interface HeroData {
 export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
-  deliveryFee: number;
 }
 
 export interface DailyChartData {
