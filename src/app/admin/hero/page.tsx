@@ -121,6 +121,9 @@ export default function HeroManagementPage() {
                   </CardTitle>
                   <CardDescription>
                     Update the text and rotating banner images displayed on the homepage.
+                    <p className="mt-1">
+                      Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
+                    </p>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
