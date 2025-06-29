@@ -32,6 +32,16 @@ import { useToast } from "@/hooks/use-toast";
 import { LayoutTemplate, Save, PlusCircle, Trash2 } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+  } from "@/components/ui/alert-dialog"
 
 const bannerSchema = z.object({
   src: z.string().url("Please enter a valid image URL."),
@@ -54,6 +64,9 @@ export default function HeroManagementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime, setStartTime] = useState("10:00 AM");
   const [endTime, setEndTime] = useState("10:00 PM");
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [bannerIndexToDelete, setBannerIndexToDelete] = useState<number | null>(null);
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
@@ -120,6 +133,23 @@ export default function HeroManagementPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDeleteBanner = (index: number) => {
+    setBannerIndexToDelete(index);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (bannerIndexToDelete !== null) {
+        remove(bannerIndexToDelete);
+        toast({
+            title: "Banner Removed",
+            description: "The banner has been removed. Click 'Save All Changes' to make it permanent.",
+        });
+    }
+    setIsDeleteDialogOpen(false);
+    setBannerIndexToDelete(null);
   };
 
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
@@ -248,7 +278,7 @@ export default function HeroManagementPage() {
                             )}
                           />
                         </div>
-                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="mt-7">
+                        <Button type="button" variant="destructive" size="icon" onClick={() => handleDeleteBanner(index)} className="mt-7">
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Remove banner</span>
                         </Button>
@@ -284,6 +314,22 @@ export default function HeroManagementPage() {
             </form>
         </Form>
       </Card>
+       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this banner image from the homepage.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBannerIndexToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete Banner
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
