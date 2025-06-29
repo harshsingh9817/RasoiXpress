@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -197,7 +196,17 @@ export default function DeliveryOrderDetailPage() {
                  {/* Shipping Details */}
                  <div className="p-4 border rounded-lg">
                     <h3 className="font-semibold mb-2 flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
-                    <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
+                    <p className="text-sm text-muted-foreground mb-3">{order.shippingAddress}</p>
+                    <Button asChild className="w-full">
+                        <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.shippingAddress)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Find on Google Maps
+                        </a>
+                    </Button>
                 </div>
                 
                  {/* Order Items */}
