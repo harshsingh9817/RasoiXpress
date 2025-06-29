@@ -6,7 +6,7 @@ import { useState, useEffect, type FormEvent, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home, User, LogIn, UserPlus, ShieldCheck, HelpCircle, Bell, ListOrdered,
-  Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle,
+  Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle, LifeBuoy,
 } from 'lucide-react';
 import RasoiXpressLogo from '@/components/icons/RasoiXpressLogo';
 import { Button } from './ui/button';
@@ -15,9 +15,9 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import HelpDialog from './HelpDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { AppNotification, Order, OrderStatus, AdminMessage } from '@/lib/types';
+import type { AppNotification, Order, OrderStatus, AdminMessage, SupportTicket } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders } from '@/lib/data';
+import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders, listenToSupportTickets } from '@/lib/data';
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': { title: 'Payment Successful!', message: 'Your order has been placed. The restaurant will confirm it shortly.' },
@@ -26,6 +26,29 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
   'Out for Delivery': { title: 'Out for Delivery', message: 'Your delivery partner is on the way to your location!' },
   'Delivered': { title: 'Order Delivered!', message: 'We hope you enjoy your meal! You can now leave a review.' },
   'Cancelled': { title: 'Order Cancelled', message: 'Your order has been successfully cancelled.' },
+};
+
+const getNotificationIcon = (notification: AppNotification) => {
+    const iconClass = `h-6 w-6 flex-shrink-0 transition-colors ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
+    switch (notification.type) {
+        case 'admin_new_order': return <Package className={iconClass} />;
+        case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
+        case 'admin_message': return <MessageSquare className={iconClass} />;
+        case 'delivery_available': return <Bike className={iconClass} />;
+        case 'admin_new_support_ticket': return <LifeBuoy className={iconClass} />;
+        case 'order_update':
+            if (notification.orderStatus) {
+                switch (notification.orderStatus) {
+                    case 'Order Placed': return <PackagePlus className={iconClass} />;
+                    case 'Confirmed': return <ClipboardCheck className={iconClass} />;
+                    case 'Preparing': return <ChefHat className={iconClass} />;
+                    case 'Out for Delivery': return <Bike className={iconClass} />;
+                    case 'Delivered': return <DeliveredIcon className={iconClass} />;
+                    case 'Cancelled': return <XCircle className={iconClass} />;
+                }
+            }
+    }
+    return <Bell className={iconClass} />;
 };
 
 const Header = () => {
@@ -67,7 +90,6 @@ const Header = () => {
         const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
         const recentNotifications = storedNotifications.filter((n: AppNotification) => n.timestamp >= sevenDaysAgo);
 
-        // If the cleanup removed items, update localStorage
         if (recentNotifications.length < storedNotifications.length) {
             localStorage.setItem(storageKey, JSON.stringify(recentNotifications));
         }
@@ -77,7 +99,7 @@ const Header = () => {
     
     window.addEventListener('notificationsUpdated', syncNotificationsFromStorage);
     
-    const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order') => {
+    const processNotifications = (newItems: (Order | AdminMessage | SupportTicket)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order' | 'support_ticket') => {
         const allStoredNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
         const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
@@ -119,14 +141,16 @@ const Header = () => {
                 if (!allStoredNotifications.some(n => n.id === id)) {
                     notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' };
                 }
+            } else if (type === 'support_ticket' && 'message' in item) {
+                const ticket = item as SupportTicket;
+                id = `notif-admin-new-ticket-${ticket.id}`;
+                if (ticket.status === 'Open' && !allStoredNotifications.some(n => n.id === id)) {
+                   notif = { id, timestamp: now, title: `New Support Ticket`, message: `From ${ticket.userEmail || 'Guest'}: "${ticket.message.substring(0, 30)}..."`, read: false, type: 'admin_new_support_ticket', link: '/admin/support' };
+                }
             }
 
             if (notif) {
-                // We found a new event that has never had a notification. Add it to our list to be saved.
                 generatedNotifications.push(notif);
-
-                // Now, decide if we should show a pop-up system notification for it.
-                // We don't show pop-ups for very old events on the very first app load.
                 const shouldShowSystemAlert = !(isInitialLoad.current && notif.timestamp < twentyFourHoursAgo);
                 
                 if (shouldShowSystemAlert) {
@@ -135,7 +159,6 @@ const Header = () => {
             }
         });
 
-        // After the first processing batch, subsequent runs are real-time updates.
         if (isInitialLoad.current) {
             isInitialLoad.current = false;
         }
@@ -158,6 +181,7 @@ const Header = () => {
 
     if (isAdmin) {
         unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'admin_order')));
+        unsubscribers.push(listenToSupportTickets(tickets => processNotifications(tickets, 'support_ticket')));
     } else if (isDelivery) {
         unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'delivery_order')));
     } else {

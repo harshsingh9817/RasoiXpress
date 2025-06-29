@@ -474,6 +474,25 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
     }) as SupportTicket[];
 }
 
+export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
+    const ticketsCol = collection(db, 'supportTickets');
+    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tickets = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp?.toMillis() || Date.now(),
+            }
+        }) as SupportTicket[];
+        callback(tickets);
+    }, (error) => {
+        console.error("Error listening to support tickets:", error);
+    });
+    return unsubscribe;
+}
+
 export async function replyToSupportTicket(
     ticketId: string,
     userId: string,
