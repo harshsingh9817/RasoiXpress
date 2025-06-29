@@ -296,7 +296,7 @@ export default function HeroManagementPage() {
                                         alt={`Banner Preview ${index + 1}`}
                                         width={1280}
                                         height={400}
-                                        className="rounded-md object-contain h-full w-auto"
+                                        className="rounded-md object-cover h-full w-full"
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = 'https://placehold.co/1280x400.png?text=Invalid+URL';
                                         }}

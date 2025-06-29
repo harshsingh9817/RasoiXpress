@@ -207,13 +207,13 @@ export default function MenuItemFormDialog({
             {imageUrl && (
               <div className="space-y-2 pt-2">
                 <FormLabel>Image Preview</FormLabel>
-                <div className="p-2 border rounded-md flex justify-center items-center bg-muted/50 min-h-[150px]">
+                <div className="p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-[4/3]">
                   <Image
                     src={imageUrl}
                     alt="Image Preview"
                     width={200}
                     height={150}
-                    className="rounded-md object-contain max-h-[150px]"
+                    className="rounded-md object-cover h-full w-full"
                     onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://placehold.co/200x150.png?text=Invalid+URL';
                     }}
