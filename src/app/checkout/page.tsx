@@ -52,7 +52,7 @@ export default function CheckoutPage() {
         const defaultAddress = addresses.find(addr => addr.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
-          setFormData(prev => ({ ...prev, fullName: defaultAddress.fullName || user.displayName || '', address: selectedAddr.street, village: selectedAddr.village || '', city: selectedAddr.city, pinCode: selectedAddr.pinCode, phone: selectedAddr.phone || '' }));
+          setFormData(prev => ({ ...prev, fullName: defaultAddress.fullName || user.displayName || '', address: defaultAddress.street, village: defaultAddress.village || '', city: defaultAddress.city, pinCode: defaultAddress.pinCode, phone: defaultAddress.phone || '' }));
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
