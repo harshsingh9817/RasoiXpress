@@ -20,7 +20,7 @@ import {
   deleteField,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage, RestaurantPartner } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -550,30 +550,6 @@ export async function resolveSupportTicket(ticketId: string): Promise<void> {
     const docRef = doc(db, 'supportTickets', ticketId);
     await updateDoc(docRef, { status: 'Resolved' });
 }
-
-// --- Restaurant Partner Management ---
-export async function getRestaurantPartners(): Promise<RestaurantPartner[]> {
-    const partnersCol = collection(db, 'restaurantPartners');
-    const snapshot = await getDocs(query(partnersCol, orderBy("restaurantName")));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RestaurantPartner[];
-}
-
-export async function addRestaurantPartner(partnerData: Omit<RestaurantPartner, 'id'>): Promise<void> {
-    const partnersCol = collection(db, 'restaurantPartners');
-    await addDoc(partnersCol, partnerData);
-}
-
-export async function updateRestaurantPartner(partner: RestaurantPartner): Promise<void> {
-    const { id, ...partnerData } = partner;
-    const docRef = doc(db, 'restaurantPartners', id);
-    await updateDoc(docRef, partnerData);
-}
-
-export async function deleteRestaurantPartner(partnerId: string): Promise<void> {
-    const docRef = doc(db, 'restaurantPartners', partnerId);
-    await deleteDoc(docRef);
-}
-
 
 // --- Other Data Functions ---
 export async function getPopularDishes(): Promise<string[]> {

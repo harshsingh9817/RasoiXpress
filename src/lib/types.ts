@@ -160,12 +160,3 @@ export interface SupportTicket {
   reply?: string;
   repliedAt?: any;
 }
-
-export interface RestaurantPartner {
-  id: string;
-  restaurantName: string;
-  ownerName: string;
-  ownerPhone: string;
-  ownerEmail: string;
-  totalPayouts: number;
-}

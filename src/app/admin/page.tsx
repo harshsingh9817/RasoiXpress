@@ -78,21 +78,6 @@ export default function AdminPage() {
             </Card>
         </Link>
 
-        <Link href="/admin/restaurants" className="block h-full">
-          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
-            <CardHeader>
-              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
-                  <Store className="mr-2 h-6 w-6 text-primary"/>
-                  Manage Restaurants
-              </CardTitle>
-              <CardDescription>Manage restaurant partners and view payouts.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Click here to add or edit restaurant partner details.</p>
-            </CardContent>
-          </Card>
-        </Link>
-
         <Link href="/admin/hero" className="block h-full">
           <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
             <CardHeader>

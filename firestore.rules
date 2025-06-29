@@ -3,70 +3,77 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAdmin() {
-      // This mirrors the hardcoded admin email in the application code.
-      // For production, using custom claims is more secure and scalable.
-      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
-    }
-
-    function isDelivery() {
-      // Checks the isDelivery flag on the user's document.
-      // This flag is set on login based on the /riders collection.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
-    }
-
-    function isAuthenticated() {
+    
+    // --- Helper Functions ---
+    function isAuth() {
       return request.auth != null;
     }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    match /users/{userId} {
-      allow read, update: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated(); // During signup
-      
-      match /addresses/{addressId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
+    
+    function isUserId(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
     
-    match /menuItems/{menuItemId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    function isAdmin() {
+      // Allow if the user has an 'admin' custom claim, OR is the specific hardcoded admin email.
+      // NOTE: For production, rely on custom claims set by a backend process.
+      return isAuth() && (request.auth.token.admin == true || request.auth.token.email == 'harshsingh9817@gmail.com');
+    }
+    
+    function isDelivery() {
+      // Allow if the user has a 'delivery' custom claim.
+      return isAuth() && request.auth.token.delivery == true;
+    }
+
+    // --- Public Collections ---
+    match /menuItems/{itemId} {
+      allow read: if true; // Everyone can read the menu
+      allow write: if isAdmin(); // Only admins can create, update, delete
     }
 
     match /globals/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+        allow read: if true; // Everyone can read global settings
+        allow write: if isAdmin(); // Only admins can change them
     }
 
+    // --- User-specific Data ---
+    match /users/{userId} {
+      allow read, write: if isUserId(userId) || isAdmin();
+
+      // Addresses are sub-collections of a user
+      match /addresses/{addressId} {
+        allow read, write: if isUserId(userId) || isAdmin();
+      }
+    }
+    
+    // --- Orders ---
     match /orders/{orderId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read: if isOwner(resource.data.userId) || isDelivery() || isAdmin();
-      allow update: if isAdmin() || 
-                     (isDelivery() && resource.data.deliveryRiderId == request.auth.uid) || 
-                     (isOwner(resource.data.userId) && request.resource.data.status == 'Cancelled');
+        // User can create their own order
+        allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+        // User can read their own order
+        // Admin can read any order
+        // Delivery person can read any order (to see available ones)
+        allow read: if (isAuth() && resource.data.userId == request.auth.uid) || isAdmin() || isDelivery();
+        // Admin can update status, cancel, review on behalf of user
+        // User can cancel their own order or add a review
+        // Delivery person can update status (accept, mark as delivered)
+        allow update: if isAdmin() || isDelivery() || (isAuth() && resource.data.userId == request.auth.uid);
     }
     
+    // --- Admin Messages (Notifications) ---
     match /adminMessages/{messageId} {
-      allow create: if isAdmin();
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+        allow create: if isAdmin(); // Only admin can create/send
+        allow read: if (isAuth() && resource.data.userId == request.auth.uid) || isAdmin();
     }
     
+    // --- Riders ---
     match /riders/{riderId} {
-      allow read, write: if isAdmin();
+        allow read, write: if isAdmin();
     }
     
+    // --- Support Tickets ---
     match /supportTickets/{ticketId} {
-      allow create: if true; // Anyone can create a support ticket
-      allow read, update: if isAdmin();
-    }
-    
-    match /restaurantPartners/{partnerId} {
-      allow read, write: if isAdmin();
+        allow create: if true; // Anyone can create a ticket
+        allow read, write: if isAdmin(); // Only admins can read/update
     }
   }
 }
