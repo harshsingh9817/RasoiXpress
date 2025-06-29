@@ -32,6 +32,7 @@ const getNotificationIcon = (notification: AppNotification) => {
     const iconClass = `h-6 w-6 flex-shrink-0 transition-colors ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
     switch (notification.type) {
         case 'admin_new_order': return <Package className={iconClass} />;
+        case 'admin_order_accepted': return <Bike className={iconClass} />;
         case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
         case 'admin_message': return <MessageSquare className={iconClass} />;
         case 'delivery_available': return <Bike className={iconClass} />;
@@ -114,6 +115,12 @@ const Header = () => {
                     id = `notif-admin-new-order-${order.id}`;
                     if (!allStoredNotifications.some(n => n.id === id)) {
                        notif = { id, timestamp: now, title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
+                    }
+                }
+                if (order.status === 'Out for Delivery' && order.deliveryRiderId) {
+                    id = `notif-admin-order-accepted-${order.id}`;
+                    if (!allStoredNotifications.some(n => n.id === id)) {
+                       notif = { id, timestamp: now, title: `Delivery Started`, message: `${order.deliveryRiderName || 'A rider'} has accepted order #${order.id.slice(-6)}.`, read: false, type: 'admin_order_accepted', orderId: order.id, link: '/admin/orders' };
                     }
                 }
                 if (order.status === 'Delivered') {
