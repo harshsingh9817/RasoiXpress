@@ -63,14 +63,22 @@ const Header = () => {
         : `rasoiExpressUserNotifications_${user.uid}`;
     
     const syncNotificationsFromStorage = () => {
-        const storedNotifications = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        setNotifications(storedNotifications);
+        const storedNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const recentNotifications = storedNotifications.filter((n: AppNotification) => n.timestamp >= sevenDaysAgo);
+
+        // If the cleanup removed items, update localStorage
+        if (recentNotifications.length < storedNotifications.length) {
+            localStorage.setItem(storageKey, JSON.stringify(recentNotifications));
+        }
+
+        setNotifications(recentNotifications);
     };
     
     window.addEventListener('notificationsUpdated', syncNotificationsFromStorage);
     
     const processNotifications = (newItems: (Order | AdminMessage)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order') => {
-        const existingNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const allStoredNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
         const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
@@ -82,33 +90,33 @@ const Header = () => {
                 const order = item as Order;
                 if (order.status === 'Order Placed') {
                     id = `notif-admin-new-order-${order.id}`;
-                    if (!existingNotifications.some(n => n.id === id)) {
+                    if (!allStoredNotifications.some(n => n.id === id)) {
                        notif = { id, timestamp: now, title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
                     }
                 }
                 if (order.status === 'Delivered') {
                     id = `notif-admin-order-delivered-${order.id}`;
-                    if (!existingNotifications.some(n => n.id === id)) {
+                    if (!allStoredNotifications.some(n => n.id === id)) {
                        notif = { id, timestamp: now, title: `Order Delivered`, message: `Order #${order.id.slice(-6)} for ${order.customerName} has been delivered.`, read: false, type: 'admin_order_delivered', orderId: order.id, link: '/admin/orders' };
                     }
                 }
             } else if (type === 'delivery_order' && 'status' in item && item.status === 'Confirmed' && !(item as Order).deliveryRiderId) {
                 const order = item as Order;
                 id = `notif-delivery-new-order-${order.id}`;
-                if (!existingNotifications.some(n => n.id === id)) {
+                if (!allStoredNotifications.some(n => n.id === id)) {
                    notif = { id, timestamp: now, title: `New Delivery Available!`, message: `Order #${order.id.slice(-6)} is ready for pickup.`, read: false, type: 'delivery_available', orderId: order.id, link: `/delivery/orders/${order.id}` };
                 }
             } else if (type === 'order' && 'status' in item) {
                 const order = item as Order;
                 id = `notif-user-${order.id}-${order.status}`;
-                if (!existingNotifications.some(n => n.id === id) && orderStatusNotificationMap[order.status]) {
+                if (!allStoredNotifications.some(n => n.id === id) && orderStatusNotificationMap[order.status]) {
                     const details = orderStatusNotificationMap[order.status]!;
                     notif = { id, timestamp: now, title: `${details.title}`, message: details.message, read: false, type: 'order_update', orderId: order.id, orderStatus: order.status, link: `/my-orders?track=${order.id}` };
                 }
             } else if (type === 'message' && 'title' in item) {
                 const msg = item as AdminMessage;
                 id = `notif-message-${msg.id}`;
-                if (!existingNotifications.some(n => n.id === id)) {
+                if (!allStoredNotifications.some(n => n.id === id)) {
                     notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' };
                 }
             }
@@ -132,10 +140,16 @@ const Header = () => {
             isInitialLoad.current = false;
         }
 
-        if (generatedNotifications.length > 0) {
-            const all = [...generatedNotifications, ...existingNotifications].sort((a,b) => b.timestamp - a.timestamp).slice(0, 50);
-            localStorage.setItem(storageKey, JSON.stringify(all));
-            setNotifications(all);
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const recentStoredNotifications = allStoredNotifications.filter(n => n.timestamp >= sevenDaysAgo);
+        const cleanupPerformed = recentStoredNotifications.length < allStoredNotifications.length;
+
+        if (generatedNotifications.length > 0 || cleanupPerformed) {
+            const updatedList = [...generatedNotifications, ...recentStoredNotifications]
+                .sort((a,b) => b.timestamp - a.timestamp)
+                .slice(0, 50);
+            
+            localStorage.setItem(storageKey, JSON.stringify(updatedList));
             window.dispatchEvent(new Event('notificationsUpdated'));
         }
     };
