@@ -129,7 +129,7 @@ export default function DeliveryOrderDetailPage() {
             description: "Your browser doesn't support location services. Opening Maps with destination only.",
             variant: "destructive",
         });
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener,noreferrer');
+        window.open(`https://www.google.com/maps?daddr=${destination}&saddr=My+Location`, '_blank', 'noopener,noreferrer');
         setIsGettingLocation(false);
         return;
     }
@@ -143,16 +143,16 @@ export default function DeliveryOrderDetailPage() {
         },
         (error) => {
             console.error("Geolocation error:", error);
-            let description = "Could not get your location. Opening Maps with destination only.";
+            let description = "Could not get your location. Please check settings and try again.";
             if (error.code === error.PERMISSION_DENIED) {
-                description = "Location access was denied. Opening Maps with destination only.";
+                description = "Location access was denied. Please enable it in your browser settings.";
             }
             toast({
                 title: "Location Error",
                 description: description,
                 variant: "destructive",
             });
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener,noreferrer');
+            window.open(`https://www.google.com/maps?daddr=${destination}&saddr=My+Location`, '_blank', 'noopener,noreferrer');
             setIsGettingLocation(false);
         }
     );
