@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { MenuItem, CartItem, HeroData } from '@/lib/types';
@@ -17,7 +16,7 @@ import {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (item: MenuItem, quantity?: number) => void;
+  addToCart: (item: MenuItem, quantity?: number) => boolean;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   applyCoupon: (couponCode: string) => void;
@@ -111,10 +110,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [cartItems]);
 
-  const addToCart = (item: MenuItem, quantityToAdd: number = 1) => {
+  const addToCart = (item: MenuItem, quantityToAdd: number = 1): boolean => {
     if (!isOrderingAllowed) {
       setIsTimeGateDialogOpen(true);
-      return;
+      return false;
     }
 
     setCartItems(prevItems => {
@@ -133,6 +132,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       variant: "default", // Use default for success messages, not "destructive"
       duration: 3000,
     });
+    return true;
   };
 
   const removeFromCart = (itemId: string) => {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FC } from 'react';
@@ -38,8 +37,10 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
   };
 
   const handleBuyNow = () => {
-    addToCart(menuItem);
-    router.push('/checkout');
+    const wasAdded = addToCart(menuItem);
+    if (wasAdded) {
+        router.push('/checkout');
+    }
   };
 
   return (

@@ -23,8 +23,10 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(menuItem);
-    router.push('/checkout');
+    const wasAdded = addToCart(menuItem);
+    if (wasAdded) {
+      router.push('/checkout');
+    }
   };
   
   const handleAddToCart = (e: React.MouseEvent) => {
