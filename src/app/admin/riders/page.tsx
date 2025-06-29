@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { addRider, getRiders, deleteRider, listenToAllOrders } from "@/lib/data";
+import { addRider, getRiders, deleteRider, listenToAllOrders, clearRiderDeliveryCount } from "@/lib/data";
 import type { Rider, Order } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,7 @@ import {
   User,
   Phone,
   ClipboardCheck,
+  RefreshCcw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,9 @@ export default function RiderManagementPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [riderToDelete, setRiderToDelete] = useState<Rider | null>(null);
+  
+  const [isClearCountDialogOpen, setIsClearCountDialogOpen] = useState(false);
+  const [riderToClear, setRiderToClear] = useState<Rider | null>(null);
 
   const form = useForm<RiderFormValues>({
     resolver: zodResolver(riderSchema),
@@ -115,8 +119,11 @@ export default function RiderManagementPage() {
   const ridersWithStats = useMemo(() => {
     if (!riders || !orders) return [];
     return riders.map(rider => {
+        const lastPaymentDate = rider.lastPaymentDate?.toDate ? rider.lastPaymentDate.toDate() : null;
         const deliveredCount = orders.filter(order =>
-            order.deliveryRiderId === rider.id && order.status === 'Delivered'
+            order.deliveryRiderId === rider.id &&
+            order.status === 'Delivered' &&
+            (!lastPaymentDate || new Date(order.date) > lastPaymentDate)
         ).length;
         return { ...rider, deliveredCount };
     });
@@ -128,6 +135,11 @@ export default function RiderManagementPage() {
     setIsDeleteDialogOpen(true);
   };
   
+  const handleClearCount = (rider: Rider) => {
+    setRiderToClear(rider);
+    setIsClearCountDialogOpen(true);
+  };
+
   const confirmDelete = async () => {
     if (riderToDelete) {
         try {
@@ -141,6 +153,21 @@ export default function RiderManagementPage() {
     }
     setIsDeleteDialogOpen(false);
     setRiderToDelete(null);
+  }
+
+  const confirmClearCount = async () => {
+    if (riderToClear) {
+        try {
+            await clearRiderDeliveryCount(riderToClear.id);
+            toast({ title: "Count Cleared", description: `Delivery count for ${riderToClear.fullName} has been reset.`});
+            await loadRiders();
+        } catch (error) {
+            console.error("Failed to clear count", error);
+            toast({ title: "Clear Failed", description: "Could not clear the count.", variant: "destructive" });
+        }
+    }
+    setIsClearCountDialogOpen(false);
+    setRiderToClear(null);
   }
   
   const onSubmit = async (data: RiderFormValues) => {
@@ -292,6 +319,10 @@ export default function RiderManagementPage() {
                                             <Phone className="h-4 w-4" />
                                         </a>
                                     </Button>
+                                    <Button variant="outline" size="icon" onClick={() => handleClearCount(rider)}>
+                                        <RefreshCcw className="h-4 w-4" />
+                                        <span className="sr-only">Clear Delivery Count</span>
+                                    </Button>
                                     <Button variant="destructive" size="icon" onClick={() => handleDelete(rider)}>
                                         <Trash2 className="h-4 w-4" />
                                         <span className="sr-only">Remove Rider</span>
@@ -326,6 +357,25 @@ export default function RiderManagementPage() {
             <AlertDialogCancel onClick={() => setRiderToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
                 Remove
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isClearCountDialogOpen} onOpenChange={setIsClearCountDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Clear Delivery Count?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This will reset the delivery count for <span className="font-semibold"> {riderToClear?.fullName} </span> to zero. This should only be done after the rider has been paid for their completed deliveries.
+                <br/><br/>
+                This action cannot be undone.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRiderToClear(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClearCount}>
+                Confirm & Clear
             </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

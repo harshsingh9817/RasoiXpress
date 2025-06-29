@@ -502,6 +502,13 @@ export async function deleteRider(riderId: string): Promise<void> {
     await deleteDoc(docRef);
 }
 
+export async function clearRiderDeliveryCount(riderId: string): Promise<void> {
+    const docRef = doc(db, 'riders', riderId);
+    await updateDoc(docRef, {
+        lastPaymentDate: serverTimestamp()
+    });
+}
+
 // --- Support Ticket Management ---
 export async function sendSupportMessage(
     messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>

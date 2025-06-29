@@ -149,6 +149,7 @@ export interface Rider {
   fullName: string;
   email: string;
   phone: string;
+  lastPaymentDate?: any;
 }
 
 export interface SupportTicket {
