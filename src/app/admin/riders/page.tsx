@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -6,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { addRider, getRiders, deleteRider, getAllOrders } from "@/lib/data";
+import { addRider, getRiders, deleteRider, listenToAllOrders } from "@/lib/data";
 import type { Rider, Order } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,20 +84,13 @@ export default function RiderManagementPage() {
     },
   });
 
-  const loadPageData = useCallback(async () => {
-    setIsDataLoading(true);
+  const loadRiders = useCallback(async () => {
     try {
-        const [riderItems, orderItems] = await Promise.all([
-            getRiders(),
-            getAllOrders()
-        ]);
+        const riderItems = await getRiders();
         setRiders(riderItems);
-        setOrders(orderItems);
     } catch (error) {
-        console.error("Failed to load page data", error);
-        toast({ title: "Error", description: "Could not load riders and orders.", variant: "destructive" });
-    } finally {
-        setIsDataLoading(false);
+        console.error("Failed to load riders", error);
+        toast({ title: "Error", description: "Could not load riders.", variant: "destructive" });
     }
   }, [toast]);
 
@@ -106,9 +100,17 @@ export default function RiderManagementPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-        loadPageData();
+        setIsDataLoading(true);
+        loadRiders();
+        
+        const unsubscribe = listenToAllOrders((orderItems) => {
+            setOrders(orderItems);
+            setIsDataLoading(false);
+        });
+
+        return () => unsubscribe();
     }
-  }, [isAdmin, isLoading, isAuthenticated, router, loadPageData]);
+  }, [isAdmin, isLoading, isAuthenticated, router, loadRiders]);
 
   const ridersWithStats = useMemo(() => {
     if (!riders || !orders) return [];
@@ -131,7 +133,7 @@ export default function RiderManagementPage() {
         try {
             await deleteRider(riderToDelete.id);
             toast({ title: "Rider Removed", description: `${riderToDelete.fullName} has been removed from the delivery team.`});
-            await loadPageData(); // Refresh list after delete
+            await loadRiders(); // Refresh list after delete
         } catch (error) {
             console.error("Failed to delete rider", error);
             toast({ title: "Delete Failed", description: "Could not remove the rider.", variant: "destructive" });
@@ -149,7 +151,7 @@ export default function RiderManagementPage() {
         description: `${data.fullName} can now sign up with ${data.email} to be a delivery partner.`,
       });
       form.reset();
-      await loadPageData();
+      await loadRiders();
     } catch (error: any) {
       console.error("Failed to add rider", error);
       toast({
@@ -161,7 +163,7 @@ export default function RiderManagementPage() {
   };
 
 
-  if (isLoading || (!isAuthenticated && !isLoading)) {
+  if (isLoading || (!isAuthenticated && !isLoading) || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary">
