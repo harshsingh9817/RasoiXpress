@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, clearCart, getCartItemCount } = useCart();
+  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -85,8 +85,13 @@ export default function CheckoutPage() {
       router.replace('/');
       return;
     }
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        router.replace('/'); // Go back home if restaurant is closed
+        return;
+    }
     loadPageData();
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   const subTotal = getCartTotal();
   const deliveryFee = isFirstOrder ? 0 : cartItems.reduce((acc, item) => acc + ((item.deliveryFee || 0) * item.quantity), 0);
@@ -118,6 +123,10 @@ export default function CheckoutPage() {
 
   const handleProceedToPayment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        return;
+    }
     if (!user) return;
     const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
     const villagePart = formData.village ? `${formData.village}, ` : '';

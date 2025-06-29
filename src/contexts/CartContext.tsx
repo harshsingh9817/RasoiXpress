@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MenuItem, CartItem, HeroData } from '@/lib/types';
@@ -25,6 +26,8 @@ interface CartContextType {
   clearCart: () => void;
   isCartOpen: boolean;
   setIsCartOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isOrderingAllowed: boolean;
+  setIsTimeGateDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -220,6 +223,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         clearCart,
         isCartOpen,
         setIsCartOpen,
+        isOrderingAllowed,
+        setIsTimeGateDialogOpen,
       }}
     >
       {children}
