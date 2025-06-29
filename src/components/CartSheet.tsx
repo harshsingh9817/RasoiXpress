@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import CartItemCard from './CartItemCard';
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, ClipboardList } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, Bell } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,10 +58,6 @@ const CartSheet = () => {
     return null;
   }
 
-  const handleHistoryClick = () => {
-      router.push('/delivery/profile');
-  };
-
   return (
     <>
       {showFAB && (
@@ -71,10 +67,10 @@ const CartSheet = () => {
                 variant="default"
                 size="icon"
                 className="relative h-16 w-16 rounded-full shadow-lg bg-primary hover:bg-primary/90"
-                onClick={handleHistoryClick}
-                aria-label="View Delivery History"
+                onClick={() => router.push('/notifications')}
+                aria-label="View Notifications"
             >
-                <ClipboardList className="h-7 w-7" />
+                <Bell className="h-7 w-7" />
             </Button>
           ) : (
             <Button
