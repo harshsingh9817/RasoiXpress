@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -28,6 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -37,11 +39,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import { Textarea } from "@/components/ui/textarea";
 
 const ALL_ORDER_STATUSES: OrderStatus[] = [
   'Order Placed',
@@ -60,6 +63,12 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [orderToMessage, setOrderToMessage] = useState<Order | null>(null);
+  const [messageContent, setMessageContent] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -104,6 +113,31 @@ export default function AdminOrdersPage() {
         description: "Could not update the order status.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleOpenMessageDialog = (order: Order) => {
+    setOrderToMessage(order);
+    setMessageContent('');
+    setIsMessageDialogOpen(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (!orderToMessage || !messageContent.trim()) {
+        toast({ title: "Message is empty", variant: "destructive" });
+        return;
+    }
+    setIsSendingMessage(true);
+    try {
+        const title = `A message regarding your order #${orderToMessage.id.slice(-6)}`;
+        await sendAdminMessage(orderToMessage.userId, orderToMessage.userEmail, title, messageContent);
+        toast({ title: "Message Sent!", description: `Your message has been sent to ${orderToMessage.customerName}.` });
+        setIsMessageDialogOpen(false);
+    } catch (error) {
+        console.error("Failed to send message:", error);
+        toast({ title: "Failed to Send", description: "An error occurred while sending the message.", variant: "destructive" });
+    } finally {
+        setIsSendingMessage(false);
     }
   };
 
@@ -265,10 +299,44 @@ export default function AdminOrdersPage() {
                         ) : (
                             <p className="mt-2 text-sm text-muted-foreground">No contact phone provided.</p>
                         )}
+                        <Button
+                            variant="outline"
+                            className="w-full mt-4"
+                            onClick={() => handleOpenMessageDialog(selectedOrder)}
+                         >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message Customer
+                        </Button>
                     </div>
                 </div>
                 </>
             )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Send Message to {orderToMessage?.customerName}</DialogTitle>
+                <DialogDescription>
+                    Regarding Order #{orderToMessage?.id.slice(-6)}. The user will receive this as a notification.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Textarea 
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    placeholder="Type your message here..."
+                    rows={6}
+                />
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline" disabled={isSendingMessage}>Cancel</Button></DialogClose>
+                <Button onClick={handleSendMessage} disabled={isSendingMessage || !messageContent.trim()}>
+                    {isSendingMessage ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <Send className="mr-2 h-4 w-4"/>}
+                    {isSendingMessage ? 'Sending...' : 'Send Message'}
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
