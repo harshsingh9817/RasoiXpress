@@ -16,10 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import { Badge } from '@/components/ui/badge';
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
@@ -35,6 +36,7 @@ export default function CheckoutPage() {
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
+  const [isFirstOrder, setIsFirstOrder] = useState(false);
   
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '' });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
@@ -45,9 +47,20 @@ export default function CheckoutPage() {
     if (!user) return;
     setIsDataLoading(true);
     try {
-        const [addresses, settings] = await Promise.all([ getAddresses(user.uid), getPaymentSettings() ]);
+        const [addresses, settings, userProfile] = await Promise.all([
+             getAddresses(user.uid), 
+             getPaymentSettings(),
+             getUserProfile(user.uid)
+        ]);
         setSavedAddresses(addresses);
         setPaymentSettings(settings);
+
+        if (userProfile && userProfile.hasCompletedFirstOrder === false) {
+            setIsFirstOrder(true);
+        } else {
+            setIsFirstOrder(false);
+        }
+
         setFormData(prev => ({...prev, fullName: user.displayName || ''}));
         const defaultAddress = addresses.find(addr => addr.isDefault);
         if (defaultAddress) {
@@ -76,7 +89,7 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData]);
 
   const subTotal = getCartTotal();
-  const deliveryFee = cartItems.reduce((acc, item) => acc + ((item.deliveryFee || 0) * item.quantity), 0);
+  const deliveryFee = isFirstOrder ? 0 : cartItems.reduce((acc, item) => acc + ((item.deliveryFee || 0) * item.quantity), 0);
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
@@ -198,7 +211,42 @@ export default function CheckoutPage() {
       <h1 className="text-3xl md:text-4xl font-headline font-bold text-center">Checkout</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card><CardHeader><CardTitle>Shipping & Payment</CardTitle></CardHeader><form onSubmit={handleProceedToPayment}><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>{savedAddresses.length > 0 && <div className="space-y-2"><Label>Saved Addresses</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}>{`${addr.fullName}: ${addr.street}${addr.village ? `, ${addr.village}` : ''}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}<div className="space-y-2"><Label>Street</Label><Input name="address" value={formData.address} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} placeholder="E.g., near the post office" /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0} className="w-full">{isLoading ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
-        <Card><CardHeader><CardTitle>Order Summary</CardTitle><CardDescription>{getCartItemCount()} item(s)</CardDescription></CardHeader><CardContent className="space-y-4">{cartItems.length > 0 ? <div className="max-h-96 overflow-y-auto pr-2 space-y-3">{cartItems.map(item => <CartItemCard key={item.id} item={item} />)}</div> : <p>Cart is empty.</p>}<Separator /><div className="space-y-2 text-lg"><div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div><div className="flex justify-between text-sm"><span>Delivery:</span><span>Rs.{deliveryFee.toFixed(2)}</span></div><div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div><Separator /><div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div></div></CardContent><CardFooter><Button variant="outline" onClick={() => router.push('/')} className="w-full"><Home className="mr-2 h-4 w-4" /> Continue Shopping</Button></CardFooter></Card>
+        <Card>
+            <CardHeader><CardTitle>Order Summary</CardTitle><CardDescription>{getCartItemCount()} item(s)</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+                {cartItems.length > 0 ? <div className="max-h-96 overflow-y-auto pr-2 space-y-3">{cartItems.map(item => <CartItemCard key={item.id} item={item} />)}</div> : <p>Cart is empty.</p>}
+                <Separator />
+                <div className="space-y-2 text-lg">
+                    <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>Rs.{subTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span>Delivery:</span>
+                        {isFirstOrder ? (
+                            <span className="font-semibold text-green-600">FREE</span>
+                        ) : (
+                            <span>Rs.{deliveryFee.toFixed(2)}</span>
+                        )}
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span>Taxes:</span>
+                        <span>Rs.{totalTax.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    {isFirstOrder && (
+                        <Badge variant="secondary" className="w-full justify-center bg-green-100 text-green-800 border-green-200 my-2">
+                           🎉 First Order Free Delivery Applied! 🎉
+                        </Badge>
+                    )}
+                    <div className="flex justify-between font-bold text-primary text-xl">
+                        <span>Total:</span>
+                        <span>Rs.{grandTotal.toFixed(2)}</span>
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter><Button variant="outline" onClick={() => router.push('/')} className="w-full"><Home className="mr-2 h-4 w-4" /> Continue Shopping</Button></CardFooter>
+        </Card>
       </div>
     </div>
   );

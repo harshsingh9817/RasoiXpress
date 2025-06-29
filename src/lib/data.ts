@@ -112,6 +112,20 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         ...orderData,
         createdAt: serverTimestamp(),
     });
+
+    // After successfully adding the order, update the user's first order status flag.
+    const userRef = doc(db, "users", orderData.userId);
+    try {
+        const userDoc = await getDoc(userRef);
+        // We only update the flag if it's currently false.
+        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
+            await updateDoc(userRef, { hasCompletedFirstOrder: true });
+        }
+    } catch (error) {
+        // Log this error but don't fail the order placement, as it's not critical.
+        console.error("Failed to update first order status for user:", orderData.userId, error);
+    }
+
     return { ...orderData, id: docRef.id } as Order;
 }
 
@@ -300,7 +314,7 @@ export async function updateAddress(userId: string, updatedAddress: Address): Pr
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', id);
+    const docRef = doc(db, 'users', userId, 'addresses', addressId);
     await deleteDoc(docRef);
 }
 
@@ -428,6 +442,13 @@ export async function getAllUsers(): Promise<UserRef[]> {
     const usersCol = collection(db, 'users');
     const snapshot = await getDocs(usersCol);
     return snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email })) as UserRef[];
+}
+
+export async function getUserProfile(userId: string): Promise<DocumentData | null> {
+    if (!userId) return null;
+    const userDocRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userDocRef);
+    return userDoc.exists() ? userDoc.data() : null;
 }
 
 export async function getAdminMessages(): Promise<AdminMessage[]> {

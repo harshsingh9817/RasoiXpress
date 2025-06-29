@@ -48,6 +48,7 @@ const manageUserInFirestore = async (user: User, extraData: { mobileNumber?: str
             photoURL: user.photoURL,
             createdAt: serverTimestamp(),
             mobileNumber: extraData.mobileNumber || null,
+            hasCompletedFirstOrder: false,
         });
     } else {
         const dataToUpdate: any = {
