@@ -121,7 +121,7 @@ export default function DeliveryOrderDetailPage() {
     const handleGetDirections = () => {
     if (!order) return;
     setIsGettingLocation(true);
-    const destination = encodeURIComponent(`${order.customerName}, ${order.shippingAddress}`);
+    const destination = encodeURIComponent(order.shippingAddress);
 
     if (!navigator.geolocation) {
         toast({
