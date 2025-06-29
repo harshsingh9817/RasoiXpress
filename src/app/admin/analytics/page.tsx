@@ -27,6 +27,7 @@ import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { DatePickerWithRange } from "@/components/ui/date-picker-with-range";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
+import { subDays } from "date-fns";
 
 export default function AnalyticsPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -56,7 +57,12 @@ export default function AnalyticsPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      loadAnalytics();
+      const defaultDateRange = {
+        from: subDays(new Date(), 6),
+        to: new Date(),
+      };
+      setDate(defaultDateRange);
+      loadAnalytics(defaultDateRange);
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, loadAnalytics]);
 
