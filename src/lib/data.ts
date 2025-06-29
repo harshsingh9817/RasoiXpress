@@ -414,7 +414,7 @@ export async function sendAdminMessage(userId: string, userEmail: string, title:
     const messagesCol = collection(db, 'adminMessages');
     await addDoc(messagesCol, {
         userId,
-        userEmail,
+        userEmail: userEmail || null,
         title,
         message,
         timestamp: serverTimestamp(),
@@ -534,3 +534,4 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
