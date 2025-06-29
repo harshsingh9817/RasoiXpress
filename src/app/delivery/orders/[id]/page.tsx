@@ -38,7 +38,6 @@ export default function DeliveryOrderDetailPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
 
   useEffect(() => {
@@ -118,44 +117,20 @@ export default function DeliveryOrderDetailPage() {
     }
   };
   
-    const handleGetDirections = () => {
+  const handleGetDirections = () => {
     if (!order) return;
-    setIsGettingLocation(true);
+    
+    // The fixed starting point for all deliveries.
+    const origin = encodeURIComponent("Nagra, Ballia, Uttar pradesh 221711");
+    
+    // The customer's address as the destination.
     const destination = encodeURIComponent(order.shippingAddress);
 
-    if (!navigator.geolocation) {
-        toast({
-            title: "Geolocation not supported",
-            description: "Your browser doesn't support location services. Opening Maps with destination only.",
-            variant: "destructive",
-        });
-        window.open(`https://www.google.com/maps?daddr=${destination}&saddr=My+Location`, '_blank', 'noopener,noreferrer');
-        setIsGettingLocation(false);
-        return;
-    }
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const { latitude, longitude } = position.coords;
-            const origin = `${latitude},${longitude}`;
-            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-            window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-            setIsGettingLocation(false);
-        },
-        (error) => {
-            console.error("Geolocation error:", error);
-            let description = "Could not get your location. Please check settings and try again.";
-            if (error.code === error.PERMISSION_DENIED) {
-                description = "Location access was denied. Please enable it in your browser settings.";
-            }
-            toast({
-                title: "Location Error",
-                description: description,
-                variant: "destructive",
-            });
-            window.open(`https://www.google.com/maps?daddr=${destination}&saddr=My+Location`, '_blank', 'noopener,noreferrer');
-            setIsGettingLocation(false);
-        }
-    );
+    // The Google Maps URL for directions.
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+    
+    // Open the URL in a new tab.
+    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
   };
 
 
@@ -240,13 +215,9 @@ export default function DeliveryOrderDetailPage() {
                  <div className="p-4 border rounded-lg">
                     <h3 className="font-semibold mb-2 flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
                     <p className="text-sm text-muted-foreground mb-3">{order.shippingAddress}</p>
-                    <Button onClick={handleGetDirections} disabled={isGettingLocation} className="w-full">
-                        {isGettingLocation ? (
-                            <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>
-                        ) : (
-                            <MapPin className="mr-2 h-4 w-4" />
-                        )}
-                        {isGettingLocation ? 'Getting Location...' : 'Get Directions'}
+                    <Button onClick={handleGetDirections} className="w-full">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Get Directions
                     </Button>
                 </div>
                 
