@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -179,7 +180,7 @@ export default function ProfilePage() {
                          {address.type} Address {address.isDefault && <span className="ml-2 text-xs text-primary font-bold">(Default)</span>}
                       </h4>
                       <p className="font-medium text-base">{address.fullName}</p>
-                      <p className="text-sm text-muted-foreground">{address.street}, {address.city}, {address.pinCode}</p>
+                      <p className="text-sm text-muted-foreground">{address.street}{address.village ? `, ${address.village}` : ''}, {address.city}, {address.pinCode}</p>
                       <p className="text-sm text-muted-foreground"><Phone className="inline mr-1 h-3 w-3" />{address.phone}</p>
                     </div>
                     <div className="flex gap-2">
@@ -263,7 +264,7 @@ export default function ProfilePage() {
       </Tabs>
       
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
-        <DialogContent><DialogHeader><DialogTitle>{addressToEdit ? 'Edit' : 'Add'} Address</DialogTitle></DialogHeader><form onSubmit={handleAddressFormSubmit}><div className="grid gap-4 py-4"><Input name="fullName" value={currentAddressFormData.fullName} onChange={handleAddressFormChange} required placeholder="Full Name" /><Select name="type" value={currentAddressFormData.type} onValueChange={handleAddressTypeChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Home">Home</SelectItem><SelectItem value="Work">Work</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><Input name="street" value={currentAddressFormData.street} onChange={handleAddressFormChange} required placeholder="Street"/><Input name="city" value={currentAddressFormData.city} onChange={handleAddressFormChange} required placeholder="City" /><Input name="pinCode" value={currentAddressFormData.pinCode} onChange={handleAddressFormChange} required placeholder="Pin Code" /><Input name="phone" type="tel" value={currentAddressFormData.phone} onChange={handleAddressFormChange} required placeholder="Phone" /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><Button type="submit">{addressToEdit ? 'Save' : 'Add'}</Button></DialogFooter></form></DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>{addressToEdit ? 'Edit' : 'Add'} Address</DialogTitle></DialogHeader><form onSubmit={handleAddressFormSubmit}><div className="grid gap-4 py-4"><Input name="fullName" value={currentAddressFormData.fullName} onChange={handleAddressFormChange} required placeholder="Full Name" /><Select name="type" value={currentAddressFormData.type} onValueChange={handleAddressTypeChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Home">Home</SelectItem><SelectItem value="Work">Work</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><Input name="street" value={currentAddressFormData.street} onChange={handleAddressFormChange} required placeholder="Street"/><Input name="village" value={currentAddressFormData.village || ''} onChange={handleAddressFormChange} placeholder="Village/Area (Optional)" /><Input name="city" value={currentAddressFormData.city} onChange={handleAddressFormChange} required placeholder="City" /><Input name="pinCode" value={currentAddressFormData.pinCode} onChange={handleAddressFormChange} required placeholder="Pin Code" /><Input name="phone" type="tel" value={currentAddressFormData.phone} onChange={handleAddressFormChange} required placeholder="Phone" /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><Button type="submit">{addressToEdit ? 'Save' : 'Add'}</Button></DialogFooter></form></DialogContent>
       </Dialog>
     </div>
   );
