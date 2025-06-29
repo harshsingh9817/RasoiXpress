@@ -129,7 +129,14 @@ export default function AdminOrdersPage() {
     }
     setIsSendingMessage(true);
     try {
-        const title = `A message regarding your order #${orderToMessage.id.slice(-6)}`;
+        let title;
+        if (orderToMessage.items && orderToMessage.items.length > 0) {
+            const mainItemName = orderToMessage.items[0].name;
+            const moreItemsText = orderToMessage.items.length > 1 ? ' and more' : '';
+            title = `Re: Your order for ${mainItemName}${moreItemsText} (#${orderToMessage.id.slice(-6)})`;
+        } else {
+            title = `A message regarding your order #${orderToMessage.id.slice(-6)}`;
+        }
         await sendAdminMessage(orderToMessage.userId, orderToMessage.userEmail, title, messageContent);
         toast({ title: "Message Sent!", description: `Your message has been sent to ${orderToMessage.customerName}.` });
         setIsMessageDialogOpen(false);
