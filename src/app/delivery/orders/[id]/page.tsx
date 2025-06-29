@@ -199,12 +199,12 @@ export default function DeliveryOrderDetailPage() {
                     <p className="text-sm text-muted-foreground mb-3">{order.shippingAddress}</p>
                     <Button asChild className="w-full">
                         <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.shippingAddress)}`}
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.shippingAddress)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                         >
                             <MapPin className="mr-2 h-4 w-4" />
-                            Find on Google Maps
+                            Get Directions
                         </a>
                     </Button>
                 </div>
