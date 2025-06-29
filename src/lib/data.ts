@@ -258,7 +258,8 @@ export function listenToOrderById(orderId: string, callback: (order: Order | nul
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
     if (!userId) return () => {};
     const messagesCol = collection(db, 'adminMessages');
-    const q = query(messagesCol, where('userId', '==', userId), orderBy('timestamp', 'desc'));
+    // Removed orderBy to avoid needing a composite index. Sorting will be done on the client.
+    const q = query(messagesCol, where('userId', '==', userId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
@@ -268,6 +269,10 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
                 timestamp: data.timestamp?.toMillis() || Date.now(),
             }
         }) as AdminMessage[];
+
+        // Sort messages on the client by timestamp, newest first.
+        messages.sort((a, b) => b.timestamp - a.timestamp);
+        
         callback(messages);
     }, (error) => {
         console.error("Error listening to user admin messages:", error);
