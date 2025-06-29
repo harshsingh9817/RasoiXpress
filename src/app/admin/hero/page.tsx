@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -82,6 +83,8 @@ export default function HeroManagementPage() {
     control: form.control,
     name: "bannerImages",
   });
+  
+  const watchedBanners = form.watch("bannerImages");
 
   useEffect(() => {
     if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
@@ -249,39 +252,59 @@ export default function HeroManagementPage() {
 
                   <div className="space-y-4">
                     {fields.map((field, index) => (
-                      <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                        <div className="flex-1 space-y-2">
-                           <FormField
-                            control={form.control}
-                            name={`bannerImages.${index}.src`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Image URL</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="https://placehold.co/1280x400.png" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                           <FormField
-                            control={form.control}
-                            name={`bannerImages.${index}.hint`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>AI Hint</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="e.g., pizza meal" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      <div key={field.id} className="flex flex-col gap-4 p-4 border rounded-lg">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-1 space-y-2">
+                               <FormField
+                                control={form.control}
+                                name={`bannerImages.${index}.src`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Image URL</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="https://placehold.co/1280x400.png" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                               <FormField
+                                control={form.control}
+                                name={`bannerImages.${index}.hint`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>AI Hint</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="e.g., pizza meal" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <Button type="button" variant="destructive" size="icon" onClick={() => handleDeleteBanner(index)} className="mt-7">
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove banner</span>
+                            </Button>
                         </div>
-                        <Button type="button" variant="destructive" size="icon" onClick={() => handleDeleteBanner(index)} className="mt-7">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remove banner</span>
-                        </Button>
+                        {watchedBanners?.[index]?.src && (
+                            <div className="w-full">
+                                <FormLabel>Banner Preview</FormLabel>
+                                <div className="mt-2 p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-[16/6]">
+                                    <Image
+                                        src={watchedBanners[index].src}
+                                        alt={`Banner Preview ${index + 1}`}
+                                        width={1280}
+                                        height={400}
+                                        className="rounded-md object-contain h-full w-auto"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = 'https://placehold.co/1280x400.png?text=Invalid+URL';
+                                        }}
+                                        data-ai-hint={watchedBanners[index].hint || 'banner'}
+                                    />
+                                </div>
+                            </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { MenuItem } from "@/lib/types";
@@ -71,6 +72,7 @@ export default function MenuItemFormDialog({
   });
 
   const { reset } = form;
+  const imageUrl = form.watch("imageUrl");
 
   useEffect(() => {
     if (isOpen) {
@@ -201,6 +203,26 @@ export default function MenuItemFormDialog({
                 </FormItem>
               )}
             />
+
+            {imageUrl && (
+              <div className="space-y-2 pt-2">
+                <FormLabel>Image Preview</FormLabel>
+                <div className="p-2 border rounded-md flex justify-center items-center bg-muted/50 min-h-[150px]">
+                  <Image
+                    src={imageUrl}
+                    alt="Image Preview"
+                    width={200}
+                    height={150}
+                    className="rounded-md object-contain max-h-[150px]"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/200x150.png?text=Invalid+URL';
+                    }}
+                    data-ai-hint="food item"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
