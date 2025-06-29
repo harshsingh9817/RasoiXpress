@@ -25,23 +25,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Send } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 
-const ALL_USERS_VALUE = "--all-users--";
-
 const messageSchema = z.object({
-  userId: z.string().min(1, "Please select a user or 'All Users'."),
   title: z.string().min(5, "Title must be at least 5 characters.").max(50, "Title cannot exceed 50 characters."),
   message: z.string().min(10, "Message must be at least 10 characters.").max(500, "Message cannot exceed 500 characters."),
 });
@@ -58,7 +48,6 @@ export default function MessagingPage() {
   const form = useForm<MessageFormValues>({
     resolver: zodResolver(messageSchema),
     defaultValues: {
-      userId: "",
       title: "",
       message: "",
     },
@@ -81,33 +70,16 @@ export default function MessagingPage() {
   const onSubmit = async (data: MessageFormValues) => {
     setIsSubmitting(true);
     try {
-      if (data.userId === ALL_USERS_VALUE) {
-        // Broadcast to all users
-        const allPromises = users.map(user => 
-            sendAdminMessage(user.id, user.email, data.title, data.message)
-        );
-        await Promise.all(allPromises);
-        toast({
-          title: "Message Broadcast!",
-          description: `Your message has been sent to all ${users.length} users.`,
-        });
-
-      } else {
-        // Send to a single user
-        const selectedUser = users.find(u => u.id === data.userId);
-        if (!selectedUser) {
-          toast({ title: "User not found", variant: "destructive" });
-          setIsSubmitting(false);
-          return;
-        }
-        await sendAdminMessage(selectedUser.id, selectedUser.email, data.title, data.message);
-        toast({
-          title: "Message Sent!",
-          description: `Your message has been sent to ${selectedUser.email}.`,
-        });
-      }
+      const allPromises = users.map(user => 
+          sendAdminMessage(user.id, user.email, data.title, data.message)
+      );
+      await Promise.all(allPromises);
+      toast({
+        title: "Message Broadcast!",
+        description: `Your message has been sent to all ${users.length} users.`,
+      });
       
-      form.reset({ userId: '', title: '', message: '' });
+      form.reset({ title: '', message: '' });
     } catch (error) {
       console.error("Failed to send message(s)", error);
       toast({
@@ -136,45 +108,15 @@ export default function MessagingPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center">
-            <MessageSquare className="mr-3 h-6 w-6 text-primary" /> Send a Notification
+            <MessageSquare className="mr-3 h-6 w-6 text-primary" /> Broadcast a Notification
           </CardTitle>
           <CardDescription>
-            Send a direct notification to a specific user or broadcast a message to all users.
+            Send a notification to all users for announcements, offers, or discounts.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="userId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Recipient</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a user to message" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={ALL_USERS_VALUE}>All Users</SelectItem>
-                        {users.length > 0 ? (
-                          users.map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.email}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-users" disabled>No users found</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="title"
@@ -206,14 +148,14 @@ export default function MessagingPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isSubmitting} className="w-full">
+              <Button type="submit" disabled={isSubmitting || users.length === 0} className="w-full">
                 {isSubmitting ? (
                   <>
                     <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" /> Send Message
+                    <Send className="mr-2 h-4 w-4" /> Send to All Users ({users.length})
                   </>
                 )}
               </Button>
