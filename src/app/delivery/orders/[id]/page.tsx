@@ -16,6 +16,7 @@ import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery } from '@/
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import { useCart } from '@/contexts/CartContext';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -32,6 +33,7 @@ export default function DeliveryOrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
   const { toast } = useToast();
+  const { isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -73,6 +75,10 @@ export default function DeliveryOrderDetailPage() {
   };
   
   const handleAcceptOrder = async () => {
+    if (!isOrderingAllowed) {
+      setIsTimeGateDialogOpen(true);
+      return;
+    }
     if (!order || !user) return;
     setIsAccepting(true);
     try {
@@ -92,6 +98,10 @@ export default function DeliveryOrderDetailPage() {
 
 
   const handleOpenConfirmDialog = () => {
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        return;
+    }
     setEnteredCode('');
     setIsConfirmDialogOpen(true);
   };
