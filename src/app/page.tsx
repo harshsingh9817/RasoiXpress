@@ -8,7 +8,7 @@ import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Utensils, Leaf, Filter, TrendingUp } from 'lucide-react';
+import { Utensils, Leaf, Filter, TrendingUp, Clock } from 'lucide-react';
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -157,6 +157,14 @@ export default function HomePage() {
               </div>
               <div className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
                 {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
+              </div>
+              <div className="text-lg text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.4s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
+                {heroData?.orderingTime ? (
+                    <div className="flex items-center justify-center md:justify-start gap-2 mt-2 font-semibold bg-black/30 backdrop-blur-sm rounded-full px-4 py-2 w-fit mx-auto md:mx-0">
+                        <Clock className="h-5 w-5" />
+                        <span>Open: {heroData.orderingTime}</span>
+                    </div>
+                ) : (heroData && <Skeleton className="h-10 w-64 bg-white/20 rounded-full" />)}
               </div>
           </div>
           <div className="md:w-1/2 flex justify-center text-primary-foreground">

@@ -40,6 +40,7 @@ const bannerSchema = z.object({
 const heroSchema = z.object({
   headline: z.string().min(10, "Headline must be at least 10 characters long."),
   subheadline: z.string().min(10, "Subheadline must be at least 10 characters long."),
+  orderingTime: z.string().min(5, "Ordering time must be at least 5 characters long."),
   bannerImages: z.array(bannerSchema).min(1, "You must have at least one banner image."),
 });
 
@@ -56,6 +57,7 @@ export default function HeroManagementPage() {
     defaultValues: {
       headline: "",
       subheadline: "",
+      orderingTime: "",
       bannerImages: [],
     },
   });
@@ -148,6 +150,20 @@ export default function HeroManagementPage() {
                         <FormLabel>Subheadline</FormLabel>
                         <FormControl>
                           <Textarea placeholder="Enter the supporting text" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="orderingTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ordering Time</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 10:00 AM - 10:00 PM" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -35,6 +35,7 @@ const defaultBanners: BannerImage[] = [
 const defaultHeroData: HeroData = {
     headline: 'Home Delivery In Nagra With Rasoi Xpress',
     subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
+    orderingTime: '10:00 AM - 10:00 PM',
     bannerImages: defaultBanners,
 };
 
@@ -341,11 +342,11 @@ export async function setDefaultAddress(userId: string, addressIdToSetDefault: s
 export async function getHeroData(): Promise<HeroData> {
     const docRef = doc(db, 'globals', 'hero');
     const docSnap = await getDoc(docRef);
-    const data = docSnap.data();
-    if (!data || !data.bannerImages || data.bannerImages.length === 0) {
+    if (!docSnap.exists()) {
         return defaultHeroData;
     }
-    return data as HeroData;
+    const data = docSnap.data();
+    return { ...defaultHeroData, ...data } as HeroData;
 }
 
 export async function updateHeroData(data: HeroData): Promise<void> {

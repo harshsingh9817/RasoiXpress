@@ -105,6 +105,7 @@ export interface BannerImage {
 export interface HeroData {
   headline: string;
   subheadline: string;
+  orderingTime: string;
   bannerImages: BannerImage[];
 }
 
