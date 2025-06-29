@@ -121,7 +121,7 @@ export default function DeliveryOrderDetailPage() {
     if (!order) return;
     
     // The fixed starting point for all deliveries.
-    const origin = encodeURIComponent("Nagra, Ballia, Uttar pradesh 221711");
+    const origin = encodeURIComponent("Hanuman Mandir Ghosi More Nagra");
     
     // The customer's address as the destination.
     const destination = encodeURIComponent(order.shippingAddress);
