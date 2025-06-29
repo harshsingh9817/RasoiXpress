@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -184,6 +183,9 @@ export default function MenuManagementPage() {
                 </CardTitle>
                 <CardDescription>
                   Add, edit, or remove food items available across all restaurants.
+                  <p className="mt-1">
+                    Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
+                  </p>
                 </CardDescription>
               </div>
               <Button onClick={handleAddNew}>
