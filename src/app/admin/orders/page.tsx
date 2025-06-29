@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
@@ -39,12 +39,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 const ALL_ORDER_STATUSES: OrderStatus[] = [
   'Order Placed',
@@ -68,6 +69,9 @@ export default function AdminOrdersPage() {
   const [orderToMessage, setOrderToMessage] = useState<Order | null>(null);
   const [messageContent, setMessageContent] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
 
 
   useEffect(() => {
@@ -85,6 +89,23 @@ export default function AdminOrdersPage() {
 
     return () => unsubscribe();
   }, [isAdmin, isAuthLoading, isAuthenticated, router]);
+
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter(order => {
+        if (filterStatus === 'All') return true;
+        return order.status === filterStatus;
+      })
+      .filter(order => {
+        const term = searchTerm.toLowerCase();
+        if (!term) return true;
+        return (
+          order.id.slice(-6).toLowerCase().includes(term) ||
+          order.customerName.toLowerCase().includes(term) ||
+          order.userEmail.toLowerCase().includes(term)
+        );
+      });
+  }, [orders, searchTerm, filterStatus]);
   
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
@@ -172,6 +193,31 @@ export default function AdminOrdersPage() {
           <CardDescription>
             View and manage all orders placed in the application. Updates happen in real-time.
           </CardDescription>
+            <div className="flex items-center gap-4 pt-4">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by ID, name, or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select
+                value={filterStatus}
+                onValueChange={(value: OrderStatus | 'All') => setFilterStatus(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Statuses</SelectItem>
+                  {ALL_ORDER_STATUSES.map(status => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -186,8 +232,8 @@ export default function AdminOrdersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.length > 0 ? (
-                orders.map((order) => (
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
@@ -220,7 +266,7 @@ export default function AdminOrdersPage() {
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
                     <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
-                    No orders have been placed yet.
+                    {orders.length === 0 ? "No orders have been placed yet." : "No orders match your search."}
                   </TableCell>
                 </TableRow>
               )}
@@ -349,3 +395,5 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+    
