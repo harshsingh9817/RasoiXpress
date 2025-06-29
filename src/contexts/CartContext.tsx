@@ -1,9 +1,19 @@
 
 "use client";
 
-import type { MenuItem, CartItem } from '@/lib/types';
+import type { MenuItem, CartItem, HeroData } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { getHeroData } from '@/lib/data';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -25,6 +35,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
 
+  const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
+  const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
+  const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
+
   useEffect(() => {
     // Load cart from localStorage on initial render (client-side only)
     if (typeof window !== 'undefined') {
@@ -38,6 +52,56 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     }
+
+    // Fetch hero data to get ordering times
+    getHeroData().then(heroData => {
+        if (!heroData?.orderingTime) return;
+
+        const checkTime = () => {
+            try {
+                const [startTimeStr, endTimeStr] = heroData.orderingTime.split(' - ');
+                if (!startTimeStr || !endTimeStr) {
+                    setIsOrderingAllowed(true); // Default to allowed if format is wrong
+                    return;
+                }
+                
+                const parseTime = (timeStr: string): Date | null => {
+                    const match = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                    if (!match) return null; // Invalid format
+                    const date = new Date();
+                    let [, hoursStr, minutesStr, modifier] = match;
+                    let hours = parseInt(hoursStr, 10);
+                    const minutes = parseInt(minutesStr, 10);
+                    if (modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
+                    if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0; // Midnight case
+                    date.setHours(hours, minutes, 0, 0);
+                    return date;
+                };
+
+                const startTime = parseTime(startTimeStr);
+                const endTime = parseTime(endTimeStr);
+                const currentTime = new Date();
+
+                if (startTime && endTime) {
+                    const isAllowed = currentTime >= startTime && currentTime <= endTime;
+                    setIsOrderingAllowed(isAllowed);
+                    if (!isAllowed) {
+                         setOrderingTimeMessage(`Our ordering hours are from ${heroData.orderingTime}.`);
+                    }
+                } else {
+                    setIsOrderingAllowed(true); // Fail open if parsing fails
+                }
+            } catch (e) {
+                console.error("Error parsing ordering time:", e);
+                setIsOrderingAllowed(true); // Fail open in case of error
+            }
+        };
+
+        checkTime();
+        const interval = setInterval(checkTime, 60000); // Re-check every minute
+        return () => clearInterval(interval);
+    });
+
   }, []);
 
   useEffect(() => {
@@ -48,6 +112,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [cartItems]);
 
   const addToCart = (item: MenuItem, quantityToAdd: number = 1) => {
+    if (!isOrderingAllowed) {
+      setIsTimeGateDialogOpen(true);
+      return;
+    }
+
     setCartItems(prevItems => {
       const existingItem = prevItems.find(cartItem => cartItem.id === item.id);
       if (existingItem) {
@@ -154,6 +223,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }}
     >
       {children}
+      <AlertDialog open={isTimeGateDialogOpen} onOpenChange={setIsTimeGateDialogOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Restaurants Are Closed</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      We are not accepting orders at this time.
+                      {orderingTimeMessage && ` ${orderingTimeMessage}`}
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogAction onClick={() => setIsTimeGateDialogOpen(false)}>OK</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </CartContext.Provider>
   );
 };
