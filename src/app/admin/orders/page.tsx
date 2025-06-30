@@ -49,7 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2 } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -363,7 +363,7 @@ export default function AdminOrdersPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span>Payment Method:</span>
-                                <span>{selectedOrder.paymentMethod}</span>
+                                <span className="flex items-center">{selectedOrder.paymentMethod === 'Razorpay' && <CreditCard className="w-4 h-4 mr-1.5"/>}{selectedOrder.paymentMethod}</span>
                             </div>
                             <div className="flex justify-between font-bold text-base mt-2">
                                 <span>Grand Total:</span>

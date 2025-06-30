@@ -23,6 +23,8 @@ import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
+declare global { interface Window { Razorpay: any; } }
+
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
 const AddressIcon = ({ type }: { type: AddressType['type'] }) => {
@@ -40,6 +42,7 @@ export default function CheckoutPage() {
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<'address' | 'payment' | 'summary' | 'execute_payment' | 'success'>('address');
   
@@ -50,12 +53,12 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', type: 'Home' as AddressType['type'] });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery'>('UPI');
+  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery' | 'Razorpay'>('Razorpay');
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [saveAddress, setSaveAddress] = useState(true);
 
   const subTotal = getCartTotal();
-  const deliveryFee = subTotal > 0 && subTotal < 500 ? 30 : 0;
+  const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
@@ -117,6 +120,90 @@ export default function CheckoutPage() {
     }, delay);
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-checkout-js')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'razorpay-checkout-js';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRazorpayPayment = async (orderData: Omit<Order, 'id'>) => {
+    setIsProcessingPayment(true);
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    try {
+      const orderResponse = await fetch('/api/razorpay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: grandTotal }),
+      });
+
+      if (!orderResponse.ok) throw new Error('Failed to create Razorpay order');
+      const razorpayOrder = await orderResponse.json();
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Rasoi Xpress",
+        description: "Order Payment",
+        order_id: razorpayOrder.id,
+        handler: async (response: any) => {
+          const verificationResponse = await fetch('/api/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+          const verificationResult = await verificationResponse.json();
+
+          if (verificationResult.success) {
+            const finalOrderData = {
+              ...orderData,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+            };
+            await finalizeOrder(finalOrderData);
+          } else {
+            toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
+          }
+        },
+        prefill: { name: formData.fullName, email: user?.email, contact: formData.phone },
+        theme: { color: "#E64A19" },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.on('payment.failed', (response: any) => {
+        console.error('Razorpay payment failed:', response.error);
+        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
+      });
+      paymentObject.open();
+
+    } catch (error) {
+      console.error("Error during Razorpay process:", error);
+      toast({ title: "Error", description: "Could not initiate payment. Please try again.", variant: "destructive" });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+
   const handlePlaceOrder = () => {
     if (!user) return;
 
@@ -137,17 +224,19 @@ export default function CheckoutPage() {
         deliveryFee: deliveryFee,
         totalTax: totalTax
     };
-    setPendingOrderData(newOrderData);
-
+    
     const completeOrder = () => {
-        if (paymentMethod === 'UPI') {
-            setCurrentStep('execute_payment');
-        } else {
-            finalizeOrder(newOrderData);
-        }
+      setPendingOrderData(newOrderData); // Set pending data before payment attempt
+      if (paymentMethod === 'UPI') {
+          setCurrentStep('execute_payment');
+      } else if (paymentMethod === 'Razorpay') {
+          handleRazorpayPayment(newOrderData);
+      } else {
+          finalizeOrder(newOrderData);
+      }
     }
     
-    if (subTotal > 0 && subTotal < 500) {
+    if (subTotal > 0 && subTotal < 300) {
         setProceedAction(() => completeOrder);
         setIsFreeDeliveryDialogOpen(true);
     } else {
@@ -274,7 +363,8 @@ export default function CheckoutPage() {
             <CardHeader><CardTitle>Step 2: Payment Method</CardTitle></CardHeader>
             <CardContent>
                 <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="space-y-3">
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="UPI" /><CreditCard className="h-6 w-6 text-primary mx-2" /><span>UPI / QR Code</span></Label>
+                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="Razorpay" /><CreditCard className="h-6 w-6 text-primary mx-2" /><span>Card, UPI, & More (Razorpay)</span></Label>
+                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="UPI" /><QrCode className="h-6 w-6 text-primary mx-2" /><span>Direct UPI / QR Code</span></Label>
                     <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-6 w-6 text-primary mx-2" /><span>Cash on Delivery</span></Label>
                 </RadioGroup>
             </CardContent>
@@ -305,12 +395,15 @@ export default function CheckoutPage() {
                 </div>
                 <Separator />
                 <div><h3 className="font-semibold text-lg mb-2">Payment Method</h3>
-                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'UPI' ? <CreditCard className="mr-2 h-5 w-5"/> : <Wallet className="mr-2 h-5 w-5"/>} {paymentMethod}</p>
+                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'UPI' ? <QrCode className="mr-2 h-5 w-5"/> : paymentMethod === 'Razorpay' ? <CreditCard className="mr-2 h-5 w-5" /> : <Wallet className="mr-2 h-5 w-5"/>} {paymentMethod}</p>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep('payment')}>Back</Button>
-                <Button onClick={handlePlaceOrder} disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : <PackageCheck className="mr-2" />} Place Order</Button>
+                <Button variant="outline" onClick={() => setCurrentStep('payment')} disabled={isProcessingPayment}>Back</Button>
+                <Button onClick={handlePlaceOrder} disabled={isLoading || isProcessingPayment}>
+                    {(isLoading || isProcessingPayment) && <Loader2 className="animate-spin mr-2" />} 
+                    {(isLoading || isProcessingPayment) ? 'Processing...' : <><PackageCheck className="mr-2" /> Place Order</>}
+                </Button>
             </CardFooter>
         </Card>
       )}

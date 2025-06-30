@@ -1,6 +1,7 @@
 
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -60,7 +61,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'UPI' | 'Cash on Delivery';
+  paymentMethod: 'UPI' | 'Cash on Delivery' | 'Razorpay';
   cancellationReason?: string;
   review?: Review; // Added for review
   customerPhone?: string;
@@ -70,6 +71,8 @@ export interface Order {
   totalTax: number; // New field to store the calculated total tax
   deliveryRiderId?: string;
   deliveryRiderName?: string;
+  razorpayPaymentId?: string;
+  razorpayOrderId?: string;
 }
 
 export interface Address {
