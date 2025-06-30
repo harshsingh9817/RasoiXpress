@@ -19,7 +19,9 @@ import {
   onSnapshot,
   deleteField,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, firebaseConfig } from './firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
 
 // --- Initial Data ---
@@ -489,16 +491,57 @@ export async function getRiderEmails(): Promise<string[]> {
     return snapshot.docs.map(doc => doc.data().email as string);
 }
 
-export async function addRider(fullName: string, email: string, phone: string): Promise<void> {
+export async function addRider(fullName: string, email: string, phone: string, password?: string): Promise<void> {
     const ridersCol = collection(db, 'riders');
     const lowercasedEmail = email.toLowerCase();
-    const q = query(ridersCol, where("email", "==", lowercasedEmail));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-        throw new Error("A rider with this email already exists.");
+    
+    const riderQuery = query(ridersCol, where("email", "==", lowercasedEmail));
+    const riderSnapshot = await getDocs(riderQuery);
+    if (!riderSnapshot.empty) {
+        throw new Error("A rider with this email already exists in the delivery team.");
     }
+    
+    if (password) {
+        let secondaryApp;
+        try {
+            const appName = `rider-creation-${Date.now()}`;
+            secondaryApp = initializeApp(firebaseConfig, appName);
+            const secondaryAuth = getAuth(secondaryApp);
+            
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, lowercasedEmail, password);
+            const { user } = userCredential;
+            
+            await updateProfile(user, { displayName: fullName });
+            
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                email: user.email,
+                displayName: fullName,
+                photoURL: user.photoURL,
+                createdAt: serverTimestamp(),
+                mobileNumber: phone,
+                hasCompletedFirstOrder: false,
+                isDelivery: true
+            });
+
+        } catch (error: any) {
+            if (error.code === 'auth/email-already-in-use') {
+                 throw new Error("A user account with this email already exists.");
+            } else if (error.code === 'auth/weak-password') {
+                throw new Error("Password is too weak. It must be at least 6 characters long.");
+            }
+            console.error("Error creating rider auth user:", error);
+            throw new Error(error.message || "Could not create the rider's user account.");
+        } finally {
+            if (secondaryApp) {
+                await deleteApp(secondaryApp);
+            }
+        }
+    }
+    
     await addDoc(ridersCol, { fullName, email: lowercasedEmail, phone });
 }
+
 
 export async function deleteRider(riderId: string): Promise<void> {
     const docRef = doc(db, 'riders', riderId);

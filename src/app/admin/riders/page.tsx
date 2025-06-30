@@ -61,6 +61,11 @@ const riderSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
   email: z.string().email("Please enter a valid email address."),
   phone: z.string().regex(/^\d{10,}$/, "Please enter a valid phone number."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type RiderFormValues = z.infer<typeof riderSchema>;
@@ -85,6 +90,8 @@ export default function RiderManagementPage() {
       fullName: "",
       email: "",
       phone: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -172,10 +179,10 @@ export default function RiderManagementPage() {
   
   const onSubmit = async (data: RiderFormValues) => {
     try {
-      await addRider(data.fullName, data.email, data.phone);
+      await addRider(data.fullName, data.email, data.phone, data.password);
       toast({
-        title: "Rider Added",
-        description: `${data.fullName} can now sign up with ${data.email} to be a delivery partner.`,
+        title: "Rider Account Created",
+        description: `${data.fullName}'s account has been created. They can now log in.`,
       });
       form.reset();
       await loadRiders();
@@ -212,12 +219,12 @@ export default function RiderManagementPage() {
                   <PlusCircle className="mr-3 h-6 w-6 text-primary" /> Add New Rider
                 </CardTitle>
                 <CardDescription>
-                  Add a new member to the delivery team. They will need to sign up using this exact email address to gain access.
+                  Create a new account for a member of the delivery team. They will be able to log in with the email and password you set.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                             control={form.control}
                             name="fullName"
@@ -252,6 +259,32 @@ export default function RiderManagementPage() {
                                 <FormLabel>Phone Number</FormLabel>
                                 <FormControl>
                                 <Input type="tel" placeholder="9876543210" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                <Input type="password" placeholder="••••••••" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Confirm Password</FormLabel>
+                                <FormControl>
+                                <Input type="password" placeholder="••••••••" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
