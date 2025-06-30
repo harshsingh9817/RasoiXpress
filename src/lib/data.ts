@@ -202,6 +202,11 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
     await updateDoc(docRef, { review: cleanReview });
 }
 
+export async function deleteOrder(orderId: string): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await deleteDoc(docRef);
+}
+
 export async function getAllOrders(): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
     const snapshot = await getDocs(query(ordersCol));

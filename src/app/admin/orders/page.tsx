@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders, sendAdminMessage } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -32,6 +32,15 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription as AlertDialogDescriptionElement,
+  } from "@/components/ui/alert-dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -39,7 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +79,9 @@ export default function AdminOrdersPage() {
   const [messageContent, setMessageContent] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
 
@@ -141,6 +153,26 @@ export default function AdminOrdersPage() {
     setOrderToMessage(order);
     setMessageContent('');
     setIsMessageDialogOpen(true);
+  };
+
+  const handleDelete = (order: Order) => {
+    setOrderToDelete(order);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (orderToDelete) {
+        try {
+            await deleteOrder(orderToDelete.id);
+            toast({ title: "Order Deleted", description: `Order #${orderToDelete.id.slice(-6)} has been removed.`});
+            // The real-time listener will automatically update the list.
+        } catch (error) {
+            console.error("Failed to delete order", error);
+            toast({ title: "Delete Failed", description: "Could not delete the order.", variant: "destructive" });
+        }
+    }
+    setIsDeleteDialogOpen(false);
+    setOrderToDelete(null);
   };
 
   const handleSendMessage = async () => {
@@ -228,7 +260,7 @@ export default function AdminOrdersPage() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead className="w-[200px]">Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-center">Details</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -254,11 +286,17 @@ export default function AdminOrdersPage() {
                        </Select>
                     </TableCell>
                     <TableCell className="text-right">Rs.{order.total.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">
-                       <Button variant="outline" size="icon" onClick={() => setSelectedOrder(order)}>
-                           <Eye className="h-4 w-4" />
-                           <span className="sr-only">View Details</span>
-                       </Button>
+                    <TableCell>
+                        <div className="flex justify-center gap-2">
+                            <Button variant="outline" size="icon" onClick={() => setSelectedOrder(order)}>
+                               <Eye className="h-4 w-4" />
+                               <span className="sr-only">View Details</span>
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => handleDelete(order)}>
+                               <Trash2 className="h-4 w-4" />
+                               <span className="sr-only">Delete Order</span>
+                            </Button>
+                        </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -392,8 +430,25 @@ export default function AdminOrdersPage() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescriptionElement>
+                This action cannot be undone. This will permanently delete the order
+                <span className="font-semibold"> #{orderToDelete?.id.slice(-6)} </span>
+                from the database.
+            </AlertDialogDescriptionElement>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
-    
