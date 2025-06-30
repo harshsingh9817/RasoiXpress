@@ -25,32 +25,49 @@ export async function POST(request: Request) {
   const originLat = 26.1555;
   const originLon = 83.7919;
   
-  // NOTE: The Haversine formula requires latitude and longitude.
-  // The current implementation sends a string address (e.g., "123 Main St, Anytown, 12345, India").
-  // Without an online geocoding service (which we are avoiding), we cannot convert this address
-  // into coordinates. This function returns an error to indicate this.
-  // A future step would be to integrate a geocoding solution or change the address
-  // input method to capture coordinates.
-  
   const { destination } = await request.json();
 
   if (!destination) {
       return NextResponse.json({ error: 'Destination address is required.' }, { status: 400 });
   }
 
-  // This is a placeholder for a geocoding step that is required.
-  // For now, we return an error because we can't process the address string.
-  return NextResponse.json({ error: 'Could not calculate distance. Address requires geocoding.' }, { status: 400 });
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  /*
-  // Example of how it would work if we had coordinates:
-  // This part of the code will not be reached until geocoding is implemented.
-  const destinationLat = 26.16; // Example coordinates from a geocoding service
-  const destinationLon = 83.80; // Example coordinates from a geocoding service
+  if (!apiKey) {
+    console.error("Google Maps API key is missing from .env file.");
+    // Don't expose the 'missing API key' error to the client for security.
+    return NextResponse.json({ error: 'Could not calculate delivery fee. Please contact support.' }, { status: 500 });
+  }
 
-  const distanceInKm = calculateDistanceKm(originLat, originLon, destinationLat, destinationLon);
-  const deliveryFee = Math.ceil(distanceInKm * 6); // Rs. 6 per km, rounded up
+  try {
+    // 1. Geocode the destination address using Google Geocoding API
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${apiKey}`;
+    const geocodeResponse = await fetch(geocodeUrl);
+    const geocodeData = await geocodeResponse.json();
 
-  return NextResponse.json({ distance: distanceInKm, fee: deliveryFee });
-  */
+    if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
+      console.error('Geocoding API Error:', geocodeData.status, geocodeData.error_message);
+      let clientError = 'Could not find the specified address. Please check and try again.';
+      if (geocodeData.status === 'ZERO_RESULTS') {
+        clientError = 'Address not found. Please provide a more specific address.'
+      } else if (geocodeData.status === 'REQUEST_DENIED') {
+        clientError = 'Could not calculate distance due to a server configuration issue.'
+      }
+      return NextResponse.json({ error: clientError }, { status: 400 });
+    }
+
+    const { lat: destLat, lng: destLon } = geocodeData.results[0].geometry.location;
+
+    // 2. Calculate distance using Haversine formula
+    const distanceInKm = calculateDistanceKm(originLat, originLon, destLat, destLon);
+    
+    // 3. Calculate delivery fee (₹6 per km, rounded up)
+    const deliveryFee = Math.ceil(distanceInKm * 6); 
+
+    return NextResponse.json({ distance: distanceInKm.toFixed(2), fee: deliveryFee });
+
+  } catch (error) {
+    console.error("Error in delivery calculation route:", error);
+    return NextResponse.json({ error: 'An unexpected error occurred while calculating the delivery fee.' }, { status: 500 });
+  }
 }
