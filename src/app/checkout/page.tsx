@@ -97,7 +97,7 @@ export default function CheckoutPage() {
   const subTotal = getCartTotal();
   const cartQuantity = getCartItemCount();
   const surcharge = !isFirstOrder && cartQuantity > 3 ? 15 : 0; // Surcharge for heavy orders
-  const deliveryFee = isFirstOrder ? 0 : FLAT_RATE_DELIVERY_FEE + surcharge;
+  const deliveryFee = (isFirstOrder || subTotal <= 500) ? 0 : FLAT_RATE_DELIVERY_FEE + surcharge;
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
@@ -235,7 +235,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-sm items-center">
                         <span className="flex items-center">Delivery:</span>
-                        {isFirstOrder ? (
+                        {deliveryFee === 0 ? (
                             <span className="font-semibold text-green-600">FREE</span>
                         ) : (
                             <span>Rs.{deliveryFee.toFixed(2)}</span>
@@ -251,11 +251,15 @@ export default function CheckoutPage() {
                         <span>Rs.{totalTax.toFixed(2)}</span>
                     </div>
                     <Separator />
-                    {isFirstOrder && (
+                    {isFirstOrder ? (
                         <Badge variant="secondary" className="w-full justify-center bg-green-100 text-green-800 border-green-200 my-2">
                            🎉 First Order Free Delivery Applied! 🎉
                         </Badge>
-                    )}
+                    ) : (subTotal <= 500 && (
+                        <Badge variant="secondary" className="w-full justify-center bg-green-100 text-green-800 border-green-200 my-2">
+                           🎉 Free Delivery on orders up to Rs.500! 🎉
+                        </Badge>
+                    ))}
                     <div className="flex justify-between font-bold text-primary text-xl">
                         <span>Total:</span>
                         <span>Rs.{grandTotal.toFixed(2)}</span>
