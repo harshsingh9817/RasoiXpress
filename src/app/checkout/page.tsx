@@ -137,7 +137,10 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   const subTotal = getCartTotal();
-  const deliveryFee = isFirstOrder ? 0 : (deliveryInfo.fee || 0);
+  const cartQuantity = getCartItemCount();
+  const baseFee = deliveryInfo.fee || 0;
+  const surcharge = !isFirstOrder && cartQuantity > 3 ? 15 : 0; // Surcharge for heavy orders
+  const deliveryFee = isFirstOrder ? 0 : baseFee + surcharge;
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
@@ -287,6 +290,11 @@ export default function CheckoutPage() {
                             <span>Rs.{deliveryFee.toFixed(2)}</span>
                         )}
                     </div>
+                    {surcharge > 0 && !isFirstOrder && (
+                        <div className="flex justify-end -mt-1">
+                            <p className="text-xs text-muted-foreground">Includes ₹15 heavy order fee</p>
+                        </div>
+                    )}
                     <div className="flex justify-between text-sm">
                         <span>Taxes:</span>
                         <span>Rs.{totalTax.toFixed(2)}</span>
