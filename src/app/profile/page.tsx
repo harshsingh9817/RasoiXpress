@@ -14,13 +14,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff, Sun, Moon, Laptop } from 'lucide-react';
+import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff, Sun, Moon, Laptop, AlertCircle } from 'lucide-react';
 import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/lib/data';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { useTheme } from 'next-themes';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = { fullName: '', type: 'Home', street: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' };
 
@@ -40,19 +41,26 @@ export default function ProfilePage() {
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
   const [currentAddressFormData, setCurrentAddressFormData] = useState<Omit<AddressType, 'id' | 'isDefault'>>(defaultAddressFormData);
 
+  const isSetupMode = searchParams.get('setup') === 'true';
+
   const loadUserData = useCallback(async () => {
     if (!firebaseUser) return;
     setIsDataLoading(true);
     try {
         const userAddresses = await getAddresses(firebaseUser.uid);
         setAddresses(userAddresses);
+
+        // If in setup mode and user now has an address, remove the query param
+        if (isSetupMode && userAddresses.length > 0) {
+            router.replace('/profile', { scroll: false });
+        }
     } catch (error) {
         console.error("Failed to load user data:", error);
         toast({ title: "Error", description: "Could not load your profile data.", variant: "destructive" });
     } finally {
         setIsDataLoading(false);
     }
-  }, [firebaseUser, toast]);
+  }, [firebaseUser, toast, isSetupMode, router]);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -76,6 +84,13 @@ export default function ProfilePage() {
       loadUserData();
     }
   }, [isAuthenticated, firebaseUser, loadUserData]);
+
+  useEffect(() => {
+    if (!isDataLoading && isSetupMode && addresses.length === 0) {
+      handleOpenAddAddressDialog();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDataLoading, isSetupMode, addresses]);
 
   const handleSetDefaultAddress = async (addressId: string) => {
     if (!firebaseUser) return;
@@ -135,7 +150,7 @@ export default function ProfilePage() {
     });
   };
 
-  if (isAuthLoading || (isDataLoading && !addresses.length)) {
+  if (isAuthLoading || (isDataLoading && !addresses.length && !isSetupMode)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary">
@@ -160,6 +175,16 @@ export default function ProfilePage() {
         </div>
         <Button variant="outline" onClick={logout} className="mt-4 md:mt-0 md:ml-auto self-center md:self-start text-destructive hover:bg-destructive/10 border-destructive/50"><LogOut className="mr-2 h-4 w-4" /> Logout</Button>
       </section>
+
+      {isSetupMode && addresses.length === 0 && (
+          <Alert variant="default" className="border-primary/50 bg-primary/5">
+              <AlertCircle className="h-4 w-4 text-primary" />
+              <AlertTitle className="text-primary font-bold">Complete Your Profile</AlertTitle>
+              <AlertDescription>
+                  Welcome! Please add a delivery address to start ordering.
+              </AlertDescription>
+          </Alert>
+      )}
 
       <Tabs value={activeTab} onValueChange={(value) => router.push(`/profile?tab=${value}`, { scroll: false })} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">

@@ -19,7 +19,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { getRiderEmails } from '@/lib/data';
+import { getRiderEmails, getAddresses } from '@/lib/data';
 
 interface AuthContextType {
   user: User | null;
@@ -55,10 +55,12 @@ const manageUserInFirestore = async (user: User, extraData: { mobileNumber?: str
             displayName: user.displayName,
             photoURL: user.photoURL,
         };
-        if (extraData.mobileNumber) {
+        if (extraData.mobileNumber && !docSnap.data()?.mobileNumber) {
             dataToUpdate.mobileNumber = extraData.mobileNumber;
         }
-        await setDoc(userRef, dataToUpdate, { merge: true });
+        if (Object.keys(dataToUpdate).length > 0) {
+            await setDoc(userRef, dataToUpdate, { merge: true });
+        }
     }
 }
 
@@ -113,6 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isAuthenticated = !!user;
     const publicPaths = ['/login', '/signup'];
     const deliveryPublicPath = '/delivery/login';
+    const profileSetupPath = '/profile';
 
     const isPublicPath = publicPaths.includes(pathname);
     const isDeliveryPublicPath = pathname === deliveryPublicPath;
@@ -142,7 +145,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         // User is a regular customer
         if (isPublicPath || isDeliveryPublicPath || pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
-          router.replace('/');
+            // Allow access to profile page for setup
+            if (pathname === profileSetupPath && router.asPath.includes('setup=true')) {
+              return;
+            }
+            router.replace('/');
         }
       }
     }
@@ -259,7 +266,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userCredential = await signInWithPopup(auth, provider);
       await manageUserInFirestore(userCredential.user);
-      toast({ title: 'Logged In!', description: 'Welcome to Rasoi Xpress!', variant: 'default' });
+
+      // Check if user profile is complete (has an address)
+      const userAddresses = await getAddresses(userCredential.user.uid);
+      if (userAddresses.length === 0) {
+        router.push('/profile?setup=true');
+        toast({
+          title: 'Almost there!',
+          description: 'Please add an address to complete your profile.',
+          duration: 5000
+        });
+      } else {
+        toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
+        router.push('/');
+      }
+
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
