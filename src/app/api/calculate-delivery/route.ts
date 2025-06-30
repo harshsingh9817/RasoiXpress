@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 
 // Haversine formula to calculate distance between two lat/lon points in km
@@ -39,23 +40,35 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. Geocode the destination address using Google Geocoding API
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${apiKey}`;
-    const geocodeResponse = await fetch(geocodeUrl);
-    const geocodeData = await geocodeResponse.json();
+    // 1. Validate and geocode the destination address using Google Address Validation API
+    const validationUrl = `https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`;
+    
+    const validationResponse = await fetch(validationUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            address: {
+                regionCode: 'IN', // Region code for India
+                addressLines: [destination],
+            }
+        })
+    });
+    
+    const validationData = await validationResponse.json();
 
-    if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
-      console.error('Geocoding API Error:', geocodeData.status, geocodeData.error_message);
-      let clientError = 'Could not find the specified address. Please check and try again.';
-      if (geocodeData.status === 'ZERO_RESULTS') {
-        clientError = 'Address not found. Please provide a more specific address.'
-      } else if (geocodeData.status === 'REQUEST_DENIED') {
-        clientError = 'Could not calculate distance due to a server configuration issue.'
-      }
-      return NextResponse.json({ error: clientError }, { status: 400 });
+    // Check for a valid response and geocoded location
+    if (!validationResponse.ok || !validationData.result?.address?.geocodedAddress?.location) {
+        console.error('Address Validation API Error:', validationData);
+        let clientError = 'Could not validate the specified address. Please check and try again.';
+        if (validationData.result?.verdict?.hasUnconfirmedComponents) {
+            clientError = 'Address could not be fully confirmed. Please provide a more specific address.';
+        }
+        return NextResponse.json({ error: clientError }, { status: 400 });
     }
 
-    const { lat: destLat, lng: destLon } = geocodeData.results[0].geometry.location;
+    const { latitude: destLat, longitude: destLon } = validationData.result.address.geocodedAddress.location;
 
     // 2. Calculate distance using Haversine formula
     const distanceInKm = calculateDistanceKm(originLat, originLon, destLat, destLon);
