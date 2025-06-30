@@ -54,6 +54,8 @@ const heroSchema = z.object({
   subheadline: z.string().min(10, "Subheadline must be at least 10 characters long."),
   orderingTime: z.string().min(1, "Ordering time must be set."),
   bannerImages: z.array(bannerSchema).min(1, "You must have at least one banner image."),
+  headlineColor: z.string().optional(),
+  subheadlineColor: z.string().optional(),
 });
 
 type HeroFormValues = z.infer<typeof heroSchema>;
@@ -76,6 +78,8 @@ export default function HeroManagementPage() {
       subheadline: "",
       orderingTime: "10:00 AM - 10:00 PM",
       bannerImages: [],
+      headlineColor: "#FFFFFF",
+      subheadlineColor: "#E5E7EB",
     },
   });
   
@@ -94,7 +98,11 @@ export default function HeroManagementPage() {
     if (isAuthenticated && isAdmin) {
       const loadData = async () => {
         const data = await getHeroData();
-        form.reset(data);
+        form.reset({
+            ...data,
+            headlineColor: data.headlineColor || '#FFFFFF',
+            subheadlineColor: data.subheadlineColor || '#E5E7EB',
+        });
         if (data.orderingTime && data.orderingTime.includes(' - ')) {
             const [start, end] = data.orderingTime.split(' - ');
             setStartTime(start.trim());
@@ -209,6 +217,61 @@ export default function HeroManagementPage() {
                       </FormItem>
                     )}
                   />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="headlineColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Headline Color</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="color"
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                className="w-12 h-10 p-1"
+                              />
+                              <Input
+                                type="text"
+                                placeholder="#FFFFFF"
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="subheadlineColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subheadline Color</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center gap-2">
+                               <Input
+                                type="color"
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                className="w-12 h-10 p-1"
+                              />
+                              <Input
+                                type="text"
+                                placeholder="#E5E7EB"
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <FormLabel>Ordering Time</FormLabel>

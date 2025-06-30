@@ -107,6 +107,8 @@ export interface HeroData {
   subheadline: string;
   orderingTime: string;
   bannerImages: BannerImage[];
+  headlineColor?: string;
+  subheadlineColor?: string;
 }
 
 export interface PaymentSettings {

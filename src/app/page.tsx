@@ -151,11 +151,26 @@ export default function HomePage() {
         ))}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
         <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 p-4 sm:p-6 lg:p-8">
-          <div className="text-white text-center md:text-left md:w-1/2 space-y-4">
-              <div role="heading" aria-level="1" className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>
+          <div className="text-center md:text-left md:w-1/2 space-y-4">
+              <div
+                role="heading"
+                aria-level="1"
+                className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up"
+                style={{
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                  color: heroData?.headlineColor || '#FFFFFF',
+                }}
+              >
                 {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
               </div>
-              <div className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.2s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
+              <div
+                className="text-lg md:text-xl max-w-2xl mx-auto md:mx-0 animate-fade-in-up"
+                style={{
+                  animationDelay: '0.2s',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                  color: heroData?.subheadlineColor || '#E5E7EB',
+                }}
+              >
                 {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
               </div>
               <div className="text-lg text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.4s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
