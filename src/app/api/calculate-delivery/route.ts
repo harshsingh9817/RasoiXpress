@@ -1,42 +1,56 @@
 
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-  const { destination } = await request.json();
-  const origin = "Hanuman Mandir Ghosi More Nagra";
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+// Haversine formula to calculate distance between two lat/lon points in km
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
 
-  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
-    return NextResponse.json({ error: 'Google Maps API key is not configured.' }, { status: 500 });
-  }
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * 
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * 
+    Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return distance; // in KM
+}
+
+export async function POST(request: Request) {
+  // Coordinates for the restaurant origin: Hanuman Mandir Ghosi More Nagra
+  const originLat = 26.1555;
+  const originLon = 83.7919;
+  
+  // NOTE: The Haversine formula requires latitude and longitude.
+  // The current implementation sends a string address (e.g., "123 Main St, Anytown, 12345, India").
+  // Without an online geocoding service (which we are avoiding), we cannot convert this address
+  // into coordinates. This function returns an error to indicate this.
+  // A future step would be to integrate a geocoding solution or change the address
+  // input method to capture coordinates.
+  
+  const { destination } = await request.json();
 
   if (!destination) {
-    return NextResponse.json({ error: 'Destination address is required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Destination address is required.' }, { status: 400 });
   }
 
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&key=${apiKey}&units=metric`;
+  // This is a placeholder for a geocoding step that is required.
+  // For now, we return an error because we can't process the address string.
+  return NextResponse.json({ error: 'Could not calculate distance. Address requires geocoding.' }, { status: 400 });
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
+  /*
+  // Example of how it would work if we had coordinates:
+  // This part of the code will not be reached until geocoding is implemented.
+  const destinationLat = 26.16; // Example coordinates from a geocoding service
+  const destinationLon = 83.80; // Example coordinates from a geocoding service
 
-    if (data.status !== 'OK' || !data.rows[0].elements[0].distance) {
-      let errorMessage = 'Could not calculate distance. Please check the address.';
-      if (data.status === 'ZERO_RESULTS') {
-        errorMessage = 'Could not find the address. Please provide a more specific location.';
-      } else if (data.error_message) {
-        errorMessage = data.error_message;
-        console.error("Google Maps API Error:", errorMessage);
-      }
-      return NextResponse.json({ error: errorMessage }, { status: 400 });
-    }
+  const distanceInKm = calculateDistanceKm(originLat, originLon, destinationLat, destinationLon);
+  const deliveryFee = Math.ceil(distanceInKm * 6); // Rs. 6 per km, rounded up
 
-    const distanceInKm = data.rows[0].elements[0].distance.value / 1000;
-    const deliveryFee = Math.ceil(distanceInKm * 6); // Rs. 6 per km, rounded up
-
-    return NextResponse.json({ distance: distanceInKm, fee: deliveryFee });
-  } catch (error) {
-    console.error('Error fetching from Google Maps API:', error);
-    return NextResponse.json({ error: 'An internal error occurred.' }, { status: 500 });
-  }
+  return NextResponse.json({ distance: distanceInKm, fee: deliveryFee });
+  */
 }
