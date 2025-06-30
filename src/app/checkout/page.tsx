@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent, useEffect, useCallback, useMemo } from 'react';
+import { useState, type FormEvent, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
@@ -14,19 +14,18 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, MapPin } from 'lucide-react';
+import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, MapPin, BadgePercent, ThumbsUp } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { Badge } from '@/components/ui/badge';
-import LocationPicker from '@/components/LocationPicker'; // Import the new component
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
+  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -37,97 +36,28 @@ export default function CheckoutPage() {
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [isFirstOrder, setIsFirstOrder] = useState(false);
   
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '' });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(ADD_NEW_ADDRESS_VALUE);
   const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery'>('UPI');
 
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [isCalculatingFee, setIsCalculatingFee] = useState(false);
-  const [calculationError, setCalculationError] = useState<string | null>(null);
-  
-  // New state for map dialog
-  const [isMapOpen, setIsMapOpen] = useState(false);
-
-  const calculateDeliveryFee = useCallback(async (fullAddress: string) => {
-    if (!fullAddress.trim()) {
-      setDeliveryFee(0);
-      setCalculationError(null);
-      return;
-    }
-
-    setIsCalculatingFee(true);
-    setCalculationError(null);
-
-    try {
-      const response = await fetch('/api/calculate-delivery', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destination: fullAddress }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to calculate delivery fee.');
-      }
-      setDeliveryFee(data.fee);
-    } catch (error: any) {
-      console.error("Delivery fee calculation error:", error);
-      setCalculationError(error.message);
-      setDeliveryFee(0);
-    } finally {
-      setIsCalculatingFee(false);
-    }
-  }, []);
-  
-  const debouncedCalculateFee = useCallback((address: string) => {
-    const handler = setTimeout(() => {
-        calculateDeliveryFee(address);
-    }, 1000); // 1-second debounce
-    return () => clearTimeout(handler);
-  }, [calculateDeliveryFee]);
-
-  useEffect(() => {
-    if (selectedAddressId === ADD_NEW_ADDRESS_VALUE) {
-        const { address, village, city, pinCode } = formData;
-        if (address && city && pinCode) {
-            const fullAddress = `${address}, ${village ? village + ', ' : ''}${city}, ${pinCode}, India`;
-            debouncedCalculateFee(fullAddress);
-        } else {
-            setDeliveryFee(0);
-            setCalculationError(null);
-        }
-    }
-  }, [formData, selectedAddressId, debouncedCalculateFee]);
-
   const loadPageData = useCallback(async () => {
     if (!user) return;
     setIsDataLoading(true);
     try {
-        const [addresses, settings, userProfile] = await Promise.all([
+        const [addresses, settings] = await Promise.all([
              getAddresses(user.uid), 
              getPaymentSettings(),
-             getUserProfile(user.uid)
         ]);
         setSavedAddresses(addresses);
         setPaymentSettings(settings);
-
-        if (userProfile && userProfile.hasCompletedFirstOrder === false) {
-            setIsFirstOrder(true);
-        } else {
-            setIsFirstOrder(false);
-        }
 
         setFormData(prev => ({...prev, fullName: user.displayName || ''}));
         const defaultAddress = addresses.find(addr => addr.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
           setFormData(prev => ({ ...prev, fullName: defaultAddress.fullName || user.displayName || '', address: defaultAddress.street, village: defaultAddress.village || '', city: defaultAddress.city, pinCode: defaultAddress.pinCode, phone: defaultAddress.phone || '' }));
-          const fullAddress = `${defaultAddress.street}, ${defaultAddress.village ? defaultAddress.village + ', ' : ''}${defaultAddress.city}, ${defaultAddress.pinCode}, India`;
-          calculateDeliveryFee(fullAddress);
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
@@ -135,7 +65,7 @@ export default function CheckoutPage() {
     } finally {
         setIsDataLoading(false);
     }
-  }, [user, toast, calculateDeliveryFee]);
+  }, [user, toast]);
   
   useEffect(() => {
     if (isAuthLoading) return;
@@ -156,14 +86,12 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, checkoutStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   const subTotal = getCartTotal();
-  const cartQuantity = getCartItemCount();
-  const surcharge = !isFirstOrder && cartQuantity > 3 ? 15 : 0;
-  const finalDeliveryFee = (isFirstOrder || subTotal > 500) ? 0 : deliveryFee + surcharge;
+  const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
   }, 0);
-  const grandTotal = subTotal + finalDeliveryFee + totalTax;
+  const grandTotal = subTotal + deliveryFee + totalTax;
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -191,19 +119,25 @@ export default function CheckoutPage() {
         setIsTimeGateDialogOpen(true);
         return;
     }
-    if (calculationError) {
-        toast({ title: "Address Error", description: calculationError, variant: "destructive" });
-        return;
-    }
     if (!user) return;
     const confirmationCode = Math.floor(1000 + Math.random() * 9000).toString();
     const villagePart = formData.village ? `${formData.village}, ` : '';
-    const newOrderData: Omit<Order, 'id'> = { userId: user.uid, userEmail: user.email || 'N/A', customerName: formData.fullName, date: new Date().toISOString(), status: 'Order Placed', total: grandTotal, items: cartItems.map(item => ({ ...item })), shippingAddress: `${formData.address}, ${villagePart}${formData.city}, ${formData.pinCode}`, paymentMethod: paymentMethod, customerPhone: formData.phone, deliveryConfirmationCode: confirmationCode, deliveryFee: finalDeliveryFee, totalTax: totalTax };
+    const newOrderData: Omit<Order, 'id'> = { userId: user.uid, userEmail: user.email || 'N/A', customerName: formData.fullName, date: new Date().toISOString(), status: 'Order Placed', total: grandTotal, items: cartItems.map(item => ({ ...item })), shippingAddress: `${formData.address}, ${villagePart}${formData.city}, ${formData.pinCode}`, paymentMethod: paymentMethod, customerPhone: formData.phone, deliveryConfirmationCode: confirmationCode, deliveryFee: deliveryFee, totalTax: totalTax };
     setPendingOrderData(newOrderData);
-    if (paymentMethod === 'UPI') {
-        setCheckoutStep('payment');
+
+    const completeOrder = () => {
+        if (paymentMethod === 'UPI') {
+            setCheckoutStep('payment');
+        } else {
+            finalizeOrder(newOrderData);
+        }
+    }
+
+    if (subTotal > 0 && subTotal < 300) {
+        setProceedAction(() => completeOrder);
+        setIsFreeDeliveryDialogOpen(true);
     } else {
-        finalizeOrder(newOrderData);
+        completeOrder();
     }
   };
 
@@ -217,27 +151,10 @@ export default function CheckoutPage() {
       const selectedAddr = savedAddresses.find(addr => addr.id === value);
       if (selectedAddr) {
         setFormData(prev => ({ ...prev, fullName: selectedAddr.fullName || '', address: selectedAddr.street, village: selectedAddr.village || '', city: selectedAddr.city, pinCode: selectedAddr.pinCode, phone: selectedAddr.phone || '' }));
-        const fullAddress = `${selectedAddr.street}, ${selectedAddr.village ? selectedAddr.village + ', ' : ''}${selectedAddr.city}, ${selectedAddr.pinCode}, India`;
-        calculateDeliveryFee(fullAddress);
       }
     } else {
       setFormData(prev => ({ ...prev, fullName: user?.displayName || '', address: '', village: '', city: '', pinCode: '', phone: '' }));
-      setDeliveryFee(0);
-      setCalculationError(null);
     }
-  };
-
-  // New handler for location selection from map
-  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
-    setFormData(prev => ({
-        ...prev,
-        address: address.street,
-        village: address.village,
-        city: address.city,
-        pinCode: address.pinCode,
-    }));
-    // Ensure we are in "new address" mode to trigger fee calculation
-    setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
   };
 
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
@@ -311,14 +228,11 @@ export default function CheckoutPage() {
         <div className="space-y-2">
             <div className="flex justify-between items-center mb-1">
                 <Label>Street</Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsMapOpen(true)}>
-                    <MapPin className="mr-2 h-4 w-4"/> Pick on Map
-                </Button>
             </div>
             <Input name="address" value={formData.address} onChange={handleInputChange} required />
         </div>
         
-        <div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} placeholder="E.g., near the post office" /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0 || !!calculationError} className="w-full">{isLoading ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
+        <div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} placeholder="E.g., near the post office" /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0} className="w-full">{isLoading ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
         <Card>
             <CardHeader><CardTitle>Order Summary</CardTitle><CardDescription>{getCartItemCount()} item(s)</CardDescription></CardHeader>
             <CardContent className="space-y-4">
@@ -331,38 +245,27 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-sm items-center">
                         <span className="flex items-center">Delivery:</span>
-                        {isCalculatingFee ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : finalDeliveryFee === 0 ? (
+                        {deliveryFee === 0 && subTotal > 0 ? (
                             <span className="font-semibold text-green-600">FREE</span>
                         ) : (
-                            <span>Rs.{finalDeliveryFee.toFixed(2)}</span>
+                            <span>Rs.{deliveryFee.toFixed(2)}</span>
                         )}
                     </div>
-                     {calculationError && (
-                        <div className="flex justify-end -mt-1">
-                            <p className="text-xs text-destructive text-right">{calculationError}</p>
-                        </div>
-                    )}
-                    {surcharge > 0 && !isFirstOrder && (
-                        <div className="flex justify-end -mt-1">
-                            <p className="text-xs text-muted-foreground">Includes ₹15 heavy order fee</p>
-                        </div>
-                    )}
                     <div className="flex justify-between text-sm">
                         <span>Taxes:</span>
                         <span>Rs.{totalTax.toFixed(2)}</span>
                     </div>
                     <Separator />
-                    {isFirstOrder ? (
-                        <Badge variant="secondary" className="w-full justify-center bg-green-100 text-green-800 border-green-200 my-2">
-                           🎉 First Order Free Delivery Applied! 🎉
+                    {subTotal < 300 && subTotal > 0 && (
+                        <Badge variant="secondary" className="w-full justify-center bg-amber-100 text-amber-800 border-amber-200 my-2">
+                           <BadgePercent className="mr-2 h-4 w-4"/> Order for Rs. {300 - subTotal} more to get FREE delivery!
                         </Badge>
-                    ) : (subTotal > 500 && (
+                    )}
+                    {subTotal >= 300 && (
                         <Badge variant="secondary" className="w-full justify-center bg-green-100 text-green-800 border-green-200 my-2">
-                           🎉 Free Delivery on orders over Rs.500! 🎉
+                           <ThumbsUp className="mr-2 h-4 w-4"/> You've unlocked FREE delivery!
                         </Badge>
-                    ))}
+                    )}
                     <div className="flex justify-between font-bold text-primary text-xl">
                         <span>Total:</span>
                         <span>Rs.{grandTotal.toFixed(2)}</span>
@@ -372,7 +275,6 @@ export default function CheckoutPage() {
             <CardFooter><Button variant="outline" onClick={() => router.push('/')} className="w-full"><Home className="mr-2 h-4 w-4" /> Continue Shopping</Button></CardFooter>
         </Card>
       </div>
-      <LocationPicker isOpen={isMapOpen} onOpenChange={setIsMapOpen} onLocationSelect={handleLocationSelect} />
     </div>
   );
 }

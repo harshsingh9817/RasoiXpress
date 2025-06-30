@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -26,7 +27,7 @@ interface FoodItemDetailDialogProps {
 }
 
 const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen, onOpenChange }) => {
-  const { addToCart } = useCart();
+  const { addToCart, getCartTotal, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
   const router = useRouter();
 
   if (!menuItem) return null;
@@ -37,9 +38,16 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
   };
 
   const handleBuyNow = () => {
+    const currentTotal = getCartTotal();
     const wasAdded = addToCart(menuItem);
     if (wasAdded) {
+      const newTotal = currentTotal + menuItem.price;
+      if (newTotal < 300) {
+        setProceedAction(() => () => router.push('/checkout'));
+        setIsFreeDeliveryDialogOpen(true);
+      } else {
         router.push('/checkout');
+      }
     }
   };
 

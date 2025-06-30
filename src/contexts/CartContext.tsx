@@ -8,12 +8,15 @@ import { getHeroData } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import { Button } from '@/components/ui/button';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -28,6 +31,9 @@ interface CartContextType {
   setIsCartOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isOrderingAllowed: boolean;
   setIsTimeGateDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isFreeDeliveryDialogOpen: boolean;
+  setIsFreeDeliveryDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setProceedAction: React.Dispatch<React.SetStateAction<(() => void) | null>>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -40,6 +46,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
+
+  const [isFreeDeliveryDialogOpen, setIsFreeDeliveryDialogOpen] = useState(false);
+  const [proceedAction, setProceedAction] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     // Load cart from localStorage on initial render (client-side only)
@@ -132,7 +141,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
     toast({
       title: `${item.name} added to cart!`,
-      variant: "default", // Use default for success messages, not "destructive"
+      variant: "default",
       duration: 3000,
     });
     return true;
@@ -210,6 +219,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const handleProceed = () => {
+    if (proceedAction) {
+      proceedAction();
+    }
+    setIsFreeDeliveryDialogOpen(false);
+    setProceedAction(null);
+  };
+
+  const handleContinueShopping = () => {
+    setIsFreeDeliveryDialogOpen(false);
+    setProceedAction(null);
+  }
+
   return (
     <CartContext.Provider
       value={{
@@ -225,6 +247,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setIsCartOpen,
         isOrderingAllowed,
         setIsTimeGateDialogOpen,
+        isFreeDeliveryDialogOpen,
+        setIsFreeDeliveryDialogOpen,
+        setProceedAction,
       }}
     >
       {children}
@@ -241,6 +266,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                   <AlertDialogAction onClick={() => setIsTimeGateDialogOpen(false)}>OK</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isFreeDeliveryDialogOpen} onOpenChange={setIsFreeDeliveryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="w-24 h-24 mx-auto text-primary mb-2">
+                <AnimatedDeliveryScooter />
+            </div>
+            <AlertDialogTitle className="text-center">Get Free Delivery!</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Your order is under ₹300. Add more items to your cart to unlock free delivery, or proceed with a small delivery fee.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-2">
+            <Button variant="outline" onClick={handleContinueShopping}>
+              Continue Shopping
+            </Button>
+            <Button onClick={handleProceed}>
+              Proceed Anyway
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </CartContext.Provider>
   );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -17,15 +18,23 @@ interface MenuItemCardProps {
 }
 
 const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
-  const { addToCart } = useCart();
+  const { addToCart, getCartTotal, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
   const router = useRouter();
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const currentTotal = getCartTotal();
     const wasAdded = addToCart(menuItem);
+
     if (wasAdded) {
-      router.push('/checkout');
+      const newTotal = currentTotal + menuItem.price;
+      if (newTotal < 300) {
+        setProceedAction(() => () => router.push('/checkout'));
+        setIsFreeDeliveryDialogOpen(true);
+      } else {
+        router.push('/checkout');
+      }
     }
   };
   
