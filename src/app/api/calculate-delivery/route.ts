@@ -40,8 +40,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. Validate and geocode the destination address using Google Address Validation API
-    const validationUrl = `https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`;
+    // 1. Validate and geocode the destination address using the specified API
+    const validationUrl = `https://addressvalidation.gomaps.pro/v1:validateAddress?key=${apiKey}`;
     
     const validationResponse = await fetch(validationUrl, {
         method: 'POST',
