@@ -29,7 +29,7 @@ export default function ContactUsPage() {
               <div>
                 <h3 className="font-semibold">Email</h3>
                 <p className="text-muted-foreground">For general inquiries, support, and feedback.</p>
-                <a href="mailto:support@rasoixpress.com" className="text-primary hover:underline">support@rasoixpress.com</a>
+                <a href="mailto:harshsingh9817@gmail.com" className="text-primary hover:underline">harshsingh9817@gmail.com</a>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -39,7 +39,7 @@ export default function ContactUsPage() {
               <div>
                 <h3 className="font-semibold">Phone</h3>
                 <p className="text-muted-foreground">For urgent matters regarding your order.</p>
-                <a href="tel:+911234567890" className="text-primary hover:underline">+91 12345 67890</a>
+                <a href="tel:+919335958817" className="text-primary hover:underline">+91 93359 58817</a>
               </div>
             </div>
             <div className="flex items-start gap-4">
