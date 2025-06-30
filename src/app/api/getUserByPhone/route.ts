@@ -22,8 +22,9 @@ export async function POST(request: Request) {
     const userDoc = querySnapshot.docs[0].data();
     const email = userDoc.email;
     
+    // If the document is found but is malformed (missing an email), treat it as not found.
     if (!email) {
-      return NextResponse.json({ error: 'Email not associated with this phone number' }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({ email });

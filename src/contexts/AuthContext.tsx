@@ -202,13 +202,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({ phone: identifier }),
         });
         
-        const data = await response.json();
-
         if (!response.ok) {
-            // Use the error from the API if available, otherwise use a generic one.
-            throw new Error(data.error || "Invalid credentials");
+            // If API fails (e.g., user not found), we throw a generic error to be caught by the block below.
+            throw new Error("auth/invalid-credential");
         }
-        
+        const data = await response.json();
         emailToLogin = data.email;
       }
 
@@ -252,12 +250,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Firebase login error:", error);
-      let description = 'An unexpected error occurred during login. Please try again.';
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes('Invalid credentials')) {
-        description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
-      } else if (error.message) {
-        description = error.message;
-      }
+      // For any failure in the try block, show a generic, user-friendly error.
+      const description = 'The email, phone number, or password you entered is incorrect. Please check your credentials and try again.';
       toast({ title: 'Login Failed', description, variant: 'destructive' });
     }
   };
