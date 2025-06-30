@@ -14,13 +14,14 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2 } from 'lucide-react';
+import { CreditCard, Home, PackageCheck, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, MapPin } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { Badge } from '@/components/ui/badge';
+import LocationPicker from '@/components/LocationPicker'; // Import the new component
 
 const ADD_NEW_ADDRESS_VALUE = "---add-new-address---";
 
@@ -47,6 +48,9 @@ export default function CheckoutPage() {
   const [isCalculatingFee, setIsCalculatingFee] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
   
+  // New state for map dialog
+  const [isMapOpen, setIsMapOpen] = useState(false);
+
   const calculateDeliveryFee = useCallback(async (fullAddress: string) => {
     if (!fullAddress.trim()) {
       setDeliveryFee(0);
@@ -223,6 +227,19 @@ export default function CheckoutPage() {
     }
   };
 
+  // New handler for location selection from map
+  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
+    setFormData(prev => ({
+        ...prev,
+        address: address.street,
+        village: address.village,
+        city: address.city,
+        pinCode: address.pinCode,
+    }));
+    // Ensure we are in "new address" mode to trigger fee calculation
+    setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
+  };
+
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -289,7 +306,19 @@ export default function CheckoutPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <h1 className="text-3xl md:text-4xl font-headline font-bold text-center">Checkout</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card><CardHeader><CardTitle>Shipping & Payment</CardTitle></CardHeader><form onSubmit={handleProceedToPayment}><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>{savedAddresses.length > 0 && <div className="space-y-2"><Label>Saved Addresses</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}>{`${addr.fullName}: ${addr.street}${addr.village ? `, ${addr.village}` : ''}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}<div className="space-y-2"><Label>Street</Label><Input name="address" value={formData.address} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} placeholder="E.g., near the post office" /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0 || !!calculationError} className="w-full">{isLoading ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
+        <Card><CardHeader><CardTitle>Shipping & Payment</CardTitle></CardHeader><form onSubmit={handleProceedToPayment}><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>{savedAddresses.length > 0 && <div className="space-y-2"><Label>Saved Addresses</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>Enter new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}>{`${addr.fullName}: ${addr.street}${addr.village ? `, ${addr.village}` : ''}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}
+        
+        <div className="space-y-2">
+            <div className="flex justify-between items-center mb-1">
+                <Label>Street</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsMapOpen(true)}>
+                    <MapPin className="mr-2 h-4 w-4"/> Pick on Map
+                </Button>
+            </div>
+            <Input name="address" value={formData.address} onChange={handleInputChange} required />
+        </div>
+        
+        <div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} placeholder="E.g., near the post office" /></div><div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div><div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div><Separator /><div className="space-y-2"><Label>Payment</Label><RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="UPI" /><CreditCard className="h-5 w-5 text-primary mx-2" /><span>UPI</span></Label><Label className="flex items-center space-x-3 p-3 border rounded-md"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-5 w-5 text-primary mx-2" /><span>Cash on Delivery</span></Label></RadioGroup></div></CardContent><CardFooter><Button type="submit" disabled={isLoading || cartItems.length === 0 || !!calculationError} className="w-full">{isLoading ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <PackageCheck className="mr-2 h-5 w-5" />} {isLoading ? 'Placing Order...' : `Place Order (Rs.${grandTotal.toFixed(2)})`}</Button></CardFooter></form></Card>
         <Card>
             <CardHeader><CardTitle>Order Summary</CardTitle><CardDescription>{getCartItemCount()} item(s)</CardDescription></CardHeader>
             <CardContent className="space-y-4">
@@ -343,6 +372,7 @@ export default function CheckoutPage() {
             <CardFooter><Button variant="outline" onClick={() => router.push('/')} className="w-full"><Home className="mr-2 h-4 w-4" /> Continue Shopping</Button></CardFooter>
         </Card>
       </div>
+      <LocationPicker isOpen={isMapOpen} onOpenChange={setIsMapOpen} onLocationSelect={handleLocationSelect} />
     </div>
   );
 }
