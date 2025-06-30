@@ -134,7 +134,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-2xl font-semibold">Contact Us</h2>
           <p>If you have any questions about this Privacy Policy, You can contact us:</p>
           <ul>
-            <li>By email: singhrishabhpratap@gmai.com</li>
+            <li>By email: harshsingh9817@gmail.com</li>
           </ul>
         </CardContent>
       </Card>

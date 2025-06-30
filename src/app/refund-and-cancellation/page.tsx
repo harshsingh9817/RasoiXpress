@@ -27,7 +27,7 @@ export default function RefundAndCancellationPage() {
           <h2 className="text-xl font-semibold">Refund Policy</h2>
           <p>
             For prepaid orders, if your cancellation is successful within the stipulated
-            time, the refund will be processed to your original payment method within 5-7
+            time, the refund will be processed to your original payment method within 3 to 5
             business days. For issues with food quality or incorrect items, please contact
             our support team within 2 hours of delivery for assistance. Refunds in such
             cases are subject to verification.
