@@ -196,19 +196,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       if (isPhoneNumber) {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("mobileNumber", "==", identifier));
-        const querySnapshot = await getDocs(q);
+        const response = await fetch('/api/getUserByPhone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: identifier }),
+        });
+        
+        const data = await response.json();
 
-        if (querySnapshot.empty) {
-          throw new Error("Invalid credentials");
+        if (!response.ok) {
+            // Use the error from the API if available, otherwise use a generic one.
+            throw new Error(data.error || "Invalid credentials");
         }
         
-        const userDoc = querySnapshot.docs[0].data();
-        emailToLogin = userDoc.email;
-        if (!emailToLogin) {
-            throw new Error("Invalid credentials");
-        }
+        emailToLogin = data.email;
       }
 
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
