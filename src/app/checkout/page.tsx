@@ -4,6 +4,7 @@
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -363,9 +364,31 @@ export default function CheckoutPage() {
             <CardHeader><CardTitle>Step 2: Payment Method</CardTitle></CardHeader>
             <CardContent>
                 <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="space-y-3">
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="Razorpay" /><CreditCard className="h-6 w-6 text-primary mx-2" /><span>Card, UPI, & More (Razorpay)</span></Label>
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="UPI" /><QrCode className="h-6 w-6 text-primary mx-2" /><span>Direct UPI / QR Code</span></Label>
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary"><RadioGroupItem value="Cash on Delivery" /><Wallet className="h-6 w-6 text-primary mx-2" /><span>Cash on Delivery</span></Label>
+                    <div>
+                        <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
+                            <RadioGroupItem value="Razorpay" />
+                            <CreditCard className="h-6 w-6 text-primary mx-2" />
+                            <span>Card, UPI, & More (Razorpay)</span>
+                        </Label>
+                        {paymentMethod === 'Razorpay' && (
+                            <div className="px-4 pt-2 text-xs text-muted-foreground">
+                                By proceeding, you agree to our{' '}
+                                <Link href="/terms-and-conditions" className="underline hover:text-primary">Terms & Conditions</Link>,{' '}
+                                <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>, and{' '}
+                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>.
+                            </div>
+                        )}
+                    </div>
+                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
+                        <RadioGroupItem value="UPI" />
+                        <QrCode className="h-6 w-6 text-primary mx-2" />
+                        <span>Direct UPI / QR Code</span>
+                    </Label>
+                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
+                        <RadioGroupItem value="Cash on Delivery" />
+                        <Wallet className="h-6 w-6 text-primary mx-2" />
+                        <span>Cash on Delivery</span>
+                    </Label>
                 </RadioGroup>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -411,5 +434,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
