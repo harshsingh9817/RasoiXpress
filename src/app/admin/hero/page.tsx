@@ -180,15 +180,30 @@ export default function HeroManagementPage() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <CardHeader>
-                  <CardTitle className="text-2xl font-headline flex items-center">
-                    <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
-                  </CardTitle>
-                  <CardDescription>
-                    Update the text and rotating banner images displayed on the homepage.
-                    <p className="mt-1">
-                      Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
-                    </p>
-                  </CardDescription>
+                  <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <CardTitle className="text-2xl font-headline flex items-center">
+                            <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
+                        </CardTitle>
+                        <CardDescription>
+                            Update the text and rotating banner images displayed on the homepage.
+                            <p className="mt-1">
+                            Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
+                            </p>
+                        </CardDescription>
+                      </div>
+                      <Button type="submit" disabled={isSubmitting} className="shrink-0">
+                        {isSubmitting ? (
+                          <>
+                            <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" /> Save All Changes
+                          </>
+                        )}
+                      </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
                   <FormField
@@ -383,20 +398,6 @@ export default function HeroManagementPage() {
                     <FormMessage>{form.formState.errors.bannerImages?.message}</FormMessage>
 
                 </CardContent>
-
-                <CardContent>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" /> Save All Changes
-                      </>
-                    )}
-                  </Button>
-              </CardContent>
             </form>
         </Form>
       </Card>
