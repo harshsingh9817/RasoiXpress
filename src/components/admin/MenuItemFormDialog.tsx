@@ -43,7 +43,6 @@ const menuItemSchema = z.object({
   weight: z.string().optional(),
   ingredients: z.string().optional(),
   taxRate: z.coerce.number().min(0, "Tax rate must be zero or more.").max(1, "Tax rate should be a decimal (e.g., 0.05 for 5%).").optional(),
-  deliveryFee: z.coerce.number().min(0, "Delivery fee must be zero or more.").optional(),
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
@@ -80,7 +79,6 @@ export default function MenuItemFormDialog({
           reset({
             ...menuItem, 
             taxRate: menuItem.taxRate || undefined,
-            deliveryFee: menuItem.deliveryFee || undefined,
         });
         } else {
           reset({
@@ -94,7 +92,6 @@ export default function MenuItemFormDialog({
             weight: "",
             ingredients: "",
             taxRate: undefined,
-            deliveryFee: undefined,
           });
         }
     }
@@ -223,7 +220,7 @@ export default function MenuItemFormDialog({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 <FormField
                   control={form.control}
                   name="taxRate"
@@ -234,20 +231,6 @@ export default function MenuItemFormDialog({
                           <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
                       </FormControl>
                       <FormDescription className="text-xs">Enter as decimal, e.g., 0.05 for 5%. Leave blank for 0% tax.</FormDescription>
-                      <FormMessage />
-                      </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="deliveryFee"
-                  render={({ field }) => (
-                      <FormItem>
-                      <FormLabel>Delivery Fee (Optional)</FormLabel>
-                      <FormControl>
-                          <Input type="number" step="1" {...field} value={field.value ?? ''} placeholder="e.g. 10"/>
-                      </FormControl>
-                      <FormDescription className="text-xs">Per-item fee. Leave blank for 0.</FormDescription>
                       <FormMessage />
                       </FormItem>
                   )}
