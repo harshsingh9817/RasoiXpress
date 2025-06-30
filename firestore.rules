@@ -1,79 +1,67 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
+
     function isAuth() {
       return request.auth != null;
     }
-    
-    function isUserId(userId) {
+
+    function isOwner(userId) {
       return isAuth() && request.auth.uid == userId;
     }
     
     function isAdmin() {
-      // Allow if the user has an 'admin' custom claim, OR is the specific hardcoded admin email.
-      // NOTE: For production, rely on custom claims set by a backend process.
-      return isAuth() && (request.auth.token.admin == true || request.auth.token.email == 'harshsingh9817@gmail.com');
+      // Assumes an 'isAdmin' boolean field in the user's document
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
     function isDelivery() {
-      // Allow if the user has a 'delivery' custom claim.
-      return isAuth() && request.auth.token.delivery == true;
-    }
-
-    // --- Public Collections ---
-    match /menuItems/{itemId} {
-      allow read: if true; // Everyone can read the menu
-      allow write: if isAdmin(); // Only admins can create, update, delete
+       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
     }
 
     match /globals/{docId} {
-        allow read: if true; // Everyone can read global settings
-        allow write: if isAdmin(); // Only admins can change them
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // --- User-specific Data ---
     match /users/{userId} {
-      allow read, write: if isUserId(userId) || isAdmin();
+      // WARNING: This allows any client to query the users collection.
+      // This is required for the "login with phone number" feature to work,
+      // but it is insecure. In a production app, this lookup should be 
+      // performed by a backend with admin privileges.
+      allow list: if true;
+      allow get, update: if isOwner(userId) || isAdmin();
+      allow create: if isAuth();
+    }
+    
+    match /users/{userId}/addresses/{addressId} {
+      allow read, write: if isOwner(userId);
+    }
 
-      // Addresses are sub-collections of a user
-      match /addresses/{addressId} {
-        allow read, write: if isUserId(userId) || isAdmin();
-      }
-    }
-    
-    // --- Orders ---
     match /orders/{orderId} {
-        // User can create their own order
-        allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-        // User can read their own order
-        // Admin can read any order
-        // Delivery person can read any order (to see available ones)
-        allow read: if (isAuth() && resource.data.userId == request.auth.uid) || isAdmin() || isDelivery();
-        // Admin can update status, cancel, review on behalf of user
-        // User can cancel their own order or add a review
-        // Delivery person can update status (accept, mark as delivered)
-        allow update: if isAdmin() || isDelivery() || (isAuth() && resource.data.userId == request.auth.uid);
+        allow create: if isOwner(request.resource.data.userId);
+        allow read, update: if isOwner(resource.data.userId) || isAdmin() || (isDelivery() && resource.data.deliveryRiderId == request.auth.uid);
+        allow delete: if isAdmin();
     }
-    
-    // --- Admin Messages (Notifications) ---
-    match /adminMessages/{messageId} {
-        allow create: if isAdmin(); // Only admin can create/send
-        allow read: if (isAuth() && resource.data.userId == request.auth.uid) || isAdmin();
-    }
-    
-    // --- Riders ---
+
     match /riders/{riderId} {
-        allow read, write: if isAdmin();
+      allow read, write: if isAdmin();
     }
     
-    // --- Support Tickets ---
     match /supportTickets/{ticketId} {
-        allow create: if true; // Anyone can create a ticket
-        allow read, write: if isAdmin(); // Only admins can read/update
+       allow create: if true; // Allow anyone to create a support ticket
+       allow read, update, delete: if isAdmin();
+    }
+
+    match /adminMessages/{messageId} {
+      allow create: if isAdmin();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
     }
   }
 }
