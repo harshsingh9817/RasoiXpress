@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, PackageSearch, Eye, ClipboardList } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getAllOrders } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import {
@@ -22,6 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
 
 export default function RiderProfilePage() {
   const router = useRouter();
@@ -36,11 +38,13 @@ export default function RiderProfilePage() {
     if (!firebaseUser) return;
     setIsDataLoading(true);
     try {
-      const allOrders = await getAllOrders();
-      const relevantStatuses: OrderStatus[] = ['Delivered', 'Cancelled', 'Out for Delivery', 'Shipped'];
-      const riderOrders = allOrders.filter(o => relevantStatuses.includes(o.status));
-      const sortedOrders = riderOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setOrders(sortedOrders);
+      const ordersRef = collection(db, "orders");
+      const q = query(ordersRef, where("deliveryRiderId", "==", firebaseUser.uid), orderBy("date", "desc"));
+      const querySnapshot = await getDocs(q);
+      const riderOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Order);
+      
+      setOrders(riderOrders);
+
     } catch (error) {
       console.error("Failed to load rider data:", error);
       toast({ title: "Error", description: "Could not load your delivery history.", variant: "destructive" });

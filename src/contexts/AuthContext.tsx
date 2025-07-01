@@ -19,7 +19,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { getRiderEmails, getAddresses } from '@/lib/data';
+import { getAddresses } from '@/lib/data';
 
 interface AuthContextType {
   user: User | null;
@@ -79,18 +79,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
-            const riderEmails = await getRiderEmails();
-            const isDeliveryClaim = riderEmails.includes(currentUser.email || '');
-
             const userDocRef = doc(db, 'users', currentUser.uid);
-            await setDoc(userDocRef, { isDelivery: isDeliveryClaim }, { merge: true });
+            const userDocSnap = await getDoc(userDocRef);
+
+            const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
+            let isDeliveryClaim = false;
+
+            if (userDocSnap.exists()) {
+                isDeliveryClaim = userDocSnap.data()?.isDelivery === true;
+            }
             
             setIsAdmin(isAdminClaim);
             setIsDelivery(isDeliveryClaim);
         } catch(error) {
-            console.error("Error fetching user claims:", error);
-            // If claims fail, log user out to prevent inconsistent state
+            console.error("Error fetching user roles:", error);
+            // If roles fail, log user out to prevent inconsistent state
             await firebaseSignOut(auth);
             setIsAdmin(false);
             setIsDelivery(false);
@@ -203,8 +206,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         
         if (!response.ok) {
+            const data = await response.json();
             // If API fails (e.g., user not found), we throw a generic error to be caught by the block below.
-            throw new Error("auth/invalid-credential");
+            throw new Error(data.error || "auth/invalid-credential");
         }
         const data = await response.json();
         emailToLogin = data.email;
@@ -250,8 +254,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Firebase login error:", error);
-      // For any failure in the try block, show a generic, user-friendly error.
-      const description = 'The email, phone number, or password you entered is incorrect. Please check your credentials and try again.';
+      let description = 'The email, phone number, or password you entered is incorrect. Please check your credentials and try again.';
+      
+      if(error.message === "Firebase: Error (auth/invalid-credential).") {
+        description = "This phone number or email is associated with a Google account. Please use the 'Sign in with Google' option.";
+      }
+
       toast({ title: 'Login Failed', description, variant: 'destructive' });
     }
   };
