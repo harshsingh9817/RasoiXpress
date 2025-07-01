@@ -2,6 +2,7 @@
 
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -73,6 +74,7 @@ export interface Order {
   deliveryRiderName?: string;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
+  isAvailableForPickup?: boolean;
 }
 
 export interface Address {

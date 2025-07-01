@@ -9,7 +9,6 @@ import { Bike, PackageCheck, ChefHat, User, MapPin, ClipboardList, PackageSearch
 import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { listenToAllOrders } from '@/lib/data';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
@@ -80,14 +79,12 @@ export default function DeliveryDashboard() {
 
         const ordersRef = collection(db, 'orders');
 
-        // Listener for available orders
-        const availableQuery = query(ordersRef, where('status', '==', 'Confirmed'));
+        // Listener for available orders, now using the 'isAvailableForPickup' flag
+        const availableQuery = query(ordersRef, where('isAvailableForPickup', '==', true));
         const unsubscribeAvailable = onSnapshot(availableQuery, (snapshot) => {
-            const available = snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as Order))
-                .filter(order => !order.deliveryRiderId); // Ensure no rider is assigned
+            const available = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
             setAvailableOrders(available.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-            if(isDataLoading) setIsDataLoading(false); // Set loading to false on first data fetch
+            if(isDataLoading) setIsDataLoading(false);
         }, (error) => {
             console.error("Error fetching available orders:", error);
             toast({ title: "Error", description: "Could not fetch available orders.", variant: "destructive" });

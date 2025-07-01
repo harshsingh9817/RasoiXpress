@@ -114,6 +114,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     const docRef = await addDoc(ordersCol, {
         ...orderData,
         createdAt: serverTimestamp(),
+        isAvailableForPickup: false, // Initialize as false
     });
 
     // After successfully adding the order, update the user's first order status flag.
@@ -145,10 +146,15 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    const dataToUpdate: { status: Order['status']; deliveryConfirmationCode?: any } = { status };
+    const dataToUpdate: Record<string, any> = { status };
 
     if (status === 'Delivered') {
         dataToUpdate.deliveryConfirmationCode = deleteField();
+        dataToUpdate.isAvailableForPickup = false;
+    } else if (status === 'Confirmed') {
+        dataToUpdate.isAvailableForPickup = true;
+    } else if (status === 'Cancelled') {
+        dataToUpdate.isAvailableForPickup = false;
     }
 
     await updateDoc(docRef, dataToUpdate);
@@ -167,17 +173,21 @@ export async function acceptOrderForDelivery(orderId: string, riderId: string, r
             if (orderData.deliveryRiderId) {
                 throw "This order has already been accepted by another rider.";
             }
+            if (!orderData.isAvailableForPickup) {
+                 throw "This order is no longer available for pickup.";
+            }
 
             transaction.update(orderRef, {
                 status: 'Out for Delivery',
                 deliveryRiderId: riderId,
                 deliveryRiderName: riderName,
+                isAvailableForPickup: false,
             });
         });
     } catch (e: any) {
         console.error("Accept order transaction failed: ", e);
         // Re-throw the error to be caught by the calling component
-        throw new Error(e);
+        throw new Error(e.message || e);
     }
 }
 
@@ -186,7 +196,8 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { 
         status: 'Cancelled',
-        cancellationReason: reason 
+        cancellationReason: reason,
+        isAvailableForPickup: false,
     });
 }
 
