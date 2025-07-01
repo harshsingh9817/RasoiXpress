@@ -425,10 +425,8 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
             return sum + (cost * item.quantity);
         }, 0);
         
-        // Profit from items is the subtotal minus the cost of goods.
-        // Subtotal = order.total - order.deliveryFee - order.totalTax
-        const subTotal = order.total - (order.deliveryFee || 0) - (order.totalTax || 0);
-        const orderProfit = subTotal - itemsCost;
+        // Profit = (Total Revenue from customer) - (Taxes) - (Delivery Fee) - (Cost of Goods)
+        const orderProfit = order.total - (order.totalTax || 0) - (order.deliveryFee || 0) - itemsCost;
 
         totalProfit += orderProfit;
         
