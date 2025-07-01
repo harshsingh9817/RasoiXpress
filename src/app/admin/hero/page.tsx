@@ -188,7 +188,7 @@ export default function HeroManagementPage() {
                         <CardDescription>
                             Update the text and rotating banner images displayed on the homepage.
                             <p className="mt-1">
-                            Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
+                            Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a> or <a href="https://www.yummytummyaarthi.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Yummy Tummy Aarthi</a>.
                             </p>
                         </CardDescription>
                       </div>

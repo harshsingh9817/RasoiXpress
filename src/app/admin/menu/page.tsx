@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -184,7 +185,7 @@ export default function MenuManagementPage() {
                 <CardDescription>
                   Add, edit, or remove food items available across all restaurants.
                   <p className="mt-1">
-                    Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a>.
+                    Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a> or <a href="https://www.yummytummyaarthi.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Yummy Tummy Aarthi</a>.
                   </p>
                 </CardDescription>
               </div>
