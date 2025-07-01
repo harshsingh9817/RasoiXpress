@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import LeafletMap from '@/components/LeafletMap';
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -374,8 +375,9 @@ export default function CheckoutPage() {
                             <div className="px-4 pt-2 text-xs text-muted-foreground">
                                 By proceeding, you agree to our{' '}
                                 <Link href="/terms-and-conditions" className="underline hover:text-primary">Terms & Conditions</Link>,{' '}
-                                <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>, and{' '}
-                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>.
+                                <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>,{' '}
+                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>, and the{' '}
+                                <Link href="/razorpay-terms" className="underline hover:text-primary">Razorpay Terms of Service</Link>.
                             </div>
                         )}
                     </div>
