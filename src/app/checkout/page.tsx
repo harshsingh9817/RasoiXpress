@@ -376,8 +376,9 @@ export default function CheckoutPage() {
                                 By proceeding, you agree to our{' '}
                                 <Link href="/terms-and-conditions" className="underline hover:text-primary">Terms & Conditions</Link>,{' '}
                                 <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>,{' '}
-                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>, and the{' '}
-                                <Link href="/razorpay-terms" className="underline hover:text-primary">Razorpay Terms of Service</Link>.
+                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>, the{' '}
+                                <Link href="/razorpay-terms" className="underline hover:text-primary">Razorpay Terms of Service</Link>, and the{' '}
+                                <Link href="/razorpay-privacy" className="underline hover:text-primary">Razorpay Privacy Policy</Link>.
                             </div>
                         )}
                     </div>
