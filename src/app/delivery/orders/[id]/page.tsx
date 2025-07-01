@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, QrCode, CreditCard } from 'lucide-react';
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -258,12 +259,12 @@ export default function DeliveryOrderDetailPage() {
 
                 {/* Payment & Total */}
                 <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2 flex items-center"><Wallet className="mr-2 h-5 w-5 text-primary"/>Payment Details</h3>
+                    <h3 className="font-semibold mb-2 flex items-center"><CreditCard className="mr-2 h-5 w-5 text-primary"/>Payment Details</h3>
                     <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
                             <span>Payment Method:</span>
                             <span className="flex items-center">
-                                {order.paymentMethod === 'UPI' ? <CreditCard className="mr-1.5 h-4 w-4" /> : <Wallet className="mr-1.5 h-4 w-4" />}
+                                {order.paymentMethod === 'Razorpay' ? <CreditCard className="mr-1.5 h-4 w-4" /> : <QrCode className="mr-1.5 h-4 w-4" />}
                                 {order.paymentMethod}
                             </span>
                         </div>

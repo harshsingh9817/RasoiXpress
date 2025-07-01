@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
@@ -351,7 +351,10 @@ export default function MyOrdersPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Payment Method:</span>
-                                        <span className="flex items-center">{orderForBillView.paymentMethod === 'Razorpay' && <CreditCard className="w-4 h-4 mr-1.5" />}{orderForBillView.paymentMethod}</span>
+                                        <span className="flex items-center">
+                                            {orderForBillView.paymentMethod === 'Razorpay' ? <CreditCard className="w-4 h-4 mr-1.5" /> : <QrCode className="w-4 h-4 mr-1.5" />}
+                                            {orderForBillView.paymentMethod}
+                                        </span>
                                     </div>
                                 </div>
                             </div>

@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, Wallet, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, addAddress, updateAddress, setDefaultAddress } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -55,7 +55,7 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', type: 'Home' as AddressType['type'] });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Cash on Delivery' | 'Razorpay'>('Razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Razorpay'>('Razorpay');
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [saveAddress, setSaveAddress] = useState(true);
 
@@ -233,8 +233,6 @@ export default function CheckoutPage() {
           setCurrentStep('execute_payment');
       } else if (paymentMethod === 'Razorpay') {
           handleRazorpayPayment(newOrderData);
-      } else {
-          finalizeOrder(newOrderData);
       }
     }
     
@@ -387,11 +385,6 @@ export default function CheckoutPage() {
                         <QrCode className="h-6 w-6 text-primary mx-2" />
                         <span>Direct UPI / QR Code</span>
                     </Label>
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
-                        <RadioGroupItem value="Cash on Delivery" />
-                        <Wallet className="h-6 w-6 text-primary mx-2" />
-                        <span>Cash on Delivery</span>
-                    </Label>
                 </RadioGroup>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -421,7 +414,7 @@ export default function CheckoutPage() {
                 </div>
                 <Separator />
                 <div><h3 className="font-semibold text-lg mb-2">Payment Method</h3>
-                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'UPI' ? <QrCode className="mr-2 h-5 w-5"/> : paymentMethod === 'Razorpay' ? <CreditCard className="mr-2 h-5 w-5" /> : <Wallet className="mr-2 h-5 w-5"/>} {paymentMethod}</p>
+                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'UPI' ? <QrCode className="mr-2 h-5 w-5"/> : paymentMethod === 'Razorpay' ? <CreditCard className="mr-2 h-5 w-5" /> : null} {paymentMethod}</p>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between">
