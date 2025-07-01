@@ -36,6 +36,7 @@ const menuItemSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   price: z.coerce.number().min(0, "Price must be a positive number."),
+  costPrice: z.coerce.number().min(0, "Cost price must be a positive number.").optional(),
   category: z.string().min(1, "Category is required."),
   imageUrl: z.string().url("Must be a valid URL."),
   isVegetarian: z.boolean().default(false),
@@ -77,7 +78,8 @@ export default function MenuItemFormDialog({
     if (isOpen) {
         if (menuItem) {
           reset({
-            ...menuItem, 
+            ...menuItem,
+            costPrice: menuItem.costPrice || undefined,
             taxRate: menuItem.taxRate || undefined,
         });
         } else {
@@ -85,6 +87,7 @@ export default function MenuItemFormDialog({
             name: "",
             description: "",
             price: 0,
+            costPrice: undefined,
             category: "",
             imageUrl: "https://placehold.co/300x200.png",
             isVegetarian: false,
@@ -100,12 +103,18 @@ export default function MenuItemFormDialog({
   const onSubmit = async (data: MenuItemFormValues) => {
     setIsSubmitting(true);
     try {
-      const dataToSave = { ...data };
+      const dataToSave: { [key: string]: any } = {};
+        Object.entries(data).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                dataToSave[key] = value;
+            }
+        });
+
       if (menuItem) {
-        await updateMenuItem({ ...dataToSave, id: menuItem.id });
+        await updateMenuItem({ ...dataToSave, id: menuItem.id } as MenuItem);
         toast({ title: "Menu Item Updated", description: `${data.name} has been successfully updated.` });
       } else {
-        await addMenuItem(dataToSave);
+        await addMenuItem(dataToSave as Omit<MenuItem, 'id'>);
         toast({ title: "Menu Item Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();
@@ -187,6 +196,35 @@ export default function MenuItemFormDialog({
                   )}
                 />
              </div>
+             <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="costPrice"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Cost Price (Optional)</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 50.00"/>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                <FormField
+                  control={form.control}
+                  name="taxRate"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Tax Rate (Optional)</FormLabel>
+                      <FormControl>
+                          <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
+                      </FormControl>
+                      <FormDescription className="text-xs">Decimal (e.g., 0.05 for 5%)</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                />
+            </div>
              <FormField
               control={form.control}
               name="imageUrl"
@@ -220,22 +258,6 @@ export default function MenuItemFormDialog({
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="taxRate"
-                  render={({ field }) => (
-                      <FormItem>
-                      <FormLabel>Tax Rate (Optional)</FormLabel>
-                      <FormControl>
-                          <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
-                      </FormControl>
-                      <FormDescription className="text-xs">Enter as decimal, e.g., 0.05 for 5%. Leave blank for 0% tax.</FormDescription>
-                      <FormMessage />
-                      </FormItem>
-                  )}
-                />
-            </div>
              <FormField
                 control={form.control}
                 name="weight"
@@ -243,7 +265,7 @@ export default function MenuItemFormDialog({
                 <FormItem>
                     <FormLabel>Weight (Optional)</FormLabel>
                     <FormControl>
-                    <Input placeholder="Approx. 450g" {...field} />
+                    <Input placeholder="Approx. 450g" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
@@ -256,7 +278,7 @@ export default function MenuItemFormDialog({
                 <FormItem>
                   <FormLabel>Ingredients (optional, comma-separated)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Flour, Tomato, Cheese" {...field} />
+                    <Input placeholder="Flour, Tomato, Cheese" {...field} value={field.value ?? ''}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

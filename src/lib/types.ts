@@ -4,6 +4,7 @@
 
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -22,6 +23,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
+  costPrice?: number;
   imageUrl: string;
   category: string;
   isVegetarian?: boolean;

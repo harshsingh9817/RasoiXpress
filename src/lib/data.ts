@@ -86,16 +86,17 @@ export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<Me
 export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
     const { id, ...itemData } = updatedItem;
     
-    // Firestore does not allow 'undefined' values.
-    // We create a clean object that filters out any keys with an undefined value.
-    const cleanData: { [key: string]: any } = {};
-    Object.entries(itemData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        cleanData[key] = value;
-      }
-    });
-    
     const docRef = doc(db, 'menuItems', id);
+    // Convert the item data to a plain object to avoid issues with custom class instances
+    const cleanData: { [key: string]: any } = JSON.parse(JSON.stringify(itemData));
+    
+    // Remove any keys with undefined, null, or empty string values before updating
+    Object.keys(cleanData).forEach(key => {
+        if (cleanData[key] === undefined || cleanData[key] === null || cleanData[key] === '') {
+            delete cleanData[key];
+        }
+    });
+
     await updateDoc(docRef, cleanData);
 }
 
@@ -405,7 +406,6 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
     const cancelledOrders = filteredOrders.filter(o => o.status === 'Cancelled');
 
     const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
-    const totalProfit = totalRevenue * 0.30;
     const totalOrders = deliveredOrders.length;
     
     const totalLoss = cancelledOrders.reduce((sum, order) => sum + order.total, 0);
@@ -413,11 +413,27 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
     
     const dailyData: Map<string, { revenue: number; profit: number; loss: number }> = new Map();
 
+    // Calculate total profit and daily data based on delivered orders
+    let totalProfit = 0;
     deliveredOrders.forEach(order => {
         const date = new Date(order.date).toISOString().split('T')[0];
         const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
+        
+        // For each item, use its costPrice if available, otherwise estimate it as 70% of the selling price
+        const itemsCost = order.items.reduce((sum, item) => {
+            const cost = item.costPrice ?? (item.price * 0.70); // Fallback to 30% margin estimate
+            return sum + (cost * item.quantity);
+        }, 0);
+        
+        // Profit from items is the subtotal minus the cost of goods.
+        // Subtotal = order.total - order.deliveryFee - order.totalTax
+        const subTotal = order.total - (order.deliveryFee || 0) - (order.totalTax || 0);
+        const orderProfit = subTotal - itemsCost;
+
+        totalProfit += orderProfit;
+        
         dayData.revenue += order.total;
-        dayData.profit += order.total * 0.30;
+        dayData.profit += orderProfit;
         dailyData.set(date, dayData);
     });
 
@@ -430,7 +446,7 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
     
     if (dateRange?.from && dateRange.to) {
         let currentDate = new Date(dateRange.from);
-        let endDate = new Date(dateRange.to);
+        const endDate = new Date(dateRange.to);
         while (currentDate <= endDate) {
             const dateString = currentDate.toISOString().split('T')[0];
             if (!dailyData.has(dateString)) {
@@ -453,6 +469,7 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
         chartData,
     };
 }
+
 
 export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
     const allOrders = await getAllOrders();

@@ -95,7 +95,7 @@ export default function AnalyticsPage() {
       color: "hsl(var(--accent))",
     },
     profit: {
-      label: "Profit (Est.)",
+      label: "Profit",
       color: "hsl(142.1, 76.2%, 36.3%)",
     },
     loss: {
@@ -160,12 +160,12 @@ export default function AnalyticsPage() {
           </Card>
            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Estimated Profit</CardTitle>
+                  <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
                   <TrendingUp className="h-4 w-4 text-green-600"/>
               </CardHeader>
               <CardContent>
                   <div className="text-2xl font-bold text-green-600">Rs.{analyticsData.totalProfit.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">Based on an estimated 30% margin</p>
+                  <p className="text-xs text-muted-foreground">Based on cost price & delivery fees</p>
               </CardContent>
           </Card>
            <Card>
