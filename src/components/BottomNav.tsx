@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -28,12 +29,10 @@ const BottomNav = () => {
                 <Home className="h-6 w-6" />
                 <span className="text-xs font-medium">Menu</span>
             </Link>
-            {!isAdmin && (
-                <Link href="/my-orders" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/my-orders') ? 'text-primary' : 'text-muted-foreground')}>
-                    <ListOrdered className="h-6 w-6" />
-                    <span className="text-xs font-medium">My Orders</span>
-                </Link>
-            )}
+            <Link href="/my-orders" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/my-orders') ? 'text-primary' : 'text-muted-foreground')}>
+                <ListOrdered className="h-6 w-6" />
+                <span className="text-xs font-medium">My Orders</span>
+            </Link>
             <button onClick={() => setIsHelpDialogOpen(true)} className="flex flex-col items-center gap-1 p-2 rounded-md text-muted-foreground">
                 <HelpCircle className="h-6 w-6" />
                 <span className="text-xs font-medium">Help</span>

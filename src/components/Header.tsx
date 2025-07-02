@@ -129,7 +129,7 @@ const Header = () => {
                        notif = { id, timestamp: now, title: `Order Delivered`, message: `Order #${order.id.slice(-6)} for ${order.customerName} has been delivered.`, read: false, type: 'admin_order_delivered', orderId: order.id, link: '/admin/orders' };
                     }
                 }
-            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Confirmed' && !(item as Order).deliveryRiderId) {
+            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Out for Delivery' && !(item as Order).deliveryRiderId) {
                 const order = item as Order;
                 id = `notif-delivery-new-order-${order.id}`;
                 if (!allStoredNotifications.some(n => n.id === id)) {
@@ -225,7 +225,7 @@ const Header = () => {
           
           <nav className="hidden md:flex items-center space-x-2">
             {!isDelivery && <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>}
-            {!isDelivery && !isAdmin && <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>}
+            {!isDelivery && <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>}
             <Button variant="ghost" onClick={() => setIsHelpDialogOpen(true)}><HelpCircle className="mr-2 h-4 w-4" />Help</Button>
             {isDelivery && <Link href="/delivery/dashboard"><Button variant="ghost"><Bike className="mr-2 h-4 w-4" />Rider Panel</Button></Link>}
             {isAdmin && <Link href="/admin"><Button variant="ghost" className="text-red-600"><ShieldCheck className="mr-2 h-4 w-4" />Admin</Button></Link>}
