@@ -92,9 +92,10 @@ export default function DeliveryDashboard() {
         });
 
         // Listener for my active orders
-        const myActiveQuery = query(ordersRef, where('deliveryRiderId', '==', user.uid), where('status', '==', 'Out for Delivery'));
+        const myActiveQuery = query(ordersRef, where('deliveryRiderId', '==', user.uid));
         const unsubscribeMyActive = onSnapshot(myActiveQuery, (snapshot) => {
-            const active = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+            const allMyOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+            const active = allMyOrders.filter(order => order.status === 'Out for Delivery');
             setMyActiveOrders(active.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         }, (error) => {
             console.error("Error fetching my active orders:", error);
