@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -36,76 +35,50 @@ interface LocationPickerProps {
     onLocationSelect: (address: { street: string; village: string; city: string; pinCode: string; }) => void;
 }
 
-// Custom hook to load the script
-const useScript = (src: string, id: string) => {
-    const [status, setStatus] = useState(src ? "loading" : "idle");
-
-    useEffect(() => {
-        if (!src) {
-            setStatus("idle");
-            return;
-        }
-
-        let script = document.getElementById(id) as HTMLScriptElement;
-
-        // Check if a script with a different src exists, and remove it.
-        if (script && script.src !== src) {
-            script.remove();
-            script = null;
-        }
-
-        if (!script) {
-            script = document.createElement("script");
-            script.src = src;
-            script.id = id;
-            script.async = true;
-            script.defer = true;
-            document.body.appendChild(script);
-
-            const setAttributeFromEvent = (event: Event) => {
-                script.setAttribute("data-status", event.type === "load" ? "ready" : "error");
-            };
-
-            script.addEventListener("load", setAttributeFromEvent);
-            script.addEventListener("error", setAttributeFromEvent);
-        }
-
-        const setStateFromEvent = (event: Event) => {
-            setStatus(event.type === "load" ? "ready" : "error");
-        };
-
-        const dataStatus = script.getAttribute("data-status");
-        if (dataStatus) {
-            setStatus(dataStatus as "ready" | "error");
-        } else {
-            script.addEventListener("load", setStateFromEvent);
-            script.addEventListener("error", setStateFromEvent);
-        }
-
-        return () => {
-            if (script) {
-                script.removeEventListener("load", setStateFromEvent);
-                script.removeEventListener("error", setStateFromEvent);
-            }
-        };
-    }, [src, id]);
-
-    return status;
-};
-
 export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect }: LocationPickerProps) {
-    const scriptStatus = useScript(`https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places`, MAP_SCRIPT_ID);
-
+    const { toast } = useToast();
     const mapRef = useRef<HTMLDivElement>(null);
     const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
     const [markerInstance, setMarkerInstance] = useState<google.maps.Marker | null>(null);
     const [markerPosition, setMarkerPosition] = useState(center);
     const [isProcessing, setIsProcessing] = useState(false);
-    const { toast } = useToast();
+    const [isScriptReady, setIsScriptReady] = useState(false);
+    
+    // Effect to load the GoMaps script
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const setReady = () => {
+            setIsScriptReady(true);
+        };
+
+        if ((window as any).google && (window as any).google.maps) {
+            setReady();
+            return;
+        }
+
+        (window as any).initMap = setReady;
+
+        const existingScript = document.getElementById(MAP_SCRIPT_ID);
+        if (!existingScript) {
+            const script = document.createElement("script");
+            script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places&callback=initMap`;
+            script.id = MAP_SCRIPT_ID;
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+
+        return () => {
+            if ((window as any).initMap === setReady) {
+                delete (window as any).initMap;
+            }
+        };
+    }, [isOpen]);
 
     // Initialize map
     useEffect(() => {
-        if (isOpen && scriptStatus === 'ready' && mapRef.current && !mapInstance) {
+        if (isOpen && isScriptReady && mapRef.current && !mapInstance) {
             const map = new window.google.maps.Map(mapRef.current, {
                 center,
                 zoom: 14,
@@ -121,7 +94,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                 }
             });
         }
-    }, [scriptStatus, mapInstance, isOpen]);
+    }, [isScriptReady, mapInstance, isOpen]);
 
     // Update marker
     useEffect(() => {
@@ -178,11 +151,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
     };
 
     const renderMapContent = () => {
-        if (scriptStatus === "error") {
-            return <div>Error loading maps. Please check your network connection.</div>;
-        }
-
-        if (scriptStatus !== "ready") {
+        if (!isScriptReady) {
             return (
                 <div className="flex flex-col items-center justify-center h-[400px]">
                     <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
@@ -190,7 +159,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                 </div>
             );
         }
-
         return <div ref={mapRef} style={containerStyle} />;
     };
 
@@ -210,7 +178,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleConfirmLocation} disabled={scriptStatus !== 'ready' || isProcessing}>
+                    <Button onClick={handleConfirmLocation} disabled={!isScriptReady || isProcessing}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
                         {isProcessing ? 'Processing...' : 'Confirm Location'}
                     </Button>

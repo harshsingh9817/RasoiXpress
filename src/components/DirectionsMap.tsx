@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -19,71 +18,43 @@ interface DirectionsMapProps {
     destinationAddress: string;
 }
 
-const useScript = (src: string, id: string) => {
-    const [status, setStatus] = useState(src ? "loading" : "idle");
-
-    useEffect(() => {
-        if (!src) {
-            setStatus("idle");
-            return;
-        }
-
-        let script = document.getElementById(id) as HTMLScriptElement;
-        
-        if (script && script.src !== src) {
-            script.remove();
-            script = null;
-        }
-
-        if (!script) {
-            script = document.createElement("script");
-            script.src = src;
-            script.id = id;
-            script.async = true;
-            script.defer = true;
-            document.body.appendChild(script);
-
-            const setAttributeFromEvent = (event: Event) => {
-                script.setAttribute("data-status", event.type === "load" ? "ready" : "error");
-            };
-
-            script.addEventListener("load", setAttributeFromEvent);
-            script.addEventListener("error", setAttributeFromEvent);
-        }
-
-        const setStateFromEvent = (event: Event) => {
-            setStatus(event.type === "load" ? "ready" : "error");
-        };
-
-        const dataStatus = script.getAttribute("data-status");
-        if (dataStatus) {
-            setStatus(dataStatus as "ready" | "error");
-        } else {
-            script.addEventListener("load", setStateFromEvent);
-            script.addEventListener("error", setStateFromEvent);
-        }
-
-        return () => {
-            if (script) {
-                script.removeEventListener("load", setStateFromEvent);
-                script.removeEventListener("error", setStateFromEvent);
-            }
-        };
-    }, [src, id]);
-
-    return status;
-};
-
 
 export default function DirectionsMap({ destinationAddress }: DirectionsMapProps) {
-    const scriptStatus = useScript(`https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places`, MAP_SCRIPT_ID);
-
     const mapRef = useRef<HTMLDivElement>(null);
     const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
     const [directionsStatus, setDirectionsStatus] = useState<google.maps.DirectionsStatus | 'IDLE'>('IDLE');
+    const [isScriptReady, setIsScriptReady] = useState(false);
+    
+    // Effect to load the GoMaps script
+    useEffect(() => {
+        const setReady = () => setIsScriptReady(true);
+
+        if ((window as any).google && (window as any).google.maps) {
+            setReady();
+            return;
+        }
+        
+        (window as any).initMap = setReady;
+
+        const existingScript = document.getElementById(MAP_SCRIPT_ID);
+        if (!existingScript) {
+            const script = document.createElement("script");
+            script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places&callback=initMap`;
+            script.id = MAP_SCRIPT_ID;
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+
+        return () => {
+            if ((window as any).initMap === setReady) {
+                delete (window as any).initMap;
+            }
+        };
+    }, []);
 
     useEffect(() => {
-        if (scriptStatus === 'ready' && mapRef.current && !mapInstance) {
+        if (isScriptReady && mapRef.current && !mapInstance) {
              const map = new window.google.maps.Map(mapRef.current, {
                 zoom: 12,
                 center: { lat: 26.1555, lng: 83.7919 }, // Default center
@@ -93,7 +64,7 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
             });
             setMapInstance(map);
         }
-    }, [scriptStatus, mapInstance]);
+    }, [isScriptReady, mapInstance]);
 
     useEffect(() => {
         if (mapInstance && destinationAddress && directionsStatus === 'IDLE') {
@@ -121,11 +92,7 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
     }, [mapInstance, destinationAddress, directionsStatus]);
 
 
-    if (scriptStatus === "error") {
-        return <div>Error loading maps. Please check your API key and network connection.</div>;
-    }
-
-    if (scriptStatus !== 'ready') {
+    if (!isScriptReady) {
         return (
             <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg">
                 <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
