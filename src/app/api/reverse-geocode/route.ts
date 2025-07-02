@@ -8,13 +8,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const apiKey = "AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc"; // Using the correct key from the frontend.
     if (!apiKey) {
-      return NextResponse.json({ error: 'Google Maps API key is not configured.' }, { status: 500 });
+      // This check is now mostly redundant but good practice.
+      return NextResponse.json({ error: 'GoMaps API key is not configured.' }, { status: 500 });
     }
 
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
+      `https://maps.gomaps.pro/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}` // Using the correct endpoint.
     );
 
     const data = await response.json();
