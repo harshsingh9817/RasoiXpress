@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { useCart } from '@/contexts/CartContext';
+import DirectionsMap from '@/components/DirectionsMap';
 
 const statusIcons: Record<OrderStatus, React.ElementType> = {
   'Order Placed': ClipboardList,
@@ -167,6 +168,7 @@ export default function DeliveryOrderDetailPage() {
   }
   
   const Icon = statusIcons[order.status] || ClipboardList;
+  const isMyDelivery = order.status === 'Out for Delivery' && order.deliveryRiderId === user?.uid;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -205,10 +207,15 @@ export default function DeliveryOrderDetailPage() {
                     </div>
                 </div>
 
-                 {/* Shipping Details */}
-                 <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2 flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
+                 {/* Shipping Details & Map */}
+                 <div className="p-4 border rounded-lg space-y-3">
+                    <h3 className="font-semibold flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
                     <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
+                    {isMyDelivery && (
+                        <div className="pt-2">
+                           <DirectionsMap destinationAddress={order.shippingAddress} />
+                        </div>
+                    )}
                 </div>
                 
                  {/* Order Items */}
@@ -267,7 +274,7 @@ export default function DeliveryOrderDetailPage() {
                     {isAccepting ? 'Starting...' : 'Start Delivery'}
                   </Button>
                )}
-               {order.status === 'Out for Delivery' && order.deliveryRiderId === user?.uid && (
+               {isMyDelivery && (
                   <Button 
                     className="w-full text-lg py-6"
                     onClick={handleOpenConfirmDialog}

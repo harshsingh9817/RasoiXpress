@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase, MapPin } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, addAddress, updateAddress, setDefaultAddress } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import LeafletMap from '@/components/LeafletMap';
+import LocationPicker from '@/components/LocationPicker';
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -55,9 +55,11 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', type: 'Home' as AddressType['type'] });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Razorpay'>('Razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'Razorpay'>('Razorpay');
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [saveAddress, setSaveAddress] = useState(true);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+
 
   const subTotal = getCartTotal();
   const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
@@ -104,8 +106,7 @@ export default function CheckoutPage() {
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
-    const isUpi = orderData.paymentMethod === 'UPI';
-    const delay = isUpi ? 2500 : 0;
+    const delay = 0;
     setTimeout(async () => {
         try {
             const placedOrder = await placeOrder(orderData);
@@ -229,9 +230,7 @@ export default function CheckoutPage() {
     
     const completeOrder = () => {
       setPendingOrderData(newOrderData); // Set pending data before payment attempt
-      if (paymentMethod === 'UPI') {
-          setCurrentStep('execute_payment');
-      } else if (paymentMethod === 'Razorpay') {
+      if (paymentMethod === 'Razorpay') {
           handleRazorpayPayment(newOrderData);
       }
     }
@@ -289,6 +288,17 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleLocationSelect = useCallback((address: { street: string; village: string; city: string; pinCode: string; }) => {
+    setFormData(prev => ({
+        ...prev,
+        address: address.street,
+        village: address.village,
+        city: address.city,
+        pinCode: address.pinCode,
+    }));
+  }, []);
+
+
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -316,26 +326,8 @@ export default function CheckoutPage() {
     );
   }
 
-  if (currentStep === 'execute_payment') {
-      return (
-          <div className="max-w-md mx-auto">
-            <Card>
-              <CardHeader><CardTitle>Complete Payment</CardTitle><CardDescription>Scan the QR to pay.</CardDescription></CardHeader>
-              <CardContent className="flex flex-col items-center gap-4">
-                {paymentSettings ? <Image src={paymentSettings.qrCodeImageUrl} alt="UPI QR Code" width={250} height={250} data-ai-hint="qr code"/> : <Skeleton className="h-[250px] w-[250px]" />}
-                <div><p className="text-sm text-muted-foreground">Or pay to:</p>{paymentSettings ? <p className="font-semibold text-lg">{paymentSettings.upiId}</p> : <Skeleton className="h-6 w-48 mt-1" />}</div>
-                <Separator /><div className="w-full text-center"><p className="text-muted-foreground">Amount</p><p className="text-4xl font-bold text-primary">Rs.{grandTotal.toFixed(2)}</p></div>
-              </CardContent>
-              <CardFooter className="flex-col gap-4">
-                <Button onClick={() => finalizeOrder(pendingOrderData!)} disabled={isLoading} className="w-full">{isLoading ? <><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>Verifying...</> : <><CheckCircle className="mr-2 h-5 w-5"/>I Have Paid</>}</Button>
-                <Button variant="outline" onClick={() => setCurrentStep('summary')} disabled={isLoading} className="w-full"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button>
-              </CardFooter>
-            </Card>
-          </div>
-      )
-  }
-
   return (
+    <>
     <div className="max-w-xl mx-auto space-y-8">
       <h1 className="text-3xl md:text-4xl font-headline font-bold text-center">Checkout</h1>
 
@@ -347,7 +339,13 @@ export default function CheckoutPage() {
                 
                 <div className="space-y-4 border-t pt-6" style={{ display: selectedAddressId === ADD_NEW_ADDRESS_VALUE ? 'block' : 'none' }}>
                     <div className="space-y-2"><Label>Full Name</Label><Input name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>
-                    <div className="space-y-2"><Label>Street</Label><Input name="address" value={formData.address} onChange={handleInputChange} required /></div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center mb-1">
+                            <Label>Street</Label>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsMapOpen(true)}><MapPin className="mr-2 h-4 w-4" /> Pick on Map</Button>
+                        </div>
+                        <Input name="address" value={formData.address} onChange={handleInputChange} required />
+                    </div>
                     <div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} /></div>
                     <div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div>
                     <div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div>
@@ -380,11 +378,6 @@ export default function CheckoutPage() {
                             </div>
                         )}
                     </div>
-                    <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
-                        <RadioGroupItem value="UPI" />
-                        <QrCode className="h-6 w-6 text-primary mx-2" />
-                        <span>Direct UPI / QR Code</span>
-                    </Label>
                 </RadioGroup>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -414,7 +407,7 @@ export default function CheckoutPage() {
                 </div>
                 <Separator />
                 <div><h3 className="font-semibold text-lg mb-2">Payment Method</h3>
-                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'UPI' ? <QrCode className="mr-2 h-5 w-5"/> : paymentMethod === 'Razorpay' ? <CreditCard className="mr-2 h-5 w-5" /> : null} {paymentMethod}</p>
+                    <p className="text-muted-foreground flex items-center">{paymentMethod === 'Razorpay' ? <CreditCard className="mr-2 h-5 w-5" /> : null} {paymentMethod}</p>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -428,5 +421,7 @@ export default function CheckoutPage() {
       )}
 
     </div>
+    <LocationPicker isOpen={isMapOpen} onOpenChange={setIsMapOpen} onLocationSelect={handleLocationSelect} />
+    </>
   );
 }
