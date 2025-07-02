@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -127,23 +126,6 @@ export default function DeliveryOrderDetailPage() {
       });
     }
   };
-  
-  const handleGetDirections = () => {
-    if (!order) return;
-    
-    // The fixed starting point for all deliveries.
-    const origin = encodeURIComponent("Hanuman Mandir Ghosi More Nagra");
-    
-    // The customer's address as the destination.
-    const destination = encodeURIComponent(order.shippingAddress);
-
-    // The Google Maps URL for directions.
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-    
-    // Open the URL in a new tab.
-    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-  };
-
 
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
@@ -225,11 +207,7 @@ export default function DeliveryOrderDetailPage() {
                  {/* Shipping Details */}
                  <div className="p-4 border rounded-lg">
                     <h3 className="font-semibold mb-2 flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
-                    <p className="text-sm text-muted-foreground mb-3">{order.shippingAddress}</p>
-                    <Button onClick={handleGetDirections} className="w-full">
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Get Directions
-                    </Button>
+                    <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
                 </div>
                 
                  {/* Order Items */}
