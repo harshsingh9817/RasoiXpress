@@ -43,6 +43,16 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
     const [markerPosition, setMarkerPosition] = useState(center);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isScriptReady, setIsScriptReady] = useState(false);
+    const [isLoadingMap, setIsLoadingMap] = useState(true);
+    
+    // Effect to reset state when dialog closes to allow reopening
+    useEffect(() => {
+        if (!isOpen) {
+            setMapInstance(null);
+            setMarkerInstance(null);
+            setIsLoadingMap(true); // Reset loading state for next open
+        }
+    }, [isOpen]);
     
     // Effect to load the GoMaps script
     useEffect(() => {
@@ -51,7 +61,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
         const setReady = () => {
             setIsScriptReady(true);
         };
-
+        
         if ((window as any).google && (window as any).google.maps) {
             setReady();
             return;
@@ -67,6 +77,12 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);
+        } else {
+             if (!(window as any).google || !(window as any).google.maps) {
+                // The script is there but hasn't finished loading, the callback will handle it.
+            } else {
+                setReady();
+            }
         }
 
         return () => {
@@ -87,6 +103,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                 fullscreenControl: false,
             });
             setMapInstance(map);
+            setIsLoadingMap(false); // Map instance is created, hide loader
 
             map.addListener('click', (e: google.maps.MapMouseEvent) => {
                 if (e.latLng) {
@@ -116,7 +133,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
             }
         }
     }, [mapInstance, markerInstance, markerPosition]);
-
 
     const handleConfirmLocation = async () => {
         setIsProcessing(true);
@@ -150,18 +166,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
         }
     };
 
-    const renderMapContent = () => {
-        if (!isScriptReady) {
-            return (
-                <div className="flex flex-col items-center justify-center h-[400px]">
-                    <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-                    <p className="text-muted-foreground mt-4">Loading Map...</p>
-                </div>
-            );
-        }
-        return <div ref={mapRef} style={containerStyle} />;
-    };
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl">
@@ -171,14 +175,20 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                         Click on the map or drag the pin to set your delivery location.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    {renderMapContent()}
+                <div className="py-4 relative h-[400px]">
+                     {(isLoadingMap || !isScriptReady) && (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                            <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
+                            <p className="text-muted-foreground mt-4">Loading Map...</p>
+                        </div>
+                    )}
+                    <div ref={mapRef} style={containerStyle} />
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleConfirmLocation} disabled={!isScriptReady || isProcessing}>
+                    <Button onClick={handleConfirmLocation} disabled={isLoadingMap || isProcessing}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
                         {isProcessing ? 'Processing...' : 'Confirm Location'}
                     </Button>

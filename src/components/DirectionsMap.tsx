@@ -18,12 +18,11 @@ interface DirectionsMapProps {
     destinationAddress: string;
 }
 
-
 export default function DirectionsMap({ destinationAddress }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
-    const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-    const [directionsStatus, setDirectionsStatus] = useState<google.maps.DirectionsStatus | 'IDLE'>('IDLE');
     const [isScriptReady, setIsScriptReady] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     
     // Effect to load the GoMaps script
     useEffect(() => {
@@ -54,24 +53,22 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
     }, []);
 
     useEffect(() => {
-        if (isScriptReady && mapRef.current && !mapInstance) {
-             const map = new window.google.maps.Map(mapRef.current, {
+        if (isScriptReady && mapRef.current) {
+            setIsLoading(true);
+            setError(null);
+            
+            const map = new window.google.maps.Map(mapRef.current, {
                 zoom: 12,
                 center: { lat: 26.1555, lng: 83.7919 }, // Default center
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: false,
             });
-            setMapInstance(map);
-        }
-    }, [isScriptReady, mapInstance]);
 
-    useEffect(() => {
-        if (mapInstance && destinationAddress && directionsStatus === 'IDLE') {
             const directionsService = new window.google.maps.DirectionsService();
             const directionsRenderer = new window.google.maps.DirectionsRenderer();
             
-            directionsRenderer.setMap(mapInstance);
+            directionsRenderer.setMap(map);
 
             directionsService.route(
                 {
@@ -84,31 +81,29 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
                         directionsRenderer.setDirections(result);
                     } else {
                         console.error(`Error fetching directions: ${status}`);
+                        setError(`Could not load directions. The address might be invalid or unreachable.`);
                     }
-                    setDirectionsStatus(status);
+                    setIsLoading(false);
                 }
             );
         }
-    }, [mapInstance, destinationAddress, directionsStatus]);
+    }, [isScriptReady, destinationAddress]);
 
 
-    if (!isScriptReady) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg">
-                <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-                <p className="text-muted-foreground mt-4">Loading Map...</p>
-            </div>
-        );
-    }
-    
-    if (directionsStatus !== 'IDLE' && directionsStatus !== 'OK') {
-        return (
-             <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg">
-                <p className="text-destructive">Could not load directions.</p>
-                <p className="text-xs text-muted-foreground">The address might be invalid or unreachable.</p>
-            </div>
-        );
-    }
-    
-    return <div ref={mapRef} style={containerStyle} />;
+    return (
+        <div className="relative h-[400px]">
+            {isLoading && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                    <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
+                    <p className="text-muted-foreground mt-4">Loading Map & Directions...</p>
+                </div>
+            )}
+            {error && !isLoading && (
+                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-background/80 backdrop-blur-sm rounded-lg p-4">
+                    <p className="text-destructive font-semibold">{error}</p>
+                </div>
+            )}
+            <div ref={mapRef} style={containerStyle} />
+        </div>
+    );
 }
