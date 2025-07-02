@@ -1,7 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer } from '@react-google-maps/api';
+import React, { useState, useEffect, useRef } from 'react';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 
 const containerStyle = {
@@ -12,23 +12,96 @@ const containerStyle = {
 
 // Hanuman Mandir Ghosi More Nagra coordinates
 const RESTAURANT_LOCATION = 'Hanuman Mandir, Ghosi More, Nagra, Ballia, Uttar Pradesh 221711';
+const GOMAPS_API_KEY = "AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc";
+const MAP_SCRIPT_ID = "gomaps-pro-script";
 
 interface DirectionsMapProps {
     destinationAddress: string;
 }
 
-export default function DirectionsMap({ destinationAddress }: DirectionsMapProps) {
-    const { isLoaded, loadError } = useJsApiLoader({
-        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-        libraries: ['places'],
-    });
-
-    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
-    const [status, setStatus] = useState<google.maps.DirectionsStatus | null>(null);
+const useScript = (src: string, id: string) => {
+    const [status, setStatus] = useState(src ? "loading" : "idle");
 
     useEffect(() => {
-        if (isLoaded && destinationAddress) {
+        if (!src) {
+            setStatus("idle");
+            return;
+        }
+
+        let script = document.getElementById(id) as HTMLScriptElement;
+        
+        if (script && script.src !== src) {
+            script.remove();
+            script = null;
+        }
+
+        if (!script) {
+            script = document.createElement("script");
+            script.src = src;
+            script.id = id;
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+
+            const setAttributeFromEvent = (event: Event) => {
+                script.setAttribute("data-status", event.type === "load" ? "ready" : "error");
+            };
+
+            script.addEventListener("load", setAttributeFromEvent);
+            script.addEventListener("error", setAttributeFromEvent);
+        }
+
+        const setStateFromEvent = (event: Event) => {
+            setStatus(event.type === "load" ? "ready" : "error");
+        };
+
+        const dataStatus = script.getAttribute("data-status");
+        if (dataStatus) {
+            setStatus(dataStatus as "ready" | "error");
+        } else {
+            script.addEventListener("load", setStateFromEvent);
+            script.addEventListener("error", setStateFromEvent);
+        }
+
+        return () => {
+            if (script) {
+                script.removeEventListener("load", setStateFromEvent);
+                script.removeEventListener("error", setStateFromEvent);
+            }
+        };
+    }, [src, id]);
+
+    return status;
+};
+
+
+export default function DirectionsMap({ destinationAddress }: DirectionsMapProps) {
+    const scriptStatus = useScript(`https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places`, MAP_SCRIPT_ID);
+
+    const mapRef = useRef<HTMLDivElement>(null);
+    const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+    const [directionsStatus, setDirectionsStatus] = useState<google.maps.DirectionsStatus | 'IDLE'>('IDLE');
+
+    useEffect(() => {
+        if (scriptStatus === 'ready' && mapRef.current && !mapInstance) {
+             const map = new window.google.maps.Map(mapRef.current, {
+                zoom: 12,
+                center: { lat: 26.1555, lng: 83.7919 }, // Default center
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+            });
+            setMapInstance(map);
+        }
+    }, [scriptStatus, mapInstance]);
+
+    useEffect(() => {
+        if (mapInstance && destinationAddress && directionsStatus === 'IDLE') {
             const directionsService = new window.google.maps.DirectionsService();
+            const directionsRenderer = new window.google.maps.DirectionsRenderer();
+            
+            directionsRenderer.setMap(mapInstance);
+
             directionsService.route(
                 {
                     origin: RESTAURANT_LOCATION,
@@ -37,22 +110,22 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
                 },
                 (result, status) => {
                     if (status === window.google.maps.DirectionsStatus.OK && result) {
-                        setDirectionsResponse(result);
-                        setStatus(status);
+                        directionsRenderer.setDirections(result);
                     } else {
                         console.error(`Error fetching directions: ${status}`);
-                        setStatus(status);
                     }
+                    setDirectionsStatus(status);
                 }
             );
         }
-    }, [isLoaded, destinationAddress]);
+    }, [mapInstance, destinationAddress, directionsStatus]);
 
-    if (loadError) {
-        return <div>Error loading maps. Please check your API key.</div>;
+
+    if (scriptStatus === "error") {
+        return <div>Error loading maps. Please check your API key and network connection.</div>;
     }
 
-    if (!isLoaded) {
+    if (scriptStatus !== 'ready') {
         return (
             <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg">
                 <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
@@ -60,39 +133,15 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
             </div>
         );
     }
-
-    if (status && status !== 'OK') {
+    
+    if (directionsStatus !== 'IDLE' && directionsStatus !== 'OK') {
         return (
              <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg">
                 <p className="text-destructive">Could not load directions.</p>
-                <p className="text-xs text-muted-foreground">The address might be invalid.</p>
+                <p className="text-xs text-muted-foreground">The address might be invalid or unreachable.</p>
             </div>
-        )
+        );
     }
     
-    return (
-        <GoogleMap
-            mapContainerStyle={containerStyle}
-            zoom={12}
-            options={{
-                streetViewControl: false,
-                mapTypeControl: false,
-                fullscreenControl: false,
-            }}
-        >
-            {directionsResponse && (
-                <DirectionsRenderer
-                    directions={directionsResponse}
-                    options={{
-                        suppressMarkers: false,
-                        polylineOptions: {
-                            strokeColor: 'hsl(var(--primary))',
-                            strokeWeight: 6,
-                            strokeOpacity: 0.8,
-                        },
-                    }}
-                />
-            )}
-        </GoogleMap>
-    );
+    return <div ref={mapRef} style={containerStyle} />;
 }
