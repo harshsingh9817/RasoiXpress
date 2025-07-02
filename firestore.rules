@@ -4,80 +4,79 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is an admin
-    function isAdmin() {
-      return request.auth.token.email == 'harshsingh9817@gmail.com';
-    }
-
-    // Helper function to check if the user has a delivery role in the database
-    function isDeliveryUser(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.isDelivery == true;
-    }
-
     // Default deny all reads and writes
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Allow authenticated users to read and update their own user document
+    // Admins can read/write anything
+    match /{path=**} {
+        allow read, write: if request.auth.token.email == 'harshsingh9817@gmail.com';
+    }
+    
+    // Users collection
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      // Also allow admin to read/write all users
-      allow read, write: if isAdmin();
+      // Any authenticated user can create their own user document.
+      allow create: if request.auth.uid == userId;
+      // Users can only read or update their own document.
+      // Admin can also update user docs (e.g., to set isDelivery flag).
+      allow read, update: if request.auth.uid == userId || request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // Allow authenticated users to manage their own addresses
-    match /users/{userId}/addresses/{addressId} {
-        allow read, write, delete: if request.auth.uid == userId;
+    // Orders collection
+    match /orders/{orderId} {
+      // A user can create an order for themselves.
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      // A user can read their own orders.
+      allow read: if request.auth.uid == resource.data.userId;
+
+      // A user can cancel their own order only if status is 'Order Placed'.
+      allow update: if request.auth.uid == resource.data.userId
+                      && request.resource.data.status == 'Cancelled'
+                      && resource.data.status == 'Order Placed';
+      
+      // A delivery rider can read orders assigned to them.
+      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true 
+                   && request.auth.uid == resource.data.deliveryRiderId;
+      
+      // A delivery rider can read orders available for pickup.
+      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                   && resource.data.isAvailableForPickup == true;
+      
+      // A delivery rider can accept an order.
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                      && request.resource.data.deliveryRiderId == request.auth.uid
+                      && resource.data.deliveryRiderId == null;
+
+      // A delivery rider can update the status of their assigned order to 'Delivered'.
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                      && request.auth.uid == resource.data.deliveryRiderId
+                      && request.resource.data.status == 'Delivered';
     }
-    
-    // Allow authenticated users to read menu items, hero data, and payment settings
-    match /menuItems/{menuItemId} {
-      allow read: if request.auth != null;
-    }
+
+    // Other collections (globals, menuItems, etc.)
     match /globals/{docId} {
-      allow read: if request.auth != null;
+        allow read: if request.auth != null;
+        allow write: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
-    
-    // Allow admins full access to menu, globals, and riders
-    match /menuItems/{menuItemId} {
-      allow write: if isAdmin();
-    }
-    match /globals/{docId} {
-        allow write: if isAdmin();
+    match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
     match /riders/{riderId} {
-        allow read, write, delete: if isAdmin();
+        allow read, write: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
-    
-    // Order access rules
-    match /orders/{orderId} {
-      // Customer can read/update (cancel) their own order
-      allow read, update: if request.auth.uid == resource.data.userId;
-
-      // Admin can read/update all orders
-      allow read, update, delete: if isAdmin();
-      
-      // Rider can read orders available for pickup
-      allow read: if isDeliveryUser(request.auth.uid) && resource.data.isAvailableForPickup == true;
-
-      // Rider can read and update orders assigned to them
-      allow read, update: if isDeliveryUser(request.auth.uid) && resource.data.deliveryRiderId == request.auth.uid;
-
-      // Allow order creation
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-
-    // Support Tickets
     match /supportTickets/{ticketId} {
-        allow create: if request.auth != null; // Any authenticated user can create
-        allow read, write: if isAdmin(); // Only admins can read/write
+        allow create: if true;
+        allow read, write: if request.auth.uid == resource.data.userId || request.auth.token.email == 'harshsingh9817@gmail.com';
     }
-
-    // Admin Messages (for notifications)
     match /adminMessages/{messageId} {
-        allow create: if isAdmin(); // Only admin can create
-        allow read: if request.auth.uid == resource.data.userId; // User can read their own messages
+        allow read: if request.auth.uid == resource.data.userId;
+        allow write: if request.auth.token.email == 'harshsingh9817@gmail.com';
+    }
+    match /users/{userId}/addresses/{addressId} {
+        allow read, write: if request.auth.uid == userId;
     }
   }
 }
