@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -84,11 +83,11 @@ export default function DeliveryDashboard() {
         const unsubscribeAvailable = onSnapshot(availableQuery, (snapshot) => {
             const available = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
             setAvailableOrders(available.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-            if(isDataLoading) setIsDataLoading(false);
+            setIsDataLoading(false);
         }, (error) => {
             console.error("Error fetching available orders:", error);
             toast({ title: "Error", description: "Could not fetch available orders.", variant: "destructive" });
-            if(isDataLoading) setIsDataLoading(false);
+            setIsDataLoading(false);
         });
 
         // Listener for my active orders
@@ -107,7 +106,7 @@ export default function DeliveryDashboard() {
             unsubscribeMyActive();
         };
     }
-  }, [isDelivery, isAuthLoading, user, toast, isDataLoading]);
+  }, [isDelivery, isAuthLoading, user, toast]);
 
 
   if (isAuthLoading || isDataLoading) {
