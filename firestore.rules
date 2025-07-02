@@ -1,94 +1,91 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Admins can do anything.
+
+    // ADMIN: Broad access for the admin user. This rule is evaluated first.
     match /{path=**} {
       allow read, write: if request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // USERS
+    // USERS: Users can create their own doc and then read/update it.
     match /users/{userId} {
       allow create: if request.auth.uid == userId;
-      // Users can read/update their own profile.
       allow read, update: if request.auth.uid == userId;
     }
 
-    // USER ADDRESSES
+    // ADDRESSES: Users can manage their own addresses.
     match /users/{userId}/addresses/{addressId} {
       allow read, write: if request.auth.uid == userId;
     }
-    
-    // ORDERS
+
+    // ORDERS: Complex rules for users and riders combined into single allow statements.
     match /orders/{orderId} {
-      // ----------------- CUSTOMER PERMISSIONS -----------------
+      // Allow CREATE for the user who owns the order.
       allow create: if request.auth.uid == request.resource.data.userId;
-      
-      allow read: if request.auth.uid == resource.data.userId;
 
-      allow update: if 
-        // User cancels own order if it was just placed
-        (request.auth.uid == resource.data.userId && resource.data.status == 'Order Placed' && request.resource.data.status == 'Cancelled') ||
-        // User submits a review for a delivered order
-        (request.auth.uid == resource.data.userId && resource.data.status == 'Delivered' && request.resource.data.review != resource.data.review);
+      // Allow READ for the user who owns the order OR a rider if it's available/assigned.
+      allow read: if (request.auth.uid == resource.data.userId)
+                  || 
+                  (
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                    && (resource.data.isAvailableForPickup == true || resource.data.deliveryRiderId == request.auth.uid)
+                  );
 
-
-      // ----------------- RIDER PERMISSIONS -----------------
-
-      // Riders can read orders that are available for pickup
-      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
-                  && resource.data.isAvailableForPickup == true;
-      
-      // Riders can read orders that are assigned to them
-      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
-                  && resource.data.deliveryRiderId == request.auth.uid;
-                  
-      // Riders can accept an order. This rule is highly specific to the transaction.
-      allow update: if 
-          // Rule applies only to riders
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true &&
-          // Pre-conditions (state of order before update)
-          resource.data.isAvailableForPickup == true &&
-          resource.data.deliveryRiderId == null &&
-          // Post-conditions (state of order after update)
-          request.resource.data.deliveryRiderId == request.auth.uid &&
-          request.resource.data.isAvailableForPickup == false &&
-          request.resource.data.status == 'Out for Delivery' &&
-          // Integrity check: ensures ONLY the correct fields are being changed
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveryRiderId', 'deliveryRiderName', 'isAvailableForPickup']);
-      
-      // Riders can mark their own assigned order as delivered
-      allow update: if 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true &&
-          resource.data.deliveryRiderId == request.auth.uid &&
-          resource.data.status == 'Out for Delivery' &&
-          request.resource.data.status == 'Delivered';
+      // Allow UPDATE for various scenarios (cancellation, review, rider actions).
+      allow update: if (
+                      // 1. User cancels their own freshly placed order.
+                      request.auth.uid == resource.data.userId
+                      && request.resource.data.status == 'Cancelled'
+                      && resource.data.status == 'Order Placed'
+                    ) || (
+                      // 2. User submits a review for a delivered order.
+                      request.auth.uid == resource.data.userId
+                      && resource.data.status == 'Delivered'
+                      && request.resource.data.review != null
+                      && resource.data.review == null
+                    ) || (
+                      // 3. Rider accepts an available order.
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                      && resource.data.isAvailableForPickup == true
+                      && resource.data.deliveryRiderId == null
+                      && request.resource.data.deliveryRiderId == request.auth.uid
+                      && request.resource.data.status == 'Out for Delivery'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveryRiderId', 'deliveryRiderName', 'isAvailableForPickup'])
+                    ) || (
+                      // 4. Rider marks an assigned order as delivered.
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true
+                      && resource.data.deliveryRiderId == request.auth.uid
+                      && resource.data.status == 'Out for Delivery'
+                      && request.resource.data.status == 'Delivered'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveryConfirmationCode', 'isAvailableForPickup'])
+                    );
     }
 
-    // MENU ITEMS
-    match /menuItems/{itemId} {
-      // Anyone can read the menu
-      allow read: if true;
-    }
-
-    // GLOBALS (Hero data, payment settings)
+    // GLOBALS: Any authenticated user can read.
     match /globals/{docId} {
-      // Any authenticated user can read them
       allow read: if request.auth != null;
     }
 
-    // SUPPORT TICKETS
+    // MENU ITEMS: Publicly readable.
+    match /menuItems/{itemId} {
+      allow read: if true;
+    }
+
+    // RIDERS: Publicly readable list of riders.
+    match /riders/{riderId} {
+      allow read: if true;
+    }
+
+    // SUPPORT TICKETS: Anyone can create. Only owner can read/write.
     match /supportTickets/{ticketId} {
-      // Anyone can create a ticket
       allow create: if true;
-      // User can read their own ticket
-      allow read: if request.auth.uid == resource.data.userId;
+      allow read, write: if request.auth.uid == resource.data.userId;
     }
     
-    // ADMIN MESSAGES
+    // ADMIN MESSAGES: User can read their own messages.
     match /adminMessages/{messageId} {
-      // User can read messages sent to them
       allow read: if request.auth.uid == resource.data.userId;
     }
   }
