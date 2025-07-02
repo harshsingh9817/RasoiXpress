@@ -149,15 +149,18 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     const docRef = doc(db, 'orders', orderId);
     const dataToUpdate: Record<string, any> = { status };
 
-    if (status === 'Delivered') {
+    if (status === 'Out for Delivery') {
+        // This makes the order available for riders when admin sets this status.
+        dataToUpdate.isAvailableForPickup = true;
+    } else if (status === 'Delivered') {
         dataToUpdate.deliveryConfirmationCode = deleteField();
         dataToUpdate.isAvailableForPickup = false;
-    } else if (status === 'Confirmed') {
-        dataToUpdate.isAvailableForPickup = true;
     } else if (status === 'Cancelled') {
         dataToUpdate.isAvailableForPickup = false;
     }
-
+    // Note: 'isAvailableForPickup' is NOT changed for 'Confirmed' or 'Preparing' statuses anymore.
+    // It's set to 'false' inside `acceptOrderForDelivery` when a rider takes the job.
+    
     await updateDoc(docRef, dataToUpdate);
 }
 

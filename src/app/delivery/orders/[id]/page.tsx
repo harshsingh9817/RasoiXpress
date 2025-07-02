@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -256,14 +257,14 @@ export default function DeliveryOrderDetailPage() {
 
             </CardContent>
             <CardFooter>
-               {order.status === 'Confirmed' && !order.deliveryRiderId && (
+               {order.isAvailableForPickup && !order.deliveryRiderId && (
                   <Button 
                     className="w-full text-lg py-6"
                     onClick={handleAcceptOrder}
                     disabled={isAccepting}
                   >
                     {isAccepting ? <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> : <Bike className="mr-2 h-5 w-5" />}
-                    {isAccepting ? 'Accepting...' : 'Accept for Delivery'}
+                    {isAccepting ? 'Starting...' : 'Start Delivery'}
                   </Button>
                )}
                {order.status === 'Out for Delivery' && order.deliveryRiderId === user?.uid && (

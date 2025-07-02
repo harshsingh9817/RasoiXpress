@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -33,7 +34,7 @@ const OrderCard = ({ order, isAvailable }: { order: Order; isAvailable?: boolean
                         <span>Order #{order.id.slice(-6)}</span>
                         <Badge variant={isAvailable ? 'default' : 'secondary'}>
                         <Icon className="mr-1.5 h-3 w-3" />
-                        {isAvailable ? 'Available' : order.status}
+                        {isAvailable ? 'Ready for Pickup' : order.status}
                         </Badge>
                     </CardTitle>
                     <CardDescription>
@@ -51,7 +52,7 @@ const OrderCard = ({ order, isAvailable }: { order: Order; isAvailable?: boolean
                     </div>
                 </CardContent>
                 <CardFooter>
-                   <p className="text-xs text-muted-foreground w-full text-center group-hover:text-primary transition-colors">Click to {isAvailable ? 'accept' : 'view details'}</p>
+                   <p className="text-xs text-muted-foreground w-full text-center group-hover:text-primary transition-colors">Click to {isAvailable ? 'start delivery' : 'view details'}</p>
                 </CardFooter>
             </Card>
         </Link>
@@ -83,7 +84,9 @@ export default function DeliveryDashboard() {
         const unsubscribeAvailable = onSnapshot(availableQuery, (snapshot) => {
             const available = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
             setAvailableOrders(available.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-            setIsDataLoading(false);
+            if (isDataLoading) {
+              setIsDataLoading(false);
+            }
         }, (error) => {
             console.error("Error fetching available orders:", error);
             toast({ title: "Error", description: "Could not fetch available orders.", variant: "destructive" });
@@ -91,10 +94,9 @@ export default function DeliveryDashboard() {
         });
 
         // Listener for my active orders
-        const myActiveQuery = query(ordersRef, where('deliveryRiderId', '==', user.uid));
+        const myActiveQuery = query(ordersRef, where('deliveryRiderId', '==', user.uid), where('status', '==', 'Out for Delivery'));
         const unsubscribeMyActive = onSnapshot(myActiveQuery, (snapshot) => {
-            const allMyOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-            const active = allMyOrders.filter(order => order.status === 'Out for Delivery');
+            const active = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
             setMyActiveOrders(active.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         }, (error) => {
             console.error("Error fetching my active orders:", error);
