@@ -50,7 +50,6 @@ export default function CheckoutPage() {
   
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   
   const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', type: 'Home' as AddressType['type'] });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
@@ -73,12 +72,8 @@ export default function CheckoutPage() {
     if (!user) return;
     setIsDataLoading(true);
     try {
-        const [addresses, settings] = await Promise.all([
-             getAddresses(user.uid), 
-             getPaymentSettings(),
-        ]);
+        const addresses = await getAddresses(user.uid);
         setSavedAddresses(addresses);
-        setPaymentSettings(settings);
 
         const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
         if (defaultAddress) {
@@ -140,6 +135,18 @@ export default function CheckoutPage() {
 
   const handleRazorpayPayment = async (orderData: Omit<Order, 'id'>) => {
     setIsProcessingPayment(true);
+    
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (!keyId) {
+      toast({
+        title: "Configuration Error",
+        description: "Payment gateway is not configured. Please contact support.",
+        variant: "destructive",
+      });
+      setIsProcessingPayment(false);
+      return;
+    }
+
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded) {
       toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
@@ -154,11 +161,14 @@ export default function CheckoutPage() {
         body: JSON.stringify({ amount: grandTotal }),
       });
 
-      if (!orderResponse.ok) throw new Error('Failed to create Razorpay order');
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.error || 'Failed to create Razorpay order');
+      }
       const razorpayOrder = await orderResponse.json();
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        key: keyId,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
         name: "Rasoi Xpress",
@@ -198,9 +208,9 @@ export default function CheckoutPage() {
       });
       paymentObject.open();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error during Razorpay process:", error);
-      toast({ title: "Error", description: "Could not initiate payment. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
     } finally {
       setIsProcessingPayment(false);
     }
@@ -360,25 +370,22 @@ export default function CheckoutPage() {
         <Card>
             <CardHeader><CardTitle>Step 2: Payment Method</CardTitle></CardHeader>
             <CardContent>
-                <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="space-y-3">
+                <div className="space-y-3">
                     <div>
-                        <Label className="flex items-center space-x-3 p-4 border rounded-md has-[:checked]:border-primary cursor-pointer">
-                            <RadioGroupItem value="Razorpay" />
+                        <div className="flex items-center space-x-3 p-4 border rounded-md border-primary">
                             <CreditCard className="h-6 w-6 text-primary mx-2" />
-                            <span>Card, UPI, & More (Razorpay)</span>
-                        </Label>
-                        {paymentMethod === 'Razorpay' && (
-                            <div className="px-4 pt-2 text-xs text-muted-foreground">
-                                By proceeding, you agree to our{' '}
-                                <Link href="/terms-and-conditions" className="underline hover:text-primary">Terms & Conditions</Link>,{' '}
-                                <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>,{' '}
-                                <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>, the{' '}
-                                <Link href="/razorpay-terms" className="underline hover:text-primary">Razorpay Terms of Service</Link>, and the{' '}
-                                <Link href="/razorpay-privacy" className="underline hover:text-primary">Razorpay Privacy Policy</Link>.
-                            </div>
-                        )}
+                            <span className="font-medium">Card, UPI, & More (Razorpay)</span>
+                        </div>
+                        <div className="px-4 pt-2 text-xs text-muted-foreground">
+                            By proceeding, you agree to our{' '}
+                            <Link href="/terms-and-conditions" className="underline hover:text-primary">Terms & Conditions</Link>,{' '}
+                            <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>,{' '}
+                            <Link href="/refund-and-cancellation" className="underline hover:text-primary">Refund & Cancellation Policy</Link>, the{' '}
+                            <Link href="/razorpay-terms" className="underline hover:text-primary">Razorpay Terms of Service</Link>, and the{' '}
+                            <Link href="/razorpay-privacy" className="underline hover:text-primary">Razorpay Privacy Policy</Link>.
+                        </div>
                     </div>
-                </RadioGroup>
+                </div>
             </CardContent>
             <CardFooter className="flex justify-between">
                 <Button variant="outline" onClick={() => setCurrentStep('address')}>Back</Button>

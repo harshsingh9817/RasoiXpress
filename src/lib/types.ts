@@ -6,6 +6,7 @@
 
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -66,7 +67,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'UPI' | 'Razorpay';
+  paymentMethod: 'Razorpay';
   cancellationReason?: string;
   review?: Review; // Added for review
   customerPhone?: string;
