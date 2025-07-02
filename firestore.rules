@@ -4,21 +4,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isAuth() {
-      return request.auth != null;
-    }
-
+    // Helper function to check if user is an admin
     function isAdmin() {
-      return isAuth() && request.auth.token.email == 'harshsingh9817@gmail.com';
+      return request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
-    }
-
-    function isDelivery() {
-      // This get() call is why the rules need to be structured carefully.
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
+    // Helper function to check if the user has a delivery role in the database
+    function isDeliveryUser(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.isDelivery == true;
     }
 
     // Default deny all reads and writes
@@ -26,56 +19,65 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /globals/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
-    }
-
-    match /menuItems/{menuItemId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
-    }
-    
-    match /riders/{riderId} {
+    // Allow authenticated users to read and update their own user document
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      // Also allow admin to read/write all users
       allow read, write: if isAdmin();
     }
 
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId);
-      match /addresses/{addressId} {
-        allow read, write: if isOwner(userId);
-      }
+    // Allow authenticated users to manage their own addresses
+    match /users/{userId}/addresses/{addressId} {
+        allow read, write, delete: if request.auth.uid == userId;
     }
-
-    match /adminMessages/{messageId} {
-      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+    
+    // Allow authenticated users to read menu items, hero data, and payment settings
+    match /menuItems/{menuItemId} {
+      allow read: if request.auth != null;
+    }
+    match /globals/{docId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Allow admins full access to menu, globals, and riders
+    match /menuItems/{menuItemId} {
       allow write: if isAdmin();
     }
-    
-    match /supportTickets/{ticketId} {
-      allow create: if isAuth();
-      allow read, update, delete: if isAdmin();
+    match /globals/{docId} {
+        allow write: if isAdmin();
+    }
+    match /riders/{riderId} {
+        allow read, write, delete: if isAdmin();
     }
     
+    // Order access rules
     match /orders/{orderId} {
-      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAdmin();
+      // Customer can read/update (cancel) their own order
+      allow read, update: if request.auth.uid == resource.data.userId;
 
-      // READ: 
-      // - Admins can read any order.
-      // - Owners can read their own order.
-      // - Delivery riders can read orders assigned to them.
-      // - Delivery riders can read orders available for pickup.
-      allow read: if isAdmin() || isOwner(resource.data.userId) || (isDelivery() && (resource.data.deliveryRiderId == request.auth.uid || resource.data.isAvailableForPickup == true));
+      // Admin can read/update all orders
+      allow read, update, delete: if isAdmin();
       
-      // UPDATE:
-      // - An owner can cancel their own order if it was just placed.
-      // - An admin can update any order.
-      // - A rider can accept an available order or update an order assigned to them.
-      allow update: if (isOwner(resource.data.userId) && resource.data.status == 'Order Placed' && request.resource.data.status == 'Cancelled')
-                    || isAdmin()
-                    || (isDelivery() && (request.resource.data.deliveryRiderId == request.auth.uid));
+      // Rider can read orders available for pickup
+      allow read: if isDeliveryUser(request.auth.uid) && resource.data.isAvailableForPickup == true;
+
+      // Rider can read and update orders assigned to them
+      allow read, update: if isDeliveryUser(request.auth.uid) && resource.data.deliveryRiderId == request.auth.uid;
+
+      // Allow order creation
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+
+    // Support Tickets
+    match /supportTickets/{ticketId} {
+        allow create: if request.auth != null; // Any authenticated user can create
+        allow read, write: if isAdmin(); // Only admins can read/write
+    }
+
+    // Admin Messages (for notifications)
+    match /adminMessages/{messageId} {
+        allow create: if isAdmin(); // Only admin can create
+        allow read: if request.auth.uid == resource.data.userId; // User can read their own messages
     }
   }
 }
