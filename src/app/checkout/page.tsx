@@ -16,7 +16,7 @@ import CartItemCard from '@/components/CartItemCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase, MapPin } from 'lucide-react';
-import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
+import type { Order, Address as AddressType } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, addAddress, updateAddress, setDefaultAddress } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,7 +51,7 @@ export default function CheckoutPage() {
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [pendingOrderData, setPendingOrderData] = useState<Omit<Order, 'id'> | null>(null);
   
-  const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', type: 'Home' as AddressType['type'] });
+  const [formData, setFormData] = useState({ fullName: '', address: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '', type: 'Home' as AddressType['type'] });
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'Razorpay'>('Razorpay');
@@ -78,7 +78,7 @@ export default function CheckoutPage() {
         const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
-          setFormData({ fullName: defaultAddress.fullName || user.displayName || '', address: defaultAddress.street, village: defaultAddress.village || '', city: defaultAddress.city, pinCode: defaultAddress.pinCode, phone: defaultAddress.phone || '', type: defaultAddress.type });
+          setFormData({ fullName: defaultAddress.fullName || user.displayName || '', address: defaultAddress.street, village: defaultAddress.village || '', city: defaultAddress.city, pinCode: defaultAddress.pinCode, phone: defaultAddress.phone || '', alternatePhone: defaultAddress.alternatePhone || '', type: defaultAddress.type });
         } else {
           setSelectedAddressId(ADD_NEW_ADDRESS_VALUE);
           setFormData(prev => ({...prev, fullName: user.displayName || ''}));
@@ -256,31 +256,50 @@ export default function CheckoutPage() {
   const handleAddressSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setIsSavingAddress(true);
 
-    if (selectedAddressId === ADD_NEW_ADDRESS_VALUE && saveAddress) {
-        setIsSavingAddress(true);
-        try {
-            const newAddressData: Omit<AddressType, 'id'> = {
-                fullName: formData.fullName,
-                type: formData.type,
-                street: formData.address,
-                village: formData.village,
-                city: formData.city,
-                pinCode: formData.pinCode,
-                phone: formData.phone,
-                isDefault: savedAddresses.length === 0
-            };
-            await addAddress(user.uid, newAddressData);
-            await loadPageData(); // reload addresses
-            toast({ title: "Address Saved!" });
-        } catch (error) {
-            toast({ title: "Error", description: "Could not save new address.", variant: "destructive" });
-        } finally {
-            setIsSavingAddress(false);
+    try {
+        if (selectedAddressId === ADD_NEW_ADDRESS_VALUE) {
+            // This is a new address, only save it if the checkbox is ticked
+            if (saveAddress) {
+                const newAddressData: Omit<AddressType, 'id'> = {
+                    fullName: formData.fullName, type: formData.type, street: formData.address,
+                    village: formData.village, city: formData.city, pinCode: formData.pinCode,
+                    phone: formData.phone, alternatePhone: formData.alternatePhone,
+                    isDefault: savedAddresses.length === 0,
+                };
+                await addAddress(user.uid, newAddressData);
+                await loadPageData();
+                toast({ title: "Address Saved!" });
+            }
+        } else {
+            // This is an existing address, check if it was modified before updating
+            const existingAddress = savedAddresses.find(addr => addr.id === selectedAddressId);
+            const isChanged = existingAddress && (
+              existingAddress.fullName !== formData.fullName || existingAddress.street !== formData.address ||
+              existingAddress.village !== formData.village || existingAddress.city !== formData.city ||
+              existingAddress.pinCode !== formData.pinCode || existingAddress.phone !== formData.phone ||
+              existingAddress.alternatePhone !== formData.alternatePhone || existingAddress.type !== formData.type
+            );
+
+            if (isChanged && existingAddress) {
+                const updatedAddressData: AddressType = {
+                    ...existingAddress, fullName: formData.fullName, type: formData.type, street: formData.address,
+                    village: formData.village, city: formData.city, pinCode: formData.pinCode, phone: formData.phone, alternatePhone: formData.alternatePhone,
+                };
+                await updateAddress(user.uid, updatedAddressData);
+                await loadPageData();
+                toast({ title: "Address Updated!" });
+            }
         }
+    } catch (error) {
+        console.error("Failed to save/update address", error);
+        toast({ title: "Error", description: "Could not save your address.", variant: "destructive" });
+    } finally {
+        setIsSavingAddress(false);
     }
     setCurrentStep('payment');
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -291,10 +310,10 @@ export default function CheckoutPage() {
     if (value && value !== ADD_NEW_ADDRESS_VALUE) {
       const selectedAddr = savedAddresses.find(addr => addr.id === value);
       if (selectedAddr) {
-        setFormData({ fullName: selectedAddr.fullName || '', address: selectedAddr.street, village: selectedAddr.village || '', city: selectedAddr.city, pinCode: selectedAddr.pinCode, phone: selectedAddr.phone || '', type: selectedAddr.type });
+        setFormData({ fullName: selectedAddr.fullName || '', address: selectedAddr.street, village: selectedAddr.village || '', city: selectedAddr.city, pinCode: selectedAddr.pinCode, phone: selectedAddr.phone || '', alternatePhone: selectedAddr.alternatePhone || '', type: selectedAddr.type });
       }
     } else {
-      setFormData(prev => ({ ...prev, fullName: user?.displayName || '', address: '', village: '', city: '', pinCode: '', phone: '' }));
+      setFormData(prev => ({ ...prev, fullName: user?.displayName || '', address: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' }));
     }
   };
 
@@ -343,23 +362,52 @@ export default function CheckoutPage() {
 
       {currentStep === 'address' && (
         <Card><form onSubmit={handleAddressSubmit}>
-            <CardHeader><CardTitle>Step 1: Shipping Details</CardTitle></CardHeader>
+            <CardHeader>
+                <CardTitle>Step 1: Shipping Details</CardTitle>
+                <CardDescription>Select or enter your delivery address.</CardDescription>
+            </CardHeader>
             <CardContent className="space-y-6">
-                {savedAddresses.length > 0 && <div className="space-y-2"><Label>Select Address</Label><Select value={selectedAddressId} onValueChange={handleAddressSelectChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ADD_NEW_ADDRESS_VALUE}>+ Add a new address</SelectItem>{savedAddresses.map(addr=><SelectItem key={addr.id} value={addr.id}><AddressIcon type={addr.type}/>{`${addr.street}, ${addr.city}`}</SelectItem>)}</SelectContent></Select></div>}
+                {savedAddresses.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Select Saved Address</Label>
+                    <Select value={selectedAddressId} onValueChange={handleAddressSelectChange}>
+                      <SelectTrigger><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ADD_NEW_ADDRESS_VALUE}>+ Add a new address</SelectItem>
+                        {savedAddresses.map(addr => 
+                          <SelectItem key={addr.id} value={addr.id}>
+                            <AddressIcon type={addr.type}/>{`${addr.street}, ${addr.city}`}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 
-                <div className="space-y-4 border-t pt-6" style={{ display: selectedAddressId === ADD_NEW_ADDRESS_VALUE ? 'block' : 'none' }}>
-                    <div className="space-y-2"><Label>Full Name</Label><Input name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center mb-1">
-                            <Label>Street</Label>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setIsMapOpen(true)}><MapPin className="mr-2 h-4 w-4" /> Pick on Map</Button>
-                        </div>
-                        <Input name="address" value={formData.address} onChange={handleInputChange} required />
+                <Separator />
+
+                <div className="space-y-4">
+                    <Button type="button" variant="outline" className="w-full h-12 text-base" onClick={() => setIsMapOpen(true)}>
+                      <MapPin className="mr-2 h-5 w-5" /> 
+                      {formData.address ? 'Update Address with Map' : 'Fill Address with Map'}
+                    </Button>
+                    <div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>
+                    <div className="space-y-2"><Label htmlFor="address">Street Address</Label><Input id="address" name="address" placeholder="e.g. House No, Street Name" value={formData.address} onChange={handleInputChange} required /></div>
+                    <div className="space-y-2"><Label htmlFor="village">Village/Area (Optional)</Label><Input id="village" name="village" placeholder="e.g. Near Hanuman Mandir" value={formData.village} onChange={handleInputChange} /></div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label htmlFor="city">City</Label><Input id="city" name="city" value={formData.city} onChange={handleInputChange} required /></div>
+                        <div className="space-y-2"><Label htmlFor="pinCode">Pin Code</Label><Input id="pinCode" name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div>
                     </div>
-                    <div className="space-y-2"><Label>Village/Area (Optional)</Label><Input name="village" value={formData.village} onChange={handleInputChange} /></div>
-                    <div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>City</Label><Input name="city" value={formData.city} onChange={handleInputChange} required /></div><div className="space-y-2"><Label>Pin Code</Label><Input name="pinCode" value={formData.pinCode} onChange={handleInputChange} required /></div></div>
-                    <div className="space-y-2"><Label>Phone</Label><Input name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div>
-                    <div className="flex items-center space-x-2"><input type="checkbox" id="saveAddress" checked={saveAddress} onChange={e => setSaveAddress(e.target.checked)} className="h-4 w-4" /><label htmlFor="saveAddress" className="text-sm">Save this address for future use</label></div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label htmlFor="phone">Phone Number</Label><Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required /></div>
+                        <div className="space-y-2"><Label htmlFor="alternatePhone">Alternate Phone (Optional)</Label><Input id="alternatePhone" name="alternatePhone" type="tel" value={formData.alternatePhone || ''} onChange={handleInputChange} /></div>
+                    </div>
+                    {selectedAddressId === ADD_NEW_ADDRESS_VALUE && (
+                      <div className="flex items-center space-x-2 pt-2">
+                        <input type="checkbox" id="saveAddress" checked={saveAddress} onChange={e => setSaveAddress(e.target.checked)} className="h-4 w-4" />
+                        <label htmlFor="saveAddress" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Save this address for future use</label>
+                      </div>
+                    )}
                 </div>
             </CardContent>
             <CardFooter><Button type="submit" disabled={isSavingAddress} className="w-full">{isSavingAddress ? <Loader2 className="animate-spin" /> : 'Continue'}</Button></CardFooter>
