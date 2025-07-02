@@ -10,7 +10,6 @@ import { Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, Clipboa
 import type { Order, OrderStatus, OrderItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery } from '@/lib/data';
@@ -39,7 +38,6 @@ export default function DeliveryOrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
 
@@ -98,22 +96,15 @@ export default function DeliveryOrderDetailPage() {
     }
   };
 
-
-  const handleOpenConfirmDialog = () => {
-    if (!isOrderingAllowed) {
+  const handleConfirmDelivery = () => {
+     if (!isOrderingAllowed) {
         setIsTimeGateDialogOpen(true);
         return;
     }
-    setEnteredCode('');
-    setIsConfirmDialogOpen(true);
-  };
-
-  const handleConfirmDelivery = () => {
     if (!order || !enteredCode) return;
 
     if (enteredCode === order.deliveryConfirmationCode) {
       handleUpdateStatus('Delivered');
-      setIsConfirmDialogOpen(false);
       toast({
         title: 'Delivery Confirmed!',
         description: `Order #${order.id.slice(-6)} marked as delivered.`,
@@ -263,7 +254,7 @@ export default function DeliveryOrderDetailPage() {
                 </div>
 
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4 items-stretch p-4">
                {order.isAvailableForPickup && !order.deliveryRiderId && (
                   <Button 
                     className="w-full text-lg py-6"
@@ -275,44 +266,30 @@ export default function DeliveryOrderDetailPage() {
                   </Button>
                )}
                {isMyDelivery && (
-                  <Button 
-                    className="w-full text-lg py-6"
-                    onClick={handleOpenConfirmDialog}
-                  >
-                    <KeyRound className="mr-2 h-5 w-5" />
-                    Confirm Delivery
-                  </Button>
-               )}
-            </CardFooter>
-        </Card>
-
-        <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Confirm Delivery</DialogTitle>
-                    <DialogDescription>
-                        Enter the 4-digit code provided by the customer to confirm that the order has been delivered.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmation-code">Delivery Code</Label>
+                  <div className="w-full p-4 border rounded-lg bg-muted/50 space-y-3">
+                    <Label htmlFor="confirmation-code" className="font-semibold flex items-center text-base">
+                        <KeyRound className="mr-2 h-5 w-5 text-primary"/>
+                        Confirm Delivery
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Enter the 4-digit code from the customer to complete the order.</p>
+                    <div className="flex gap-2">
                         <Input
                             id="confirmation-code"
                             value={enteredCode}
                             onChange={(e) => setEnteredCode(e.target.value)}
                             placeholder="1234"
                             maxLength={4}
-                            className="text-center text-2xl tracking-[1rem]"
+                            className="text-center text-lg tracking-[0.5rem] flex-grow"
+                            aria-label="Delivery confirmation code"
                         />
+                        <Button onClick={handleConfirmDelivery} disabled={!enteredCode || enteredCode.length < 4} className="flex-shrink-0">
+                            Confirm
+                        </Button>
                     </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleConfirmDelivery} disabled={!enteredCode || enteredCode.length < 4}>Confirm</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                  </div>
+               )}
+            </CardFooter>
+        </Card>
     </div>
   );
 }
