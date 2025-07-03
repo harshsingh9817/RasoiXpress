@@ -19,6 +19,7 @@ import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 
 declare global { interface Window { Razorpay: any; } }
@@ -46,6 +47,7 @@ export default function CheckoutPage() {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [mapSelectedLocation, setMapSelectedLocation] = useState('');
 
   const subTotal = getCartTotal();
   const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
@@ -252,37 +254,28 @@ export default function CheckoutPage() {
     setAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
-    setAddressFormData(prev => ({
-        ...prev,
+  const handleLocationSelect = async (address: { street: string; village: string; city: string; pinCode: string; }) => {
+    if (!user) return;
+    
+    const addressStub = {
         village: address.village,
         city: address.city,
         pinCode: address.pinCode,
-        fullName: prev.fullName || user?.displayName || '',
-        phone: prev.phone || '',
-    }));
-    setIsAddressFormOpen(true);
-  };
-  
-  const handleSaveAddress = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    
-    if (!addressFormData.fullName || !addressFormData.street || !addressFormData.phone) {
-        toast({ title: "Missing Details", description: "Please fill in your name, house/street, and phone number.", variant: "destructive" });
-        return;
-    }
+        street: address.street, // This will be the auto-detected one, can be overridden by user
+    };
+
+    setMapSelectedLocation([address.village, address.city, address.pinCode].filter(Boolean).join(', '));
 
     setIsSavingAddress(true);
     try {
         const newAddressData = {
-            fullName: addressFormData.fullName,
+            fullName: addressFormData.fullName || user.displayName || 'New Address',
             type: addressFormData.type || 'Home',
-            street: addressFormData.street,
-            village: addressFormData.village || '',
-            city: addressFormData.city || '',
-            pinCode: addressFormData.pinCode || '',
-            phone: addressFormData.phone,
+            street: address.street,
+            village: address.village,
+            city: address.city,
+            pinCode: address.pinCode,
+            phone: addressFormData.phone || '',
             alternatePhone: addressFormData.alternatePhone || '',
             isDefault: addresses.length === 0,
         };
@@ -293,10 +286,18 @@ export default function CheckoutPage() {
         }
         
         toast({ title: "Address Saved!" });
-        setIsAddressFormOpen(false);
-        setAddressFormData(defaultAddressFormData);
-        await loadPageData(); // Reload addresses to show the new one
-        setSelectedAddressId(newAddress.id); // Auto-select the newly added address
+        await loadPageData();
+        setSelectedAddressId(newAddress.id);
+        
+        setAddressFormData({
+            ...newAddressData,
+            ...address,
+            fullName: addressFormData.fullName,
+            phone: addressFormData.phone,
+            street: '', // Clear street so user can enter house #
+        });
+        setIsAddressFormOpen(true);
+
     } catch (error) {
         console.error("Failed to save address", error);
         toast({ title: "Error", description: "Could not save the new address.", variant: "destructive" });
@@ -304,7 +305,50 @@ export default function CheckoutPage() {
         setIsSavingAddress(false);
     }
   };
+  
+  const handleSaveAddress = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    if (!addressFormData.fullName || !addressFormData.street || !addressFormData.phone) {
+        toast({ title: "Missing Details", description: "Please fill in your name, house/street, and phone number.", variant: "destructive" });
+        return;
+    }
+    
+    setIsSavingAddress(true);
+    try {
+      const addressToSave: Omit<AddressType, 'id'> = {
+        fullName: addressFormData.fullName,
+        type: addressFormData.type || 'Home',
+        street: addressFormData.street,
+        village: addressFormData.village || '',
+        city: addressFormData.city || '',
+        pinCode: addressFormData.pinCode || '',
+        phone: addressFormData.phone,
+        alternatePhone: addressFormData.alternatePhone || '',
+        isDefault: addresses.length === 0,
+      };
 
+      const newAddress = await addAddress(user.uid, addressToSave);
+
+      if(newAddress.isDefault) {
+          await setDefaultAddress(user.uid, newAddress.id);
+      }
+      
+      toast({ title: "Address Saved!" });
+      setIsAddressFormOpen(false);
+      setMapSelectedLocation('');
+      setAddressFormData(defaultAddressFormData);
+      await loadPageData();
+      setSelectedAddressId(newAddress.id);
+
+    } catch (error) {
+        console.error("Failed to save address", error);
+        toast({ title: "Error", description: "Could not save the new address.", variant: "destructive" });
+    } finally {
+        setIsSavingAddress(false);
+    }
+  };
 
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
@@ -366,41 +410,38 @@ export default function CheckoutPage() {
                     ))}
                 </RadioGroup>
 
-                 {isAddressFormOpen ? (
-                    <form onSubmit={handleSaveAddress}>
-                        <Separator className="my-4" />
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Add New Address</h3>
-                             <Button type="button" variant="outline" className="w-full" onClick={() => setIsMapOpen(true)}>
-                                <MapPin className="mr-2 h-5 w-5" />
-                                {addressFormData.city ? 'Change Location on Map' : 'Pick Location on Map'}
-                            </Button>
-                            {addressFormData.city && (
-                                <div className="p-3 border rounded-md bg-muted/50 text-sm text-muted-foreground">
-                                    <span className="font-semibold text-foreground">Location:</span> {addressFormData.village}, {addressFormData.city}, {addressFormData.pinCode}
-                                </div>
-                            )}
+                <Separator className="my-6" />
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={addressFormData.fullName || ''} onChange={handleInputChange} required placeholder="e.g. Sunil Kumar"/></div>
-                                <div className="space-y-2"><Label htmlFor="phone">Phone Number</Label><Input id="phone" name="phone" type="tel" value={addressFormData.phone || ''} onChange={handleInputChange} required placeholder="10-digit mobile"/></div>
-                            </div>
-                            <div className="space-y-2"><Label htmlFor="street">House No. / Street / Building</Label><Input id="street" name="street" placeholder="e.g. House No. 123, ABC Lane" value={addressFormData.street || ''} onChange={handleInputChange} required /></div>
-                            
-                            <div className="flex gap-2">
-                               <Button type="submit" disabled={isSavingAddress}>
-                                 {isSavingAddress ? <Loader2 className="animate-spin" /> : <PlusCircle className="mr-2" />}
-                                 {isSavingAddress ? 'Saving...' : 'Save Address'}
-                               </Button>
-                               {addresses.length > 0 && <Button variant="ghost" onClick={() => setIsAddressFormOpen(false)}>Cancel</Button>}
-                            </div>
-                        </div>
-                    </form>
-                 ) : (
-                    <Button variant="outline" className="w-full mt-4" onClick={() => setIsAddressFormOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add New Address
+                <div className="space-y-4">
+                    <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsMapOpen(true)}>
+                        <MapPin className="mr-2 h-5 w-5" />
+                        {isSavingAddress ? 'Detecting...' : (addresses.length > 0 ? 'Add New Address via Map' : 'Add Address via Map')}
                     </Button>
-                 )}
+                    
+                    {isAddressFormOpen && (
+                        <form onSubmit={handleSaveAddress}>
+                            <div className="p-4 border rounded-md bg-muted/50 space-y-4">
+                                <h3 className="font-semibold text-lg">Confirm Address Details</h3>
+                                {mapSelectedLocation && (
+                                    <div className="p-3 border rounded-md bg-background text-sm text-muted-foreground">
+                                        <span className="font-semibold text-foreground">Selected Location:</span> {mapSelectedLocation}
+                                    </div>
+                                )}
+                                <div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={addressFormData.fullName || ''} onChange={handleInputChange} required placeholder="e.g. Sunil Kumar"/></div>
+                                <div className="space-y-2"><Label htmlFor="street">House No. / Street / Building</Label><Input id="street" name="street" placeholder="e.g. House No. 123, ABC Lane" value={addressFormData.street || ''} onChange={handleInputChange} required /></div>
+                                <div className="space-y-2"><Label htmlFor="phone">Phone Number</Label><Input id="phone" name="phone" type="tel" value={addressFormData.phone || ''} onChange={handleInputChange} required placeholder="10-digit mobile"/></div>
+                                
+                                <div className="flex gap-2 pt-2">
+                                <Button type="submit" disabled={isSavingAddress}>
+                                    {isSavingAddress ? <Loader2 className="animate-spin" /> : <PlusCircle className="mr-2" />}
+                                    {isSavingAddress ? 'Saving...' : 'Save & Use This Address'}
+                                </Button>
+                                <Button variant="ghost" onClick={() => { setIsAddressFormOpen(false); setMapSelectedLocation(''); }}>Cancel</Button>
+                                </div>
+                            </div>
+                        </form>
+                    )}
+                </div>
             </CardContent>
         </Card>
       </div>
