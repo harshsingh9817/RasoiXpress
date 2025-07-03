@@ -4,9 +4,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import type { Order, OrderItem, OrderStatus } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentSettings } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -56,6 +56,7 @@ import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import DirectionsMap from "@/components/DirectionsMap";
 
 const ALL_ORDER_STATUSES: OrderStatus[] = [
   'Order Placed',
@@ -85,6 +86,7 @@ export default function AdminOrdersPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
 
 
   useEffect(() => {
@@ -99,6 +101,8 @@ export default function AdminOrdersPage() {
         setOrders(allOrders);
         setIsDataLoading(false);
     });
+    
+    getPaymentSettings().then(setPaymentSettings);
 
     return () => unsubscribe();
   }, [isAdmin, isAuthLoading, isAuthenticated, router]);
@@ -404,6 +408,19 @@ export default function AdminOrdersPage() {
                             Message Customer
                         </Button>
                     </div>
+                    {paymentSettings && (
+                        <>
+                           <Separator />
+                            <div>
+                                <h4 className="font-semibold mb-2 text-sm">Directions to Customer</h4>
+                                <DirectionsMap
+                                    destinationAddress={selectedOrder.shippingAddress}
+                                    apiUrl={paymentSettings.mapApiUrl}
+                                    useLiveLocationForOrigin={true}
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
                 </>
             )}

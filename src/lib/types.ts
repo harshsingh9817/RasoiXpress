@@ -85,6 +85,8 @@ export interface Address {
   phone: string; // Added
   alternatePhone?: string; // Added
   isDefault: boolean;
+  lat: number;
+  lng: number;
 }
 
 export interface AppNotification {

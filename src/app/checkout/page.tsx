@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +17,6 @@ import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,14 +27,30 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle as AlertTitleElement } from '@/components/ui/alert';
 import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogContent, DialogHeader as EditDialogHeader, DialogTitle as EditDialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+
+const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
+
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+};
 
 
 declare global { interface Window { Razorpay: any; } }
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
+  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -57,10 +73,14 @@ export default function CheckoutPage() {
   
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
+  
+  // New state for delivery logic
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [distance, setDistance] = useState<number | null>(null);
+  const [isServiceable, setIsServiceable] = useState(true);
 
 
   const subTotal = getCartTotal();
-  const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
@@ -98,6 +118,39 @@ export default function CheckoutPage() {
     if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
+
+  useEffect(() => {
+    if (!selectedAddressId) {
+        setDistance(null);
+        setDeliveryFee(0);
+        setIsServiceable(true);
+        return;
+    }
+
+    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+    if (selectedAddress && selectedAddress.lat && selectedAddress.lng) {
+        const dist = getDistance(
+            RESTAURANT_COORDS.lat,
+            RESTAURANT_COORDS.lng,
+            selectedAddress.lat,
+            selectedAddress.lng
+        );
+        setDistance(dist);
+
+        if (dist > 5) {
+            setIsServiceable(false);
+            setDeliveryFee(0);
+        } else {
+            setIsServiceable(true);
+            if (subTotal > 0 && subTotal < 300) {
+                const fee = Math.round(dist * 25);
+                setDeliveryFee(fee);
+            } else {
+                setDeliveryFee(0);
+            }
+        }
+    }
+  }, [selectedAddressId, addresses, subTotal]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -244,19 +297,10 @@ export default function CheckoutPage() {
         totalTax: totalTax
     };
     
-    const completeOrder = () => {
-      if (paymentSettings?.isRazorpayEnabled) {
-          handleRazorpayPayment(newOrderData, selectedAddress);
-      } else {
-          finalizeOrder(newOrderData);
-      }
-    }
-    
-    if (subTotal > 0 && subTotal < 300) {
-        setProceedAction(() => completeOrder);
-        setIsFreeDeliveryDialogOpen(true);
+    if (paymentSettings?.isRazorpayEnabled) {
+        handleRazorpayPayment(newOrderData, selectedAddress);
     } else {
-        completeOrder();
+        finalizeOrder(newOrderData);
     }
   };
 
@@ -354,7 +398,7 @@ export default function CheckoutPage() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center space-x-3">
                                         <RadioGroupItem value={address.id} id={address.id} />
-                                        <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
+                                        <div className="font-semibold">{address.fullName} {address.isDefault && <span className="ml-2 text-xs font-bold text-primary">(Default)</span>}</div>
                                     </div>
                                     <div className="text-xs text-muted-foreground">{address.type}</div>
                                 </div>
@@ -385,15 +429,29 @@ export default function CheckoutPage() {
       <div className="space-y-6 sticky top-24">
          <Card>
             <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
+                 {!isServiceable && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitleElement>Out of Delivery Area</AlertTitleElement>
+                      <AlertDescription>
+                        Sorry, this location is more than 5km away. We cannot deliver to this address.
+                      </AlertDescription>
+                    </Alert>
+                )}
                 <div className="space-y-2 text-lg">
                     <div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-sm"><span>Delivery:</span><span>{deliveryFee > 0 ? `Rs.${deliveryFee.toFixed(2)}` : <span className="font-semibold text-green-600">FREE</span>}</span></div>
                     <div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm">
+                        <span>Delivery Fee:</span>
+                        <span>{deliveryFee > 0 ? `Rs.${deliveryFee.toFixed(2)}` : <span className="font-semibold text-green-600">FREE</span>}</span>
+                    </div>
+                     {distance !== null && <p className="text-xs text-muted-foreground text-right">Distance: {distance.toFixed(2)} km</p>}
+
                     <Separator />
                     <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
                 </div>
-                 <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId} className="w-full">
+                 <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId || !isServiceable} className="w-full">
                     {isProcessing ? <Loader2 className="animate-spin" /> : <PackageCheck className="mr-2" />} 
                     {isProcessing ? 'Processing...' : `Place Order`}
                 </Button>

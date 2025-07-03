@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -179,6 +180,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                 phone,
                 alternatePhone: '',
                 isDefault: existingAddresses.length === 0,
+                lat: lat,
+                lng: lng,
             };
 
             await addAddress(user.uid, addressToSave);

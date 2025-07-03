@@ -17,18 +17,17 @@ const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 interface DirectionsMapProps {
     destinationAddress: string;
     apiUrl: string | undefined;
+    useLiveLocationForOrigin?: boolean;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       const existingScript = document.getElementById(id);
       if (existingScript) {
-        // If script tag exists, check if google.maps is already available
         const checkGoogle = () => {
           if (window.google && window.google.maps) {
             resolve();
           } else {
-            // It's possible the script is still loading, wait and check again
             setTimeout(checkGoogle, 100);
           }
         };
@@ -47,7 +46,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
     });
 };
 
-export default function DirectionsMap({ destinationAddress, apiUrl }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, apiUrl, useLiveLocationForOrigin = false }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -72,22 +71,47 @@ export default function DirectionsMap({ destinationAddress, apiUrl }: Directions
         
         directionsRenderer.setMap(map);
 
-        directionsService.route(
-            {
-                origin: RESTAURANT_LOCATION,
-                destination: destinationAddress,
-                travelMode: window.google.maps.TravelMode.DRIVING,
-            },
-            (result, status) => {
-                if (status === window.google.maps.DirectionsStatus.OK && result) {
-                    directionsRenderer.setDirections(result);
-                } else {
-                    console.error(`Error fetching directions: ${status}`);
-                    setError(`Could not load directions. The address might be invalid or unreachable.`);
+        const calculateRoute = (origin: google.maps.LatLngLiteral | string) => {
+             directionsService.route(
+                {
+                    origin: origin,
+                    destination: destinationAddress,
+                    travelMode: window.google.maps.TravelMode.DRIVING,
+                },
+                (result, status) => {
+                    if (status === window.google.maps.DirectionsStatus.OK && result) {
+                        directionsRenderer.setDirections(result);
+                    } else {
+                        console.error(`Error fetching directions: ${status}`);
+                        setError(`Could not load directions. The address might be invalid or unreachable.`);
+                    }
                 }
+            );
+        };
+        
+        if (useLiveLocationForOrigin) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const origin = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        calculateRoute(origin);
+                    },
+                    () => {
+                        setError("Geolocation failed. Please enable location services in your browser.");
+                        toast({ title: "Location Error", description: "Could not get your location. Please enable location services.", variant: "destructive"});
+                    }
+                );
+            } else {
+                setError("Your browser doesn't support geolocation.");
             }
-        );
-    }, [destinationAddress]);
+        } else {
+            calculateRoute(RESTAURANT_LOCATION);
+        }
+
+    }, [destinationAddress, useLiveLocationForOrigin, toast]);
     
     useEffect(() => {
         let isMounted = true;
