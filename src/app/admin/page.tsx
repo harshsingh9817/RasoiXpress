@@ -100,10 +100,10 @@ export default function AdminPage() {
                   <CreditCard className="mr-2 h-6 w-6 text-primary"/>
                   Manage Payments
               </CardTitle>
-              <CardDescription>Enable or disable the Razorpay payment gateway.</CardDescription>
+              <CardDescription>Manage Razorpay, map settings, and other integrations.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Click here to manage online payment settings and view API key info.</p>
+              <p className="text-muted-foreground">Click here to configure payment gateways and API keys.</p>
             </CardContent>
           </Card>
         </Link>

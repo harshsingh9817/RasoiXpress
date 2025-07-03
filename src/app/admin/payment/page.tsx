@@ -24,16 +24,20 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 
 const paymentSettingsSchema = z.object({
   isRazorpayEnabled: z.boolean().optional(),
+  mapApiUrl: z.string().url("Please enter a valid URL.").optional(),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -48,6 +52,7 @@ export default function PaymentSettingsPage() {
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
       isRazorpayEnabled: true,
+      mapApiUrl: '',
     },
   });
 
@@ -59,7 +64,10 @@ export default function PaymentSettingsPage() {
     if (isAuthenticated && isAdmin) {
       const loadSettings = async () => {
         const data = await getPaymentSettings();
-        form.reset({ isRazorpayEnabled: data.isRazorpayEnabled });
+        form.reset({
+          isRazorpayEnabled: data.isRazorpayEnabled,
+          mapApiUrl: data.mapApiUrl || '',
+        });
       }
       loadSettings();
     }
@@ -68,10 +76,13 @@ export default function PaymentSettingsPage() {
   const onSubmit = async (data: PaymentSettingsFormValues) => {
     setIsSubmitting(true);
     try {
-      await updatePaymentSettings({ isRazorpayEnabled: data.isRazorpayEnabled });
+      await updatePaymentSettings({
+        isRazorpayEnabled: data.isRazorpayEnabled,
+        mapApiUrl: data.mapApiUrl
+      });
       toast({
         title: "Settings Updated",
-        description: "Payment settings have been successfully updated.",
+        description: "Your settings have been successfully updated.",
       });
     } catch (error) {
       console.error("Failed to save payment settings", error);
@@ -103,13 +114,13 @@ export default function PaymentSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-headline flex items-center">
-                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Razorpay Payment Settings
+                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
               </CardTitle>
               <CardDescription>
-                Enable or disable online payments through Razorpay.
+                Manage payment gateways and third-party service integrations like maps.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <FormField
                 control={form.control}
                 name="isRazorpayEnabled"
@@ -130,6 +141,29 @@ export default function PaymentSettingsPage() {
                     </FormItem>
                 )}
                 />
+              
+              <Separator />
+
+              <div className="space-y-2">
+                <h3 className="font-medium flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro API URL</h3>
+                 <FormField
+                  control={form.control}
+                  name="mapApiUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="sr-only">GoMaps Pro API URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://maps.gomaps.pro/maps/api/js?key=..." {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        This URL is used for the location picker and rider direction maps.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
             </CardContent>
              <CardFooter>
                 <Button type="submit" disabled={isSubmitting}>
@@ -139,7 +173,7 @@ export default function PaymentSettingsPage() {
                     </>
                   ) : (
                     <>
-                      <Save className="mr-2 h-4 w-4" /> Save Setting
+                      <Save className="mr-2 h-4 w-4" /> Save All Settings
                     </>
                   )}
                 </Button>
