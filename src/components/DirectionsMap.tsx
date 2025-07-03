@@ -16,6 +16,7 @@ const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
 interface DirectionsMapProps {
     destinationAddress: string;
+    destinationCoords?: { lat: number; lng: number };
     apiUrl: string | undefined;
     useLiveLocationForOrigin?: boolean;
 }
@@ -46,7 +47,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
     });
 };
 
-export default function DirectionsMap({ destinationAddress, apiUrl, useLiveLocationForOrigin = false }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, destinationCoords, apiUrl, useLiveLocationForOrigin = false }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -72,10 +73,11 @@ export default function DirectionsMap({ destinationAddress, apiUrl, useLiveLocat
         directionsRenderer.setMap(map);
 
         const calculateRoute = (origin: google.maps.LatLngLiteral | string) => {
+             const destination = destinationCoords || destinationAddress;
              directionsService.route(
                 {
                     origin: origin,
-                    destination: destinationAddress,
+                    destination: destination,
                     travelMode: window.google.maps.TravelMode.DRIVING,
                 },
                 (result, status) => {
@@ -111,7 +113,7 @@ export default function DirectionsMap({ destinationAddress, apiUrl, useLiveLocat
             calculateRoute(RESTAURANT_LOCATION);
         }
 
-    }, [destinationAddress, useLiveLocationForOrigin, toast]);
+    }, [destinationAddress, destinationCoords, useLiveLocationForOrigin, toast]);
     
     useEffect(() => {
         let isMounted = true;

@@ -210,7 +210,15 @@ export default function DeliveryOrderDetailPage() {
                     <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
                     {isMyDelivery && paymentSettings && (
                         <div className="pt-2">
-                           <DirectionsMap destinationAddress={order.shippingAddress} apiUrl={paymentSettings.mapApiUrl} />
+                           <DirectionsMap
+                                destinationCoords={
+                                    order.shippingLat && order.shippingLng
+                                    ? { lat: order.shippingLat, lng: order.shippingLng }
+                                    : undefined
+                                }
+                                destinationAddress={order.shippingAddress}
+                                apiUrl={paymentSettings.mapApiUrl}
+                                useLiveLocationForOrigin={true} />
                         </div>
                     )}
                 </div>

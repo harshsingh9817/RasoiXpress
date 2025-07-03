@@ -72,6 +72,8 @@ export interface Order {
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   isAvailableForPickup?: boolean;
+  shippingLat?: number;
+  shippingLng?: number;
 }
 
 export interface Address {

@@ -414,6 +414,11 @@ export default function AdminOrdersPage() {
                             <div>
                                 <h4 className="font-semibold mb-2 text-sm">Directions to Customer</h4>
                                 <DirectionsMap
+                                    destinationCoords={
+                                        selectedOrder.shippingLat && selectedOrder.shippingLng
+                                        ? { lat: selectedOrder.shippingLat, lng: selectedOrder.shippingLng }
+                                        : undefined
+                                    }
                                     destinationAddress={selectedOrder.shippingAddress}
                                     apiUrl={paymentSettings.mapApiUrl}
                                     useLiveLocationForOrigin={true}

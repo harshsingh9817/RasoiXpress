@@ -303,6 +303,8 @@ export default function CheckoutPage() {
         total: grandTotal,
         items: cartItems.map(item => ({ ...item })),
         shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
+        shippingLat: selectedAddress.lat,
+        shippingLng: selectedAddress.lng,
         paymentMethod: paymentSettings?.isRazorpayEnabled ? 'Razorpay' : 'Cash on Delivery',
         customerPhone: selectedAddress.phone,
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
