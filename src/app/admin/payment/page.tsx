@@ -5,11 +5,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { getPaymentSettings, updatePaymentSettings } from "@/lib/data";
-import type { PaymentSettings } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,7 +15,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription as CardDescriptionElement
+  CardDescription,
 } from "@/components/ui/card";
 import {
   Form,
@@ -26,20 +24,16 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, QrCode, Map, Power } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { CreditCard, Save, KeyRound } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
+import Link from "next/link";
 
 const paymentSettingsSchema = z.object({
-  upiId: z.string().min(3, "UPI ID must be at least 3 characters long.").regex(/@/, "Please enter a valid UPI ID."),
-  qrCodeImageUrl: z.string().url("Please enter a valid image URL."),
   isRazorpayEnabled: z.boolean().optional(),
-  mapApiUrl: z.string().url("Please enter a valid map API URL.").optional(),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -53,14 +47,9 @@ export default function PaymentSettingsPage() {
   const form = useForm<PaymentSettingsFormValues>({
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
-      upiId: "",
-      qrCodeImageUrl: "",
       isRazorpayEnabled: true,
-      mapApiUrl: "",
     },
   });
-
-  const qrCodeUrl = form.watch("qrCodeImageUrl");
 
   useEffect(() => {
     if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
@@ -70,7 +59,7 @@ export default function PaymentSettingsPage() {
     if (isAuthenticated && isAdmin) {
       const loadSettings = async () => {
         const data = await getPaymentSettings();
-        form.reset(data);
+        form.reset({ isRazorpayEnabled: data.isRazorpayEnabled });
       }
       loadSettings();
     }
@@ -79,7 +68,7 @@ export default function PaymentSettingsPage() {
   const onSubmit = async (data: PaymentSettingsFormValues) => {
     setIsSubmitting(true);
     try {
-      await updatePaymentSettings(data);
+      await updatePaymentSettings({ isRazorpayEnabled: data.isRazorpayEnabled });
       toast({
         title: "Settings Updated",
         description: "Payment settings have been successfully updated.",
@@ -108,124 +97,39 @@ export default function PaymentSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-headline flex items-center">
-                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Integrations & Payment Settings
+                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Razorpay Payment Settings
               </CardTitle>
-              <CardDescriptionElement>
-                Configure UPI, online payments, and map services.
-              </CardDescriptionElement>
+              <CardDescription>
+                Enable or disable online payments through Razorpay.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div>
-                      <h3 className="text-lg font-medium mb-2">UPI & QR Code</h3>
-                      <FormField
-                          control={form.control}
-                          name="upiId"
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>UPI ID</FormLabel>
-                              <FormControl>
-                              <Input placeholder="your-upi@oksbi" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
-                      <FormField
-                          control={form.control}
-                          name="qrCodeImageUrl"
-                          render={({ field }) => (
-                          <FormItem className="mt-4">
-                              <FormLabel>QR Code Image URL</FormLabel>
-                              <FormControl>
-                              <Input placeholder="https://example.com/qr.png" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center">
-                      <QrCode className="mr-2 h-5 w-5" />
-                      QR Code Preview
-                  </h3>
-                  <div className="p-4 bg-muted rounded-lg border flex justify-center items-center">
-                    {qrCodeUrl ? (
-                      <Image
-                        src={qrCodeUrl}
-                        alt="QR Code Preview"
-                        width={200}
-                        height={200}
-                        className="rounded-md"
-                        onError={(e) => {
-                          e.currentTarget.src = "https://placehold.co/200x200.png?text=Invalid+URL";
-                        }}
-                        data-ai-hint="qr code"
-                      />
-                    ) : (
-                      <div className="h-[200px] w-[200px] bg-muted-foreground/20 rounded-md flex items-center justify-center text-sm text-muted-foreground">
-                          Enter a URL to see a preview
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-6">
-                  <h3 className="text-lg font-medium mb-2 flex items-center"><Power className="mr-2 h-5 w-5 text-primary"/> Online Payments</h3>
-                  <FormField
-                    control={form.control}
-                    name="isRazorpayEnabled"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                            <FormLabel className="text-base">Enable Razorpay Payments</FormLabel>
-                            <FormDescription>
-                                Turn this off to enable "Cash on Delivery" for all orders for testing.
-                            </FormDescription>
-                        </div>
-                        <FormControl>
-                            <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            />
-                        </FormControl>
-                        </FormItem>
-                    )}
-                   />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-6">
-                 <h3 className="text-lg font-medium mb-2 flex items-center"><Map className="mr-2 h-5 w-5 text-primary"/> Map Settings</h3>
-                  <FormField
-                    control={form.control}
-                    name="mapApiUrl"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>GoMaps Pro API URL</FormLabel>
-                        <FormControl>
-                            <Input placeholder="https://maps.gomaps.pro/maps/api/js?key=..." {...field} value={field.value ?? ''}/>
-                        </FormControl>
-                        <FormDescription>The full script URL for the mapping service, including your API key.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-              </div>
-
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="isRazorpayEnabled"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base">Enable Razorpay Payments</FormLabel>
+                        <FormDescription>
+                           Turn this on to accept online payments. If off, all orders will default to "Cash on Delivery".
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+                />
             </CardContent>
              <CardFooter>
                 <Button type="submit" disabled={isSubmitting}>
@@ -235,7 +139,7 @@ export default function PaymentSettingsPage() {
                     </>
                   ) : (
                     <>
-                      <Save className="mr-2 h-4 w-4" /> Save All Settings
+                      <Save className="mr-2 h-4 w-4" /> Save Setting
                     </>
                   )}
                 </Button>
@@ -243,6 +147,18 @@ export default function PaymentSettingsPage() {
           </Card>
         </form>
       </Form>
+      
+      <Alert>
+        <KeyRound className="h-4 w-4" />
+        <AlertTitle>API Key Configuration</AlertTitle>
+        <AlertDescriptionElement>
+            Your Razorpay API Key ID and Key Secret are configured in the `.env` file for security. You must update them there to process live payments.
+            You can get your keys from the{" "}
+            <Link href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">
+                Razorpay Dashboard
+            </Link>.
+        </AlertDescriptionElement>
+      </Alert>
     </div>
   );
 }

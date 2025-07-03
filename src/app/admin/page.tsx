@@ -100,10 +100,10 @@ export default function AdminPage() {
                   <CreditCard className="mr-2 h-6 w-6 text-primary"/>
                   Manage Payments
               </CardTitle>
-              <CardDescription>Configure UPI and QR code payment options.</CardDescription>
+              <CardDescription>Enable or disable the Razorpay payment gateway.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Click here to set your UPI ID and QR code image URL.</p>
+              <p className="text-muted-foreground">Click here to manage online payment settings and view API key info.</p>
             </CardContent>
           </Card>
         </Link>
