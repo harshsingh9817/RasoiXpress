@@ -30,6 +30,8 @@ import {
 import { Alert, AlertDescription, AlertTitle as AlertTitleElement } from '@/components/ui/alert';
 import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogContent, DialogHeader as EditDialogHeader, DialogTitle as EditDialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+
 
 const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
 
@@ -120,6 +122,7 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
+    // If no address is selected, reset to default "serviceable" state.
     if (!selectedAddressId) {
         setDistance(null);
         setDeliveryFee(0);
@@ -128,7 +131,9 @@ export default function CheckoutPage() {
     }
 
     const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    if (selectedAddress && selectedAddress.lat && selectedAddress.lng) {
+    
+    // Check if the selected address exists and has coordinates.
+    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number') {
         const dist = getDistance(
             RESTAURANT_COORDS.lat,
             RESTAURANT_COORDS.lng,
@@ -137,11 +142,13 @@ export default function CheckoutPage() {
         );
         setDistance(dist);
 
+        // Check if distance is within the 5km service radius.
         if (dist > 5) {
             setIsServiceable(false);
             setDeliveryFee(0);
         } else {
             setIsServiceable(true);
+            // Apply delivery fee only if the order is below the threshold.
             if (subTotal > 0 && subTotal < 300) {
                 const fee = Math.round(dist * 25);
                 setDeliveryFee(fee);
@@ -149,6 +156,12 @@ export default function CheckoutPage() {
                 setDeliveryFee(0);
             }
         }
+    } else {
+        // This handles cases where an address might not have coordinates (e.g., old data).
+        // Treat it as unserviceable to be safe and ensure the state is reset.
+        setDistance(null);
+        setDeliveryFee(0);
+        setIsServiceable(false);
     }
   }, [selectedAddressId, addresses, subTotal]);
 
@@ -398,7 +411,7 @@ export default function CheckoutPage() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center space-x-3">
                                         <RadioGroupItem value={address.id} id={address.id} />
-                                        <div className="font-semibold">{address.fullName} {address.isDefault && <span className="ml-2 text-xs font-bold text-primary">(Default)</span>}</div>
+                                        <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
                                     </div>
                                     <div className="text-xs text-muted-foreground">{address.type}</div>
                                 </div>
