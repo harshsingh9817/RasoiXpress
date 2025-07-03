@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -25,7 +26,7 @@ const center = {
   lng: 83.7919
 };
 
-const MAP_SCRIPT_ID = "gomaps-pro-script";
+const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
 interface LocationPickerProps {
     isOpen: boolean;
@@ -33,6 +34,35 @@ interface LocationPickerProps {
     onLocationSelect: (address: { street: string; village: string; city: string; pinCode: string; }) => void;
     apiUrl: string | undefined;
 }
+
+const loadScript = (src: string, id: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const existingScript = document.getElementById(id);
+      if (existingScript) {
+        // If script tag exists, check if google.maps is already available.
+        // It's possible the script is still loading, so we poll for it.
+        const checkGoogle = () => {
+          if (window.google && window.google.maps) {
+            resolve();
+          } else {
+            setTimeout(checkGoogle, 100);
+          }
+        };
+        checkGoogle();
+        return;
+      }
+  
+      const script = document.createElement('script');
+      script.src = src;
+      script.id = id;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(script);
+    });
+};
+
 
 export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect, apiUrl }: LocationPickerProps) {
     const { toast } = useToast();
@@ -45,7 +75,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
     const initMap = useCallback(() => {
         if (!mapRef.current || !window.google?.maps) return;
 
-        setIsLoading(false); // Hide spinner, show map container
+        setIsLoading(false);
 
         const map = new window.google.maps.Map(mapRef.current, {
             center,
@@ -82,37 +112,31 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
     }, []);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            // Reset loading state when dialog is closed so it shows again on reopen
+            setIsLoading(true);
+            return;
+        }
+        let isMounted = true;
 
         if (!apiUrl) {
             setIsLoading(false);
             return;
         }
         
-        setIsLoading(true);
-
-        if (window.google?.maps) {
-            initMap();
-            return;
-        }
-
-        window.initMap = initMap;
+        loadScript(apiUrl, MAP_SCRIPT_ID)
+            .then(() => {
+                if (isMounted) initMap();
+            })
+            .catch(err => {
+                console.error(err);
+                if (isMounted) {
+                    toast({ title: "Error", description: "Could not load map script.", variant: "destructive" });
+                    setIsLoading(false);
+                }
+            });
         
-        const existingScript = document.getElementById(MAP_SCRIPT_ID);
-        if (!existingScript) {
-            const script = document.createElement("script");
-            script.src = apiUrl;
-            script.id = MAP_SCRIPT_ID;
-            script.async = true;
-            script.defer = true;
-            script.onerror = () => {
-                toast({ title: "Error", description: "Could not load map script.", variant: "destructive" });
-                setIsLoading(false);
-            };
-            document.body.appendChild(script);
-        } else if (!window.google?.maps) {
-            // Script tag exists but window.google.maps is not there yet. The callback will handle it.
-        }
+        return () => { isMounted = false; }
         
     }, [isOpen, apiUrl, initMap, toast]);
 

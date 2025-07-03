@@ -259,7 +259,7 @@ export default function CheckoutPage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleLocationSelect = useCallback((address: { street: string; village: string; city: string; pinCode: string; }) => {
+  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
     setMapSelectedAddress({
         street: address.street,
         village: address.village,
@@ -273,7 +273,15 @@ export default function CheckoutPage() {
         city: address.city,
         pinCode: address.pinCode,
     }));
-  }, []);
+  };
+
+  const displayAddressParts = mapSelectedAddress ? [
+    mapSelectedAddress.street,
+    // Only add village if it's different and not empty
+    mapSelectedAddress.village && mapSelectedAddress.village.toLowerCase() !== mapSelectedAddress.street?.toLowerCase() ? mapSelectedAddress.village : null,
+    mapSelectedAddress.city,
+    mapSelectedAddress.pinCode
+  ].filter(Boolean).join(', ') : '';
 
 
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
@@ -326,7 +334,7 @@ export default function CheckoutPage() {
                     <div className="p-3 border rounded-md bg-muted/50">
                         <p className="font-semibold text-sm">Selected Location:</p>
                         <p className="text-sm text-muted-foreground">
-                            {mapSelectedAddress.street}, {mapSelectedAddress.village && `${mapSelectedAddress.village}, `}{mapSelectedAddress.city}, {mapSelectedAddress.pinCode}
+                            {displayAddressParts}
                         </p>
                     </div>
                 )}

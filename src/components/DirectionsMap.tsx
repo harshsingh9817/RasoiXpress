@@ -1,7 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
+import { useToast } from '@/hooks/use-toast';
 
 const containerStyle = {
   width: '100%',
@@ -10,18 +12,47 @@ const containerStyle = {
 };
 
 const RESTAURANT_LOCATION = 'Hanuman Mandir, Ghosi More, Nagra, Ballia, Uttar Pradesh 221711';
-const MAP_SCRIPT_ID = "gomaps-pro-script";
+const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
 interface DirectionsMapProps {
     destinationAddress: string;
     apiUrl: string | undefined;
 }
 
+const loadScript = (src: string, id: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const existingScript = document.getElementById(id);
+      if (existingScript) {
+        // If script tag exists, check if google.maps is already available
+        const checkGoogle = () => {
+          if (window.google && window.google.maps) {
+            resolve();
+          } else {
+            // It's possible the script is still loading, wait and check again
+            setTimeout(checkGoogle, 100);
+          }
+        };
+        checkGoogle();
+        return;
+      }
+  
+      const script = document.createElement('script');
+      script.src = src;
+      script.id = id;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(script);
+    });
+};
+
 export default function DirectionsMap({ destinationAddress, apiUrl }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+    const { toast } = useToast();
+
     const initMap = useCallback(() => {
         if (!mapRef.current || !window.google?.maps) return;
 
@@ -56,10 +87,11 @@ export default function DirectionsMap({ destinationAddress, apiUrl }: Directions
                 }
             }
         );
-
     }, [destinationAddress]);
     
     useEffect(() => {
+        let isMounted = true;
+
         if (!apiUrl) {
             setError("Map API URL is not configured.");
             setIsLoading(false);
@@ -68,30 +100,22 @@ export default function DirectionsMap({ destinationAddress, apiUrl }: Directions
 
         setIsLoading(true);
 
-        if (window.google?.maps) {
-            initMap();
-            return;
-        }
-        
-        window.initMap = initMap;
+        loadScript(apiUrl, MAP_SCRIPT_ID)
+            .then(() => {
+                if (isMounted) initMap();
+            })
+            .catch(err => {
+                console.error(err);
+                if (isMounted) {
+                    setError("Could not load map script.");
+                    toast({ title: "Error", description: "Could not load the map.", variant: "destructive" });
+                    setIsLoading(false);
+                }
+            });
 
-        const existingScript = document.getElementById(MAP_SCRIPT_ID);
-        if (!existingScript) {
-            const script = document.createElement("script");
-            script.src = apiUrl;
-            script.id = MAP_SCRIPT_ID;
-            script.async = true;
-            script.defer = true;
-            script.onerror = () => {
-                setError("Could not load map script.");
-                setIsLoading(false);
-            };
-            document.body.appendChild(script);
-        } else if (!window.google?.maps) {
-            // Script exists, waiting for callback
-        }
+        return () => { isMounted = false; }
 
-    }, [apiUrl, initMap]);
+    }, [apiUrl, initMap, toast]);
 
 
     return (
