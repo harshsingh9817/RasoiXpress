@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
@@ -49,6 +48,10 @@ export default function CheckoutPage() {
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState('');
 
+  // New state to hold data from the map picker
+  const [mapData, setMapData] = useState<{ street: string; village: string; city: string; pinCode: string } | null>(null);
+
+
   const subTotal = getCartTotal();
   const deliveryFee = subTotal > 0 && subTotal < 300 ? 30 : 0;
   const totalTax = cartItems.reduce((acc, item) => {
@@ -71,7 +74,7 @@ export default function CheckoutPage() {
             setSelectedAddressId(defaultAddress.id);
             setIsAddressFormOpen(false);
         } else {
-            setIsAddressFormOpen(true);
+            setIsAddressFormOpen(true); // If no address, open the form area.
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
@@ -254,61 +257,27 @@ export default function CheckoutPage() {
     setAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleLocationSelect = async (address: { street: string; village: string; city: string; pinCode: string; }) => {
-    if (!user) return;
-    
-    const addressStub = {
-        village: address.village,
-        city: address.city,
-        pinCode: address.pinCode,
-        street: address.street, // This will be the auto-detected one, can be overridden by user
-    };
-
+  // Modified: This now just prepares the form
+  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
+    setMapData(address);
+    setAddressFormData({
+        fullName: user?.displayName || '',
+        street: address.street,
+        phone: '',
+        type: 'Home',
+    });
     setMapSelectedLocation([address.village, address.city, address.pinCode].filter(Boolean).join(', '));
-
-    setIsSavingAddress(true);
-    try {
-        const newAddressData = {
-            fullName: addressFormData.fullName || user.displayName || 'New Address',
-            type: addressFormData.type || 'Home',
-            street: address.street,
-            village: address.village,
-            city: address.city,
-            pinCode: address.pinCode,
-            phone: addressFormData.phone || '',
-            alternatePhone: addressFormData.alternatePhone || '',
-            isDefault: addresses.length === 0,
-        };
-
-        const newAddress = await addAddress(user.uid, newAddressData as Omit<AddressType, 'id'>);
-        if (newAddress.isDefault) {
-            await setDefaultAddress(user.uid, newAddress.id);
-        }
-        
-        toast({ title: "Address Saved!" });
-        await loadPageData();
-        setSelectedAddressId(newAddress.id);
-        
-        setAddressFormData({
-            ...newAddressData,
-            ...address,
-            fullName: addressFormData.fullName,
-            phone: addressFormData.phone,
-            street: '', // Clear street so user can enter house #
-        });
-        setIsAddressFormOpen(true);
-
-    } catch (error) {
-        console.error("Failed to save address", error);
-        toast({ title: "Error", description: "Could not save the new address.", variant: "destructive" });
-    } finally {
-        setIsSavingAddress(false);
-    }
+    setIsAddressFormOpen(true);
+    setIsMapOpen(false);
   };
   
+  // Modified: This is now the final save function
   const handleSaveAddress = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !mapData) {
+        toast({ title: "Location Data Missing", description: "Please pick a location on the map first.", variant: "destructive" });
+        return;
+    };
     
     if (!addressFormData.fullName || !addressFormData.street || !addressFormData.phone) {
         toast({ title: "Missing Details", description: "Please fill in your name, house/street, and phone number.", variant: "destructive" });
@@ -321,11 +290,11 @@ export default function CheckoutPage() {
         fullName: addressFormData.fullName,
         type: addressFormData.type || 'Home',
         street: addressFormData.street,
-        village: addressFormData.village || '',
-        city: addressFormData.city || '',
-        pinCode: addressFormData.pinCode || '',
+        village: mapData.village || '',
+        city: mapData.city || '',
+        pinCode: mapData.pinCode || '',
         phone: addressFormData.phone,
-        alternatePhone: addressFormData.alternatePhone || '',
+        alternatePhone: '',
         isDefault: addresses.length === 0,
       };
 
@@ -336,11 +305,13 @@ export default function CheckoutPage() {
       }
       
       toast({ title: "Address Saved!" });
+      // Reset everything after save
       setIsAddressFormOpen(false);
       setMapSelectedLocation('');
       setAddressFormData(defaultAddressFormData);
-      await loadPageData();
-      setSelectedAddressId(newAddress.id);
+      setMapData(null);
+      await loadPageData(); // This will refresh the address list
+      setSelectedAddressId(newAddress.id); // And this will select the new address
 
     } catch (error) {
         console.error("Failed to save address", error);
@@ -436,7 +407,7 @@ export default function CheckoutPage() {
                                     {isSavingAddress ? <Loader2 className="animate-spin" /> : <PlusCircle className="mr-2" />}
                                     {isSavingAddress ? 'Saving...' : 'Save & Use This Address'}
                                 </Button>
-                                <Button variant="ghost" onClick={() => { setIsAddressFormOpen(false); setMapSelectedLocation(''); }}>Cancel</Button>
+                                <Button variant="ghost" onClick={() => { setIsAddressFormOpen(false); setMapSelectedLocation(''); setMapData(null); }}>Cancel</Button>
                                 </div>
                             </div>
                         </form>
