@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 
 const containerStyle = {
@@ -10,7 +9,6 @@ const containerStyle = {
   borderRadius: '0.5rem',
 };
 
-// Hanuman Mandir Ghosi More Nagra coordinates
 const RESTAURANT_LOCATION = 'Hanuman Mandir, Ghosi More, Nagra, Ballia, Uttar Pradesh 221711';
 const MAP_SCRIPT_ID = "gomaps-pro-script";
 
@@ -21,11 +19,46 @@ interface DirectionsMapProps {
 
 export default function DirectionsMap({ destinationAddress, apiUrl }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
-    const [isScriptReady, setIsScriptReady] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
-    // Effect to load the GoMaps script
+    const initMap = useCallback(() => {
+        if (!mapRef.current || !window.google?.maps) return;
+
+        setIsLoading(false);
+        setError(null);
+        
+        const map = new window.google.maps.Map(mapRef.current, {
+            zoom: 12,
+            center: { lat: 26.1555, lng: 83.7919 }, // Default center
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+        });
+
+        const directionsService = new window.google.maps.DirectionsService();
+        const directionsRenderer = new window.google.maps.DirectionsRenderer();
+        
+        directionsRenderer.setMap(map);
+
+        directionsService.route(
+            {
+                origin: RESTAURANT_LOCATION,
+                destination: destinationAddress,
+                travelMode: window.google.maps.TravelMode.DRIVING,
+            },
+            (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK && result) {
+                    directionsRenderer.setDirections(result);
+                } else {
+                    console.error(`Error fetching directions: ${status}`);
+                    setError(`Could not load directions. The address might be invalid or unreachable.`);
+                }
+            }
+        );
+
+    }, [destinationAddress]);
+    
     useEffect(() => {
         if (!apiUrl) {
             setError("Map API URL is not configured.");
@@ -33,14 +66,14 @@ export default function DirectionsMap({ destinationAddress, apiUrl }: Directions
             return;
         }
 
-        const setReady = () => setIsScriptReady(true);
+        setIsLoading(true);
 
-        if ((window as any).google && (window as any).google.maps) {
-            setReady();
+        if (window.google?.maps) {
+            initMap();
             return;
         }
         
-        (window as any).initMap = setReady;
+        window.initMap = initMap;
 
         const existingScript = document.getElementById(MAP_SCRIPT_ID);
         if (!existingScript) {
@@ -49,58 +82,16 @@ export default function DirectionsMap({ destinationAddress, apiUrl }: Directions
             script.id = MAP_SCRIPT_ID;
             script.async = true;
             script.defer = true;
+            script.onerror = () => {
+                setError("Could not load map script.");
+                setIsLoading(false);
+            };
             document.body.appendChild(script);
-        } else {
-             if (!(window as any).google || !(window as any).google.maps) {
-                // The script is there but hasn't finished loading, the callback will handle it.
-            } else {
-                setReady();
-            }
+        } else if (!window.google?.maps) {
+            // Script exists, waiting for callback
         }
 
-        return () => {
-            if ((window as any).initMap === setReady) {
-                delete (window as any).initMap;
-            }
-        };
-    }, [apiUrl]);
-
-    useEffect(() => {
-        if (isScriptReady && mapRef.current) {
-            setIsLoading(true);
-            setError(null);
-            
-            const map = new window.google.maps.Map(mapRef.current, {
-                zoom: 12,
-                center: { lat: 26.1555, lng: 83.7919 }, // Default center
-                streetViewControl: false,
-                mapTypeControl: false,
-                fullscreenControl: false,
-            });
-
-            const directionsService = new window.google.maps.DirectionsService();
-            const directionsRenderer = new window.google.maps.DirectionsRenderer();
-            
-            directionsRenderer.setMap(map);
-
-            directionsService.route(
-                {
-                    origin: RESTAURANT_LOCATION,
-                    destination: destinationAddress,
-                    travelMode: window.google.maps.TravelMode.DRIVING,
-                },
-                (result, status) => {
-                    if (status === window.google.maps.DirectionsStatus.OK && result) {
-                        directionsRenderer.setDirections(result);
-                    } else {
-                        console.error(`Error fetching directions: ${status}`);
-                        setError(`Could not load directions. The address might be invalid or unreachable.`);
-                    }
-                    setIsLoading(false);
-                }
-            );
-        }
-    }, [isScriptReady, destinationAddress]);
+    }, [apiUrl, initMap]);
 
 
     return (
