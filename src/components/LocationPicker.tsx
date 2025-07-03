@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -11,17 +10,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { addAddress, getAddresses } from '@/lib/data';
+import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, User, Home, Phone } from 'lucide-react';
 
-const containerStyle = {
+const containerStyle: React.CSSProperties = {
   width: '100%',
-  height: '400px',
+  height: '100%',
   borderRadius: '0.5rem',
 };
 
-const center = {
+const defaultCenter = {
   lat: 26.1555,
   lng: 83.7919
 };
@@ -31,7 +35,7 @@ const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onLocationSelect: (address: { street: string; village: string; city: string; pinCode: string; }) => void;
+    onSaveSuccess: () => void;
     apiUrl: string | undefined;
 }
 
@@ -39,8 +43,6 @@ const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       const existingScript = document.getElementById(id);
       if (existingScript) {
-        // If script tag exists, check if google.maps is already available.
-        // It's possible the script is still loading, so we poll for it.
         const checkGoogle = () => {
           if (window.google && window.google.maps) {
             resolve();
@@ -64,13 +66,20 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect, apiUrl }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl }: LocationPickerProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
+    
     const mapRef = useRef<HTMLDivElement>(null);
-    const markerRef = useRef<google.maps.Marker | null>(null);
-    const [currentPosition, setCurrentPosition] = useState(center);
+    const mapInstanceRef = useRef<google.maps.Map | null>(null);
+
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Form state
+    const [fullName, setFullName] = useState('');
+    const [street, setStreet] = useState('');
+    const [phone, setPhone] = useState('');
 
     const initMap = useCallback(() => {
         if (!mapRef.current || !window.google?.maps) return;
@@ -78,43 +87,27 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
         setIsLoading(false);
 
         const map = new window.google.maps.Map(mapRef.current, {
-            center,
-            zoom: 14,
+            center: defaultCenter,
+            zoom: 15,
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
         });
-
-        markerRef.current = new window.google.maps.Marker({
-            position: center,
-            map: map,
-            draggable: true,
-        });
-
-        const handlePositionChange = () => {
-            if (markerRef.current) {
-                const pos = markerRef.current.getPosition();
-                if (pos) {
-                    setCurrentPosition({ lat: pos.lat(), lng: pos.lng() });
-                }
-            }
-        };
-
-        map.addListener('click', (e: google.maps.MapMouseEvent) => {
-            if (e.latLng && markerRef.current) {
-                markerRef.current.setPosition(e.latLng);
-                handlePositionChange();
-            }
-        });
-
-        markerRef.current.addListener('dragend', handlePositionChange);
+        mapInstanceRef.current = map;
 
     }, []);
 
     useEffect(() => {
+        if (user?.displayName) {
+            setFullName(user.displayName);
+        }
+    }, [user, isOpen]);
+    
+    useEffect(() => {
         if (!isOpen) {
-            // Reset loading state when dialog is closed so it shows again on reopen
             setIsLoading(true);
+            setStreet('');
+            setPhone('');
             return;
         }
         let isMounted = true;
@@ -140,13 +133,33 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
         
     }, [isOpen, apiUrl, initMap, toast]);
 
-    const handleConfirmLocation = async () => {
+    const handleSaveAddress = async () => {
+        if (!user) {
+            toast({ title: "Error", description: "You must be logged in to save an address.", variant: "destructive" });
+            return;
+        }
+        if (!fullName || !street || !phone) {
+            toast({ title: "Missing Details", description: "Please fill in all the required fields.", variant: "destructive" });
+            return;
+        }
+        if (!mapInstanceRef.current) {
+            toast({ title: "Map Error", description: "The map is not initialized. Please try again.", variant: "destructive" });
+            return;
+        }
+
         setIsProcessing(true);
         try {
+            const currentPosition = mapInstanceRef.current.getCenter();
+            if (!currentPosition) {
+                throw new Error('Could not get map center position.');
+            }
+            const lat = currentPosition.lat();
+            const lng = currentPosition.lng();
+
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat: currentPosition.lat, lng: currentPosition.lng }),
+                body: JSON.stringify({ lat, lng }),
             });
 
             const data = await response.json();
@@ -154,18 +167,28 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
                 throw new Error(data.error || 'Failed to get address.');
             }
             
-            onLocationSelect({
-                street: data.street || '',
+            const existingAddresses = await getAddresses(user.uid);
+
+            const addressToSave: Omit<Address, 'id'> = {
+                fullName,
+                type: 'Home', // Defaulting to Home, can be changed later
+                street, // This is now the house/building number
                 village: data.village || '',
                 city: data.city || '',
                 pinCode: data.pinCode || '',
-            });
+                phone,
+                alternatePhone: '',
+                isDefault: existingAddresses.length === 0,
+            };
 
-            toast({ title: "Location Set!", description: "Address fields have been updated." });
+            await addAddress(user.uid, addressToSave);
+
+            toast({ title: "Address Saved!", description: "The new address has been added to your profile." });
+            onSaveSuccess();
             onOpenChange(false);
 
         } catch (error: any) {
-            console.error("Reverse geocoding error:", error);
+            console.error("Save address error:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
             setIsProcessing(false);
@@ -176,32 +199,52 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect,
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>Pick Your Location</DialogTitle>
+                    <DialogTitle>Add a New Address</DialogTitle>
                     <DialogDescription>
-                        Click on the map or drag the pin to set your delivery location.
+                        Pan the map to position the pin at your delivery location, then confirm your details below.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 relative h-[400px]">
-                     {isLoading && (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                            <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-                            <p className="text-muted-foreground mt-4">Loading Map...</p>
+                <div className="py-4 space-y-4">
+                    <div className="relative h-[300px] w-full rounded-md overflow-hidden border">
+                         {isLoading && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                                <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
+                                <p className="text-muted-foreground mt-4">Loading Map...</p>
+                            </div>
+                        )}
+                        {!apiUrl && !isLoading && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                                <p className="text-destructive font-semibold">Map is not configured.</p>
+                            </div>
+                        )}
+                        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                            <MapPin className="h-10 w-10 text-primary drop-shadow-lg" style={{ transform: 'translateY(-50%)' }} />
                         </div>
-                    )}
-                    {!apiUrl && !isLoading && (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                            <p className="text-destructive font-semibold">Map is not configured.</p>
+                        <div ref={mapRef} style={containerStyle} />
+                    </div>
+                    <div className="space-y-3">
+                        <Label>Confirm Your Details</Label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-9" />
                         </div>
-                    )}
-                    <div ref={mapRef} style={containerStyle} />
+                        <div className="relative">
+                           <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                           <Input placeholder="House No. / Building Name / Street" value={street} onChange={(e) => setStreet(e.target.value)} className="pl-9" />
+                        </div>
+                        <div className="relative">
+                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                           <Input type="tel" placeholder="10-digit Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleConfirmLocation} disabled={isLoading || isProcessing || !apiUrl}>
+                    <Button onClick={handleSaveAddress} disabled={isLoading || isProcessing || !apiUrl}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
-                        {isProcessing ? 'Processing...' : 'Confirm Location'}
+                        {isProcessing ? 'Saving...' : 'Save Address'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

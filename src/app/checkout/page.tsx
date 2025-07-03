@@ -2,28 +2,36 @@
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, Home, PackageCheck, User as UserIcon, Building, Briefcase, MapPin, PlusCircle, Phone } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, addAddress, updateAddress, setDefaultAddress } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogContent, DialogHeader as EditDialogHeader, DialogTitle as EditDialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 
 declare global { interface Window { Razorpay: any; } }
-
-const defaultAddressFormData: Partial<AddressType> = { type: 'Home' };
 
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
@@ -41,15 +49,14 @@ export default function CheckoutPage() {
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
-  const [addressFormData, setAddressFormData] = useState<Partial<AddressType>>(defaultAddressFormData);
-  const [isSavingAddress, setIsSavingAddress] = useState(false);
-
   const [isMapOpen, setIsMapOpen] = useState(false);
-  const [mapSelectedLocation, setMapSelectedLocation] = useState('');
-
-  // New state to hold data from the map picker
-  const [mapData, setMapData] = useState<{ street: string; village: string; city: string; pinCode: string } | null>(null);
+  
+  const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
+  const [isEditAddressDialogOpen, setIsEditAddressDialogOpen] = useState(false);
+  const [editAddressFormData, setEditAddressFormData] = useState<Partial<AddressType>>({});
+  
+  const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
+  const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
 
 
   const subTotal = getCartTotal();
@@ -67,14 +74,14 @@ export default function CheckoutPage() {
         const settings = await getPaymentSettings();
         setPaymentSettings(settings);
         const userAddresses = await getAddresses(user.uid);
-        setAddresses(userAddresses.sort((a, b) => (b.isDefault ? 1 : -1) - (a.isDefault ? 1 : -1)));
+        const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+        setAddresses(sortedAddresses);
 
-        if (userAddresses.length > 0) {
-            const defaultAddress = userAddresses.find(addr => addr.isDefault) || userAddresses[0];
+        if (sortedAddresses.length > 0 && !selectedAddressId) {
+            const defaultAddress = sortedAddresses.find(addr => addr.isDefault) || sortedAddresses[0];
             setSelectedAddressId(defaultAddress.id);
-            setIsAddressFormOpen(false);
-        } else {
-            setIsAddressFormOpen(true); // If no address, open the form area.
+        } else if (sortedAddresses.length === 0) {
+            setSelectedAddressId(null);
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
@@ -82,7 +89,7 @@ export default function CheckoutPage() {
     } finally {
         setIsDataLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, selectedAddressId]);
   
   useEffect(() => {
     if (isAuthLoading) return;
@@ -253,72 +260,43 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  // Modified: This now just prepares the form
-  const handleLocationSelect = (address: { street: string; village: string; city: string; pinCode: string; }) => {
-    setMapData(address);
-    setAddressFormData({
-        fullName: user?.displayName || '',
-        street: address.street,
-        phone: '',
-        type: 'Home',
-    });
-    setMapSelectedLocation([address.village, address.city, address.pinCode].filter(Boolean).join(', '));
-    setIsAddressFormOpen(true);
-    setIsMapOpen(false);
+  const handleSetDefault = async (addressId: string) => {
+      if (!user) return;
+      await setDefaultAddress(user.uid, addressId);
+      await loadPageData();
+      toast({ title: "Default address updated!" });
   };
   
-  // Modified: This is now the final save function
-  const handleSaveAddress = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user || !mapData) {
-        toast({ title: "Location Data Missing", description: "Please pick a location on the map first.", variant: "destructive" });
-        return;
-    };
-    
-    if (!addressFormData.fullName || !addressFormData.street || !addressFormData.phone) {
-        toast({ title: "Missing Details", description: "Please fill in your name, house/street, and phone number.", variant: "destructive" });
-        return;
-    }
-    
-    setIsSavingAddress(true);
-    try {
-      const addressToSave: Omit<AddressType, 'id'> = {
-        fullName: addressFormData.fullName,
-        type: addressFormData.type || 'Home',
-        street: addressFormData.street,
-        village: mapData.village || '',
-        city: mapData.city || '',
-        pinCode: mapData.pinCode || '',
-        phone: addressFormData.phone,
-        alternatePhone: '',
-        isDefault: addresses.length === 0,
-      };
+  const handleOpenEditDialog = (address: AddressType) => {
+      setAddressToEdit(address);
+      setEditAddressFormData(address);
+      setIsEditAddressDialogOpen(true);
+  };
+  
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEditAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-      const newAddress = await addAddress(user.uid, addressToSave);
+  const handleUpdateAddress = async (e: FormEvent) => {
+      e.preventDefault();
+      if (!user || !addressToEdit) return;
+      await updateAddress(user.uid, { ...addressToEdit, ...editAddressFormData });
+      await loadPageData();
+      setIsEditAddressDialogOpen(false);
+      toast({ title: "Address updated successfully!" });
+  };
 
-      if(newAddress.isDefault) {
-          await setDefaultAddress(user.uid, newAddress.id);
-      }
-      
-      toast({ title: "Address Saved!" });
-      // Reset everything after save
-      setIsAddressFormOpen(false);
-      setMapSelectedLocation('');
-      setAddressFormData(defaultAddressFormData);
-      setMapData(null);
-      await loadPageData(); // This will refresh the address list
-      setSelectedAddressId(newAddress.id); // And this will select the new address
+  const handleOpenDeleteDialog = (address: AddressType) => {
+    setAddressToDelete(address);
+    setIsDeleteAddressDialogOpen(true);
+  };
 
-    } catch (error) {
-        console.error("Failed to save address", error);
-        toast({ title: "Error", description: "Could not save the new address.", variant: "destructive" });
-    } finally {
-        setIsSavingAddress(false);
-    }
+  const confirmDeleteAddress = async () => {
+    if (!user || !addressToDelete) return;
+    await deleteAddress(user.uid, addressToDelete.id);
+    await loadPageData();
+    setIsDeleteAddressDialogOpen(false);
+    toast({ title: "Address removed." });
   };
 
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
@@ -359,60 +337,47 @@ export default function CheckoutPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Shipping Address</CardTitle>
-                <CardDescription>Select an address or add a new one.</CardDescription>
+                <CardDescription>Select an address or add a new one using the map.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <RadioGroup value={selectedAddressId || ''} onValueChange={setSelectedAddressId} className="space-y-4">
-                    {addresses.map(address => (
-                        <Label key={address.id} htmlFor={address.id} className={cn("flex flex-col p-4 border rounded-lg cursor-pointer", selectedAddressId === address.id && "border-primary ring-2 ring-primary")}>
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center space-x-3">
-                                    <RadioGroupItem value={address.id} id={address.id} />
-                                    <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
-                                </div>
-                                <div className="text-xs text-muted-foreground">{address.type}</div>
-                            </div>
-                            <div className="pl-8 pt-2 text-sm text-muted-foreground">
-                                <p>{address.street}, {address.village}</p>
-                                <p>{address.city}, {address.pinCode}</p>
-                                <p className="flex items-center mt-1"><Phone className="mr-2 h-3 w-3" /> {address.phone}</p>
-                            </div>
-                        </Label>
-                    ))}
-                </RadioGroup>
+            <CardContent className="space-y-4">
+                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsMapOpen(true)}>
+                    <MapPin className="mr-2 h-5 w-5" />
+                    Add New Address via Map
+                </Button>
 
                 <Separator className="my-6" />
-
-                <div className="space-y-4">
-                    <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsMapOpen(true)}>
-                        <MapPin className="mr-2 h-5 w-5" />
-                        {isSavingAddress ? 'Detecting...' : (addresses.length > 0 ? 'Add New Address via Map' : 'Add Address via Map')}
-                    </Button>
-                    
-                    {isAddressFormOpen && (
-                        <form onSubmit={handleSaveAddress}>
-                            <div className="p-4 border rounded-md bg-muted/50 space-y-4">
-                                <h3 className="font-semibold text-lg">Confirm Address Details</h3>
-                                {mapSelectedLocation && (
-                                    <div className="p-3 border rounded-md bg-background text-sm text-muted-foreground">
-                                        <span className="font-semibold text-foreground">Selected Location:</span> {mapSelectedLocation}
+                
+                <RadioGroup value={selectedAddressId || ''} onValueChange={setSelectedAddressId} className="space-y-4">
+                    {addresses.length > 0 ? (
+                        addresses.map(address => (
+                            <Label key={address.id} htmlFor={address.id} className={cn("flex flex-col p-4 border rounded-lg cursor-pointer transition-all", selectedAddressId === address.id && "border-primary ring-2 ring-primary")}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <RadioGroupItem value={address.id} id={address.id} />
+                                        <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
                                     </div>
-                                )}
-                                <div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input id="fullName" name="fullName" value={addressFormData.fullName || ''} onChange={handleInputChange} required placeholder="e.g. Sunil Kumar"/></div>
-                                <div className="space-y-2"><Label htmlFor="street">House No. / Street / Building</Label><Input id="street" name="street" placeholder="e.g. House No. 123, ABC Lane" value={addressFormData.street || ''} onChange={handleInputChange} required /></div>
-                                <div className="space-y-2"><Label htmlFor="phone">Phone Number</Label><Input id="phone" name="phone" type="tel" value={addressFormData.phone || ''} onChange={handleInputChange} required placeholder="10-digit mobile"/></div>
-                                
-                                <div className="flex gap-2 pt-2">
-                                <Button type="submit" disabled={isSavingAddress}>
-                                    {isSavingAddress ? <Loader2 className="animate-spin" /> : <PlusCircle className="mr-2" />}
-                                    {isSavingAddress ? 'Saving...' : 'Save & Use This Address'}
-                                </Button>
-                                <Button variant="ghost" onClick={() => { setIsAddressFormOpen(false); setMapSelectedLocation(''); setMapData(null); }}>Cancel</Button>
+                                    <div className="text-xs text-muted-foreground">{address.type}</div>
                                 </div>
-                            </div>
-                        </form>
+                                <div className="pl-8 pt-2 text-sm text-muted-foreground">
+                                    <p>{address.street}, {address.village}</p>
+                                    <p>{address.city}, {address.pinCode}</p>
+                                    <p className="flex items-center mt-1"><Phone className="mr-2 h-3 w-3" /> {address.phone}</p>
+                                </div>
+                                <div className="pl-8 pt-3 flex gap-2 items-center">
+                                    {!address.isDefault && (
+                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary" onClick={(e) => {e.preventDefault(); handleSetDefault(address.id)}}>Set as Default</Button>
+                                    )}
+                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={(e) => {e.preventDefault(); handleOpenEditDialog(address)}}>Edit</Button>
+                                    {!address.isDefault && (
+                                        <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={(e) => {e.preventDefault(); handleOpenDeleteDialog(address)}}>Delete</Button>
+                                    )}
+                                </div>
+                            </Label>
+                        ))
+                    ) : (
+                        <p className="text-muted-foreground text-center py-4">No addresses found. Please add one to continue.</p>
                     )}
-                </div>
+                </RadioGroup>
             </CardContent>
         </Card>
       </div>
@@ -440,9 +405,42 @@ export default function CheckoutPage() {
     <LocationPicker 
         isOpen={isMapOpen} 
         onOpenChange={setIsMapOpen} 
-        onLocationSelect={handleLocationSelect}
+        onSaveSuccess={loadPageData}
         apiUrl={paymentSettings?.mapApiUrl}
      />
+     
+    <Dialog open={isEditAddressDialogOpen} onOpenChange={setIsEditAddressDialogOpen}>
+      <EditDialogContent>
+        <EditDialogHeader>
+          <EditDialogTitle>Edit Address</EditDialogTitle>
+        </EditDialogHeader>
+        <form onSubmit={handleUpdateAddress} className="space-y-4">
+          <Input name="fullName" value={editAddressFormData.fullName || ''} onChange={handleEditFormChange} placeholder="Full Name" />
+          <Input name="street" value={editAddressFormData.street || ''} onChange={handleEditFormChange} placeholder="House / Street" />
+          <Input name="village" value={editAddressFormData.village || ''} onChange={handleEditFormChange} placeholder="Village / Area" />
+          <Input name="city" value={editAddressFormData.city || ''} onChange={handleEditFormChange} placeholder="City" />
+          <Input name="pinCode" value={editAddressFormData.pinCode || ''} onChange={handleEditFormChange} placeholder="Pin Code" />
+          <Input name="phone" value={editAddressFormData.phone || ''} onChange={handleEditFormChange} placeholder="Phone" />
+          <EditDialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEditAddressDialogOpen(false)}>Cancel</Button>
+            <Button type="submit">Save Changes</Button>
+          </EditDialogFooter>
+        </form>
+      </EditDialogContent>
+    </Dialog>
+
+    <AlertDialog open={isDeleteAddressDialogOpen} onOpenChange={setIsDeleteAddressDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this address.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteAddress} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
