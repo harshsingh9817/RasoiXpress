@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 export interface Restaurant {
   id: string;
   name: string;
@@ -67,7 +59,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'Razorpay';
+  paymentMethod: 'Razorpay' | 'Cash on Delivery';
   cancellationReason?: string;
   review?: Review; // Added for review
   customerPhone?: string;
@@ -124,6 +116,8 @@ export interface HeroData {
 export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
+  isRazorpayEnabled: boolean;
+  mapApiUrl: string;
 }
 
 export interface DailyChartData {

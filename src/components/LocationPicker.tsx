@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -26,16 +27,16 @@ const center = {
   lng: 83.7919
 };
 
-const GOMAPS_API_KEY = "AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc";
 const MAP_SCRIPT_ID = "gomaps-pro-script";
 
 interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onLocationSelect: (address: { street: string; village: string; city: string; pinCode: string; }) => void;
+    apiUrl: string | undefined;
 }
 
-export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect, apiUrl }: LocationPickerProps) {
     const { toast } = useToast();
     const mapRef = useRef<HTMLDivElement>(null);
     const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
@@ -51,50 +52,48 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
             setMapInstance(null);
             setMarkerInstance(null);
             setIsLoadingMap(true); // Reset loading state for next open
+            setIsScriptReady(false); // Reset script readiness
         }
     }, [isOpen]);
     
     // Effect to load the GoMaps script
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !apiUrl) return;
 
-        const setReady = () => {
-            setIsScriptReady(true);
-        };
+        const setReady = () => setIsScriptReady(true);
         
-        if ((window as any).google && (window as any).google.maps) {
+        // If script is already on page and google object exists, just set ready
+        if (document.getElementById(MAP_SCRIPT_ID) && (window as any).google?.maps) {
             setReady();
             return;
         }
 
+        // Define the callback function on the window object
         (window as any).initMap = setReady;
 
+        // Create and append the script tag if it doesn't exist
         const existingScript = document.getElementById(MAP_SCRIPT_ID);
         if (!existingScript) {
             const script = document.createElement("script");
-            script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places&callback=initMap`;
+            script.src = apiUrl;
             script.id = MAP_SCRIPT_ID;
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);
-        } else {
-             if (!(window as any).google || !(window as any).google.maps) {
-                // The script is there but hasn't finished loading, the callback will handle it.
-            } else {
-                setReady();
-            }
         }
 
+        // Cleanup function to remove callback from window
         return () => {
             if ((window as any).initMap === setReady) {
                 delete (window as any).initMap;
             }
         };
-    }, [isOpen]);
+    }, [isOpen, apiUrl]);
 
     // Initialize map
     useEffect(() => {
         if (isOpen && isScriptReady && mapRef.current && !mapInstance) {
+            setIsLoadingMap(false); // Map instance is created, hide loader
             const map = new window.google.maps.Map(mapRef.current, {
                 center,
                 zoom: 14,
@@ -103,7 +102,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onLocationSelect 
                 fullscreenControl: false,
             });
             setMapInstance(map);
-            setIsLoadingMap(false); // Map instance is created, hide loader
 
             map.addListener('click', (e: google.maps.MapMouseEvent) => {
                 if (e.latLng) {

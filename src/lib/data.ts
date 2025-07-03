@@ -44,6 +44,8 @@ const defaultHeroData: HeroData = {
 const defaultPaymentSettings: PaymentSettings = {
     upiId: 'rasoixpress@okbank',
     qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay',
+    isRazorpayEnabled: true,
+    mapApiUrl: 'https://maps.gomaps.pro/maps/api/js?key=AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc&libraries=places&callback=initMap',
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {
@@ -384,10 +386,12 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         await setDoc(docRef, defaultPaymentSettings);
         return defaultPaymentSettings;
     }
-    return docSnap.data() as PaymentSettings;
+    const data = docSnap.data();
+    // Merge with defaults to ensure new fields are present even if not in Firestore
+    return { ...defaultPaymentSettings, ...data };
 }
 
-export async function updatePaymentSettings(data: PaymentSettings): Promise<void> {
+export async function updatePaymentSettings(data: Partial<PaymentSettings>): Promise<void> {
     const docRef = doc(db, 'globals', 'paymentSettings');
     await setDoc(docRef, data, { merge: true });
 }

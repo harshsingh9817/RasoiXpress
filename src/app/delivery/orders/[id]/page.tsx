@@ -7,12 +7,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Bike, PackageCheck, ChefHat, User, PhoneCall, KeyRound, MapPin, ClipboardList, ArrowLeft, QrCode, CreditCard } from 'lucide-react';
-import type { Order, OrderStatus, OrderItem } from '@/lib/types';
+import type { Order, OrderStatus, OrderItem, PaymentSettings } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery } from '@/lib/data';
+import { updateOrderStatus, listenToOrderById, acceptOrderForDelivery, getPaymentSettings } from '@/lib/data';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
@@ -37,6 +37,7 @@ export default function DeliveryOrderDetailPage() {
   const { isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [enteredCode, setEnteredCode] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
@@ -53,11 +54,16 @@ export default function DeliveryOrderDetailPage() {
         setIsDataLoading(true);
         const unsubscribe = listenToOrderById(orderId, (fetchedOrder) => {
             setOrder(fetchedOrder);
-            setIsDataLoading(false);
+            if(isDataLoading) setIsDataLoading(false);
         });
+
+        getPaymentSettings().then(settings => {
+            setPaymentSettings(settings);
+        });
+
         return () => unsubscribe();
     }
-  }, [isDelivery, isAuthLoading, orderId, router]);
+  }, [isDelivery, isAuthLoading, orderId, router, isDataLoading]);
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     if (!order) return;
@@ -202,9 +208,9 @@ export default function DeliveryOrderDetailPage() {
                  <div className="p-4 border rounded-lg space-y-3">
                     <h3 className="font-semibold flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Shipping Address</h3>
                     <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
-                    {isMyDelivery && (
+                    {isMyDelivery && paymentSettings && (
                         <div className="pt-2">
-                           <DirectionsMap destinationAddress={order.shippingAddress} />
+                           <DirectionsMap destinationAddress={order.shippingAddress} apiUrl={paymentSettings.mapApiUrl} />
                         </div>
                     )}
                 </div>

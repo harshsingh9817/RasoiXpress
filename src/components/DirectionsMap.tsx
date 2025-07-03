@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -11,14 +12,14 @@ const containerStyle = {
 
 // Hanuman Mandir Ghosi More Nagra coordinates
 const RESTAURANT_LOCATION = 'Hanuman Mandir, Ghosi More, Nagra, Ballia, Uttar Pradesh 221711';
-const GOMAPS_API_KEY = "AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc";
 const MAP_SCRIPT_ID = "gomaps-pro-script";
 
 interface DirectionsMapProps {
     destinationAddress: string;
+    apiUrl: string | undefined;
 }
 
-export default function DirectionsMap({ destinationAddress }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, apiUrl }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const [isScriptReady, setIsScriptReady] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +27,12 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
     
     // Effect to load the GoMaps script
     useEffect(() => {
+        if (!apiUrl) {
+            setError("Map API URL is not configured.");
+            setIsLoading(false);
+            return;
+        }
+
         const setReady = () => setIsScriptReady(true);
 
         if ((window as any).google && (window as any).google.maps) {
@@ -38,11 +45,17 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
         const existingScript = document.getElementById(MAP_SCRIPT_ID);
         if (!existingScript) {
             const script = document.createElement("script");
-            script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOMAPS_API_KEY}&libraries=places&callback=initMap`;
+            script.src = apiUrl;
             script.id = MAP_SCRIPT_ID;
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);
+        } else {
+             if (!(window as any).google || !(window as any).google.maps) {
+                // The script is there but hasn't finished loading, the callback will handle it.
+            } else {
+                setReady();
+            }
         }
 
         return () => {
@@ -50,7 +63,7 @@ export default function DirectionsMap({ destinationAddress }: DirectionsMapProps
                 delete (window as any).initMap;
             }
         };
-    }, []);
+    }, [apiUrl]);
 
     useEffect(() => {
         if (isScriptReady && mapRef.current) {
