@@ -117,7 +117,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     const docRef = await addDoc(ordersCol, {
         ...orderData,
         createdAt: serverTimestamp(),
-        isAvailableForPickup: false, // Initialize as false
     });
 
     // After successfully adding the order, update the user's first order status flag.
@@ -149,69 +148,12 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    const dataToUpdate: Record<string, any> = { status };
-
-    // When admin marks as 'Preparing', it becomes available for riders in the other app.
-    if (status === 'Preparing') {
-        dataToUpdate.isAvailableForPickup = true;
-    }
-    
-    // If an order is marked as delivered or cancelled, it is no longer available for pickup.
-    // The delivery rider app will handle the 'Out for Delivery' status change.
-    if (status === 'Delivered') {
-        dataToUpdate.deliveryConfirmationCode = deleteField();
-        dataToUpdate.isAvailableForPickup = false;
-    } else if (status === 'Cancelled') {
-        dataToUpdate.isAvailableForPickup = false;
-        // Optionally add a cancellation reason if one isn't already present
-        const currentOrder = await getDoc(docRef);
-        if (currentOrder.exists() && !currentOrder.data().cancellationReason) {
-            dataToUpdate.cancellationReason = 'Cancelled by Admin';
-        }
-    }
-    
-    await updateDoc(docRef, dataToUpdate);
+    await updateDoc(docRef, { status });
 }
-
-export async function acceptOrderForDelivery(orderId: string, riderId: string, riderName: string): Promise<void> {
-    const orderRef = doc(db, 'orders', orderId);
-    try {
-        await runTransaction(db, async (transaction) => {
-            const orderDoc = await transaction.get(orderRef);
-            if (!orderDoc.exists()) {
-                throw "Order does not exist.";
-            }
-
-            const orderData = orderDoc.data();
-            if (orderData.deliveryRiderId) {
-                throw "This order has already been accepted by another rider.";
-            }
-            if (!orderData.isAvailableForPickup) {
-                 throw "This order is no longer available for pickup.";
-            }
-
-            transaction.update(orderRef, {
-                status: 'Out for Delivery',
-                deliveryRiderId: riderId,
-                deliveryRiderName: riderName,
-                isAvailableForPickup: false,
-            });
-        });
-    } catch (e: any) {
-        console.error("Accept order transaction failed: ", e);
-        // Re-throw the error to be caught by the calling component
-        throw new Error(e.message || e);
-    }
-}
-
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { 
-        status: 'Cancelled',
-        cancellationReason: reason,
-        isAvailableForPickup: false,
-    });
+    await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {

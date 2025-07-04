@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
@@ -76,10 +76,11 @@ export default function CheckoutPage() {
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
   
-  // New state for delivery logic
+  // New state for delivery logic & first order
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [distance, setDistance] = useState<number | null>(null);
   const [isServiceable, setIsServiceable] = useState(true);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
 
 
   const subTotal = getCartTotal();
@@ -95,7 +96,14 @@ export default function CheckoutPage() {
     try {
         const settings = await getPaymentSettings();
         setPaymentSettings(settings);
-        const userAddresses = await getAddresses(user.uid);
+
+        const [userAddresses, profile] = await Promise.all([
+            getAddresses(user.uid),
+            getUserProfile(user.uid)
+        ]);
+        
+        setUserProfile(profile);
+
         const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
         setAddresses(sortedAddresses);
 
@@ -122,7 +130,6 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
-    // If no address is selected, reset to default "serviceable" state.
     if (!selectedAddressId) {
         setDistance(null);
         setDeliveryFee(0);
@@ -132,7 +139,6 @@ export default function CheckoutPage() {
 
     const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
     
-    // Check if the selected address exists and has coordinates.
     if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number') {
         const dist = getDistance(
             RESTAURANT_COORDS.lat,
@@ -142,28 +148,28 @@ export default function CheckoutPage() {
         );
         setDistance(dist);
 
-        // Check if distance is within the 5km service radius.
         if (dist > 5) {
             setIsServiceable(false);
             setDeliveryFee(0);
         } else {
             setIsServiceable(true);
-            // Apply delivery fee only if the order is below the threshold.
-            if (subTotal > 0 && subTotal < 300) {
+            const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+            
+            if (isFirstOrder) {
+                setDeliveryFee(0); // Free delivery for the first order
+            } else if (subTotal > 0 && subTotal < 300) {
                 const fee = Math.round(dist * 25);
                 setDeliveryFee(fee);
             } else {
-                setDeliveryFee(0);
+                setDeliveryFee(0); // Free delivery for orders >= 300
             }
         }
     } else {
-        // This handles cases where an address might not have coordinates (e.g., old data).
-        // Treat it as unserviceable to be safe and ensure the state is reset.
         setDistance(null);
         setDeliveryFee(0);
         setIsServiceable(false);
     }
-  }, [selectedAddressId, addresses, subTotal]);
+  }, [selectedAddressId, addresses, subTotal, userProfile]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -386,6 +392,7 @@ export default function CheckoutPage() {
   }
 
   const isProcessing = isLoading || isProcessingPayment;
+  const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
     <>
@@ -454,12 +461,29 @@ export default function CheckoutPage() {
                       </AlertDescription>
                     </Alert>
                 )}
+                {isFirstOrder && isServiceable && (
+                    <Alert>
+                        <Gift className="h-4 w-4" />
+                        <AlertTitleElement>First Order Bonus!</AlertTitleElement>
+                        <AlertDescription>
+                            Congratulations! Your first delivery is on the house.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <div className="space-y-2 text-lg">
                     <div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div>
                     <div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div>
                     <div className="flex justify-between text-sm">
                         <span>Delivery Fee:</span>
-                        <span>{deliveryFee > 0 ? `Rs.${deliveryFee.toFixed(2)}` : <span className="font-semibold text-green-600">FREE</span>}</span>
+                        <span>
+                            {isFirstOrder && isServiceable ? (
+                                <span className="font-semibold text-green-600">FREE</span>
+                            ) : deliveryFee > 0 ? (
+                                `Rs.${deliveryFee.toFixed(2)}`
+                            ) : (
+                                <span className="font-semibold text-green-600">FREE</span>
+                            )}
+                        </span>
                     </div>
                      {distance !== null && <p className="text-xs text-muted-foreground text-right">Distance: {distance.toFixed(2)} km</p>}
 
