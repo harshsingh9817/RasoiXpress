@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from './ui/badge';
+import { Route } from 'lucide-react';
 
 const containerStyle = {
   width: '100%',
@@ -11,7 +13,8 @@ const containerStyle = {
   borderRadius: '0.5rem',
 };
 
-const RESTAURANT_LOCATION = 'Hanuman Mandir, Ghosi More, Nagra, Ballia, Uttar Pradesh 221711';
+const RESTAURANT_COORDS = { lat: 25.970963, lng: 83.873754 };
+const RESTAURANT_LOCATION_STRING = `${RESTAURANT_COORDS.lat},${RESTAURANT_COORDS.lng}`;
 const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
 interface DirectionsMapProps {
@@ -37,7 +40,9 @@ const loadScript = (src: string, id: string): Promise<void> => {
       }
   
       script = document.createElement('script');
-      script.src = src;
+      const url = new URL(src);
+      url.searchParams.delete('callback');
+      script.src = url.toString();
       script.id = id;
       script.async = true;
       script.defer = true;
@@ -87,17 +92,19 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [distance, setDistance] = useState<string | null>(null);
     const { toast } = useToast();
 
     const initMap = useCallback(async () => {
         if (!mapRef.current || !window.google?.maps || !apiUrl) return;
 
-        setIsLoading(false);
+        setIsLoading(true);
         setError(null);
+        setDistance(null);
         
         const map = new window.google.maps.Map(mapRef.current, {
             zoom: 12,
-            center: { lat: 26.1555, lng: 83.7919 }, // Default center
+            center: RESTAURANT_COORDS,
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
@@ -112,15 +119,15 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
                                 resolve(`${position.coords.latitude},${position.coords.longitude}`);
                             },
                             () => {
-                                toast({ title: "Location Error", description: "Could not get your location. Please enable location services.", variant: "destructive"});
-                                reject("Geolocation failed. Please enable location services in your browser.");
+                                toast({ title: "Location Error", description: "Could not get your location. Defaulting to restaurant.", variant: "destructive"});
+                                resolve(RESTAURANT_LOCATION_STRING);
                             }
                         );
                     } else {
                         reject("Your browser doesn't support geolocation.");
                     }
                 } else {
-                    resolve(RESTAURANT_LOCATION);
+                    resolve(RESTAURANT_LOCATION_STRING);
                 }
             });
         };
@@ -145,6 +152,12 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
 
             if (data.status === 'OK' && data.routes && data.routes.length > 0) {
                 const route = data.routes[0];
+                const leg = route.legs[0];
+
+                if (leg.distance?.text) {
+                    setDistance(leg.distance.text);
+                }
+
                 const decodedPath = decodePolyline(route.overview_polyline.points);
 
                 if (decodedPath.length > 0) {
@@ -167,7 +180,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
                     const routePolyline = new window.google.maps.Polyline({
                         path: decodedPath,
                         geodesic: true,
-                        strokeColor: '#E64A19', // Primary color
+                        strokeColor: '#E64A19',
                         strokeOpacity: 0.8,
                         strokeWeight: 5,
                     });
@@ -184,45 +197,56 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
             }
         } catch (err: any) {
             setError(err.message || 'An unknown error occurred while fetching directions.');
+        } finally {
+            setIsLoading(false);
         }
 
     }, [destinationAddress, destinationCoords, useLiveLocationForOrigin, toast, apiUrl]);
     
     useEffect(() => {
         let isMounted = true;
-
+    
         if (!apiUrl) {
-            setError("Map API URL is not configured.");
-            setIsLoading(false);
-            return;
+          setError("Map API URL is not configured.");
+          setIsLoading(false);
+          return;
         }
-
+    
         setIsLoading(true);
-
-        const url = new URL(apiUrl);
-        url.searchParams.delete('callback');
-        const scriptSrc = url.toString();
-
-        loadScript(scriptSrc, MAP_SCRIPT_ID)
-            .then(() => {
-                if (isMounted) initMap();
-            })
-            .catch(err => {
-                console.error(err);
-                if (isMounted) {
-                    setError("Could not load map script.");
-                    toast({ title: "Error", description: "Could not load the map.", variant: "destructive" });
-                    setIsLoading(false);
-                }
-            });
-
-        return () => { isMounted = false; }
-
-    }, [apiUrl, initMap, toast]);
+    
+        loadScript(apiUrl, MAP_SCRIPT_ID)
+          .then(() => {
+            if (isMounted) {
+              initMap();
+            }
+          })
+          .catch((err) => {
+            console.error(err);
+            if (isMounted) {
+              setError("Could not load map script.");
+              toast({
+                title: "Error",
+                description: "Could not load the map.",
+                variant: "destructive",
+              });
+              setIsLoading(false);
+            }
+          });
+    
+        return () => {
+          isMounted = false;
+        };
+      }, [apiUrl, initMap, toast]);
 
 
     return (
         <div className="relative h-[400px]">
+            {distance && (
+                <Badge variant="secondary" className="absolute top-2 left-2 z-10 text-base shadow-lg bg-background/80 backdrop-blur-sm">
+                    <Route className="mr-2 h-4 w-4" />
+                    Distance: {distance}
+                </Badge>
+            )}
             {isLoading && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
                     <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>

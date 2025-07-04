@@ -421,7 +421,7 @@ export default function AdminOrdersPage() {
                                     }
                                     destinationAddress={selectedOrder.shippingAddress}
                                     apiUrl={paymentSettings.mapApiUrl}
-                                    useLiveLocationForOrigin={true}
+                                    useLiveLocationForOrigin={false}
                                 />
                             </div>
                         </>
