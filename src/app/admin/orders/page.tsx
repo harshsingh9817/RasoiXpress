@@ -1,12 +1,13 @@
 
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import type { Order, OrderItem, OrderStatus, PaymentSettings } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentSettings, Rider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings, getRiders, assignRiderToOrder } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -49,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -100,7 +101,12 @@ export default function AdminOrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-
+  
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
+  const [riders, setRiders] = useState<Rider[]>([]);
+  const [selectedRiderId, setSelectedRiderId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -117,8 +123,19 @@ export default function AdminOrdersPage() {
     
     getPaymentSettings().then(setPaymentSettings);
 
+    const fetchRiders = async () => {
+        try {
+            const riderList = await getRiders();
+            setRiders(riderList);
+        } catch (error) {
+            console.error("Failed to fetch riders", error);
+            toast({ title: "Error", description: "Could not fetch the list of delivery riders.", variant: "destructive" });
+        }
+    };
+    fetchRiders();
+
     return () => unsubscribe();
-  }, [isAdmin, isAuthLoading, isAuthenticated, router]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
 
   const filteredOrders = useMemo(() => {
     return orders
@@ -156,6 +173,13 @@ export default function AdminOrdersPage() {
     }
     const nextStatus = ORDER_PROGRESS_STEPS[currentIndex + 1];
     
+    if (nextStatus === 'Out for Delivery') {
+        setOrderToAssign(order);
+        setSelectedRiderId('');
+        setIsAssignDialogOpen(true);
+        return;
+    }
+    
     try {
       await updateOrderStatus(order.id, nextStatus);
       toast({
@@ -165,6 +189,30 @@ export default function AdminOrdersPage() {
     } catch (error) {
       console.error("Failed to update order status", error);
       toast({ title: "Update Failed", description: "Could not update the order status.", variant: "destructive" });
+    }
+  };
+
+  const handleConfirmAssignment = async () => {
+    if (!orderToAssign || !selectedRiderId) {
+        toast({ title: "Selection Required", description: "Please select a rider.", variant: "destructive" });
+        return;
+    }
+    setIsAssigning(true);
+    try {
+        const selectedRider = riders.find(r => r.id === selectedRiderId);
+        if (!selectedRider) throw new Error("Selected rider not found.");
+        
+        await assignRiderToOrder(orderToAssign.id, selectedRider.id, selectedRider.name);
+        
+        toast({ title: "Rider Assigned!", description: `${selectedRider.name} has been assigned to order #${orderToAssign.id.slice(-6)}.` });
+        setIsAssignDialogOpen(false);
+        setOrderToAssign(null);
+        setSelectedRiderId('');
+    } catch (error) {
+        console.error("Failed to assign rider:", error);
+        toast({ title: "Assignment Failed", description: "Could not assign the rider to the order.", variant: "destructive" });
+    } finally {
+        setIsAssigning(false);
     }
   };
 
@@ -416,6 +464,18 @@ export default function AdminOrdersPage() {
                         </div>
                     </div>
                     <Separator />
+                    {selectedOrder.deliveryRiderName && (
+                        <>
+                            <div>
+                                <h4 className="font-semibold mb-2 text-sm">Assigned Rider</h4>
+                                <p className="text-sm flex items-center gap-2">
+                                    <Bike className="h-4 w-4 text-primary" />
+                                    {selectedOrder.deliveryRiderName}
+                                </p>
+                            </div>
+                            <Separator />
+                        </>
+                    )}
                     <div>
                         <h4 className="font-semibold mb-2 text-sm">Shipping & Contact</h4>
                         <p className="text-sm text-muted-foreground">{selectedOrder.shippingAddress}</p>
@@ -465,6 +525,36 @@ export default function AdminOrdersPage() {
                 </div>
                 </>
             )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Assign Rider for Order #{orderToAssign?.id.slice(-6)}</DialogTitle>
+                <DialogDescription>
+                    Select a delivery rider to mark this order as 'Out for Delivery'.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Select value={selectedRiderId} onValueChange={setSelectedRiderId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a rider..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {riders.length > 0 ? riders.map(rider => (
+                            <SelectItem key={rider.id} value={rider.id}>{rider.name} - {rider.phone}</SelectItem>
+                        )) : <p className="p-4 text-sm text-muted-foreground">No active riders found.</p>}
+                    </SelectContent>
+                </Select>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline" disabled={isAssigning}>Cancel</Button></DialogClose>
+                <Button onClick={handleConfirmAssignment} disabled={isAssigning || !selectedRiderId}>
+                    {isAssigning && <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>}
+                    {isAssigning ? 'Assigning...' : 'Assign & Send'}
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
 
