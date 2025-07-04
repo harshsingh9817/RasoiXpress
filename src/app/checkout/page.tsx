@@ -151,25 +151,38 @@ export default function CheckoutPage() {
         if (dist > 5) {
             setIsServiceable(false);
             setDeliveryFee(0);
-        } else {
-            setIsServiceable(true);
-            const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
-            
-            if (isFirstOrder) {
-                setDeliveryFee(0); // Free delivery for the first order
-            } else if (subTotal > 0 && subTotal < 300) {
-                const fee = Math.round(dist * 25);
-                setDeliveryFee(fee);
-            } else {
-                setDeliveryFee(0); // Free delivery for orders >= 300
-            }
+            return; // Exit early
         }
+
+        setIsServiceable(true);
+        
+        // Check global delivery fee setting first
+        if (paymentSettings?.isDeliveryFeeEnabled === false) {
+            setDeliveryFee(0);
+            return;
+        }
+
+        // Then check for first order
+        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+        if (isFirstOrder) {
+            setDeliveryFee(0); // Free delivery for the first order
+            return;
+        }
+
+        // Then check order total for fee calculation
+        if (subTotal > 0 && subTotal < 300) {
+            const fee = Math.round(dist * 25);
+            setDeliveryFee(fee);
+        } else {
+            setDeliveryFee(0); // Free delivery for orders >= 300
+        }
+
     } else {
         setDistance(null);
         setDeliveryFee(0);
         setIsServiceable(false);
     }
-  }, [selectedAddressId, addresses, subTotal, userProfile]);
+  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -461,7 +474,16 @@ export default function CheckoutPage() {
                       </AlertDescription>
                     </Alert>
                 )}
-                {isFirstOrder && isServiceable && (
+                {isServiceable && paymentSettings?.isDeliveryFeeEnabled === false && (
+                    <Alert>
+                        <Gift className="h-4 w-4" />
+                        <AlertTitleElement>Free Delivery Unlocked!</AlertTitleElement>
+                        <AlertDescription>
+                            All delivery fees are currently waived as part of a special promotion.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                {isServiceable && paymentSettings?.isDeliveryFeeEnabled !== false && isFirstOrder && (
                     <Alert>
                         <Gift className="h-4 w-4" />
                         <AlertTitleElement>First Order Bonus!</AlertTitleElement>
@@ -476,12 +498,14 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm">
                         <span>Delivery Fee:</span>
                         <span>
-                            {isFirstOrder && isServiceable ? (
-                                <span className="font-semibold text-green-600">FREE</span>
-                            ) : deliveryFee > 0 ? (
-                                `Rs.${deliveryFee.toFixed(2)}`
+                            {isServiceable ? (
+                                deliveryFee > 0 ? (
+                                    `Rs.${deliveryFee.toFixed(2)}`
+                                ) : (
+                                    <span className="font-semibold text-green-600">FREE</span>
+                                )
                             ) : (
-                                <span className="font-semibold text-green-600">FREE</span>
+                                'Not available'
                             )}
                         </span>
                     </div>

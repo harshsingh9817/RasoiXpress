@@ -123,6 +123,7 @@ export interface PaymentSettings {
   upiId: string;
   qrCodeImageUrl: string;
   isRazorpayEnabled: boolean;
+  isDeliveryFeeEnabled: boolean;
   mapApiUrl: string;
 }
 

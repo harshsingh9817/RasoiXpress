@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound, MapPin } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin, DollarSign } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
@@ -36,6 +37,7 @@ import { Input } from "@/components/ui/input";
 
 const paymentSettingsSchema = z.object({
   isRazorpayEnabled: z.boolean().optional(),
+  isDeliveryFeeEnabled: z.boolean().optional(),
   mapApiUrl: z.string().url("Please enter a valid URL.").optional(),
 });
 
@@ -51,6 +53,7 @@ export default function PaymentSettingsPage() {
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
       isRazorpayEnabled: true,
+      isDeliveryFeeEnabled: true,
       mapApiUrl: '',
     },
   });
@@ -65,6 +68,7 @@ export default function PaymentSettingsPage() {
         const data = await getPaymentSettings();
         form.reset({
           isRazorpayEnabled: data.isRazorpayEnabled,
+          isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           mapApiUrl: data.mapApiUrl || '',
         });
       }
@@ -77,6 +81,7 @@ export default function PaymentSettingsPage() {
     try {
       await updatePaymentSettings({
         isRazorpayEnabled: data.isRazorpayEnabled,
+        isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         mapApiUrl: data.mapApiUrl
       });
       toast({
@@ -116,7 +121,7 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
               </CardTitle>
               <CardDescription>
-                Manage payment gateways and third-party service integrations like maps.
+                Manage payment gateways, delivery fees, and third-party service integrations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -140,6 +145,27 @@ export default function PaymentSettingsPage() {
                     </FormItem>
                 )}
                 />
+              
+               <FormField
+                control={form.control}
+                name="isDeliveryFeeEnabled"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Enable Delivery Fees</FormLabel>
+                        <FormDescription>
+                           Turn this on to charge delivery fees based on distance for orders under the free delivery threshold.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+              />
               
               <Separator />
 

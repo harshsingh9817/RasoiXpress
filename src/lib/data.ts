@@ -46,6 +46,7 @@ const defaultPaymentSettings: PaymentSettings = {
     upiId: 'rasoixpress@okbank',
     qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay',
     isRazorpayEnabled: true,
+    isDeliveryFeeEnabled: true,
     mapApiUrl: 'https://maps.gomaps.pro/maps/api/js?key=AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc&libraries=places&callback=initMap',
 };
 
