@@ -174,5 +174,5 @@ export interface Rider {
   name: string;
   email: string;
   phone: string;
-  isActive: boolean;
+  password?: string;
 }

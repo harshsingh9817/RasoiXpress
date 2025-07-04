@@ -32,30 +32,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge";
 import {
   PlusCircle,
   Edit,
   Trash2,
   Bike,
-  CheckCircle,
-  XCircle,
   Search,
-  UserCheck,
-  UserX,
 } from "lucide-react";
 import RiderFormDialog from "@/components/admin/RiderFormDialog";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 
 export default function RiderManagementPage() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -186,7 +173,6 @@ export default function RiderManagementPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -197,12 +183,6 @@ export default function RiderManagementPage() {
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.email}</TableCell>
                     <TableCell>{item.phone}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={item.isActive ? 'default' : 'secondary'}>
-                        {item.isActive ? <UserCheck className="mr-1.5 h-3.5 w-3.5" /> : <UserX className="mr-1.5 h-3.5 w-3.5" />}
-                        {item.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                          <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
@@ -219,7 +199,7 @@ export default function RiderManagementPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     <Bike className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
                     {riders.length === 0 ? "No riders found. Add one to get started!" : "No riders match your search."}
                   </TableCell>

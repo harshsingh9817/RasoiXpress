@@ -17,13 +17,13 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { addRider, updateRider } from "@/lib/data";
 import { useEffect, useState } from "react";
@@ -33,8 +33,18 @@ const riderSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   email: z.string().email("Please enter a valid email address."),
   phone: z.string().regex(/^\d{10,}$/, "Please enter a valid phone number."),
-  isActive: z.boolean().default(true),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).refine(data => {
+  if (data.password || data.confirmPassword) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
+
 
 type RiderFormValues = z.infer<typeof riderSchema>;
 
@@ -56,7 +66,11 @@ export default function RiderFormDialog({
   const form = useForm<RiderFormValues>({
     resolver: zodResolver(riderSchema),
     defaultValues: {
-      isActive: true,
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: ""
     },
   });
 
@@ -65,13 +79,14 @@ export default function RiderFormDialog({
   useEffect(() => {
     if (isOpen) {
         if (rider) {
-          reset(rider);
+          reset({ ...rider, password: '', confirmPassword: '' });
         } else {
           reset({
             name: "",
             email: "",
             phone: "",
-            isActive: true,
+            password: "",
+            confirmPassword: "",
           });
         }
     }
@@ -79,12 +94,29 @@ export default function RiderFormDialog({
 
   const onSubmit = async (data: RiderFormValues) => {
     setIsSubmitting(true);
+
+    if (!rider && (!data.password || data.password.length < 6)) {
+      form.setError("password", { type: "manual", message: "Password must be at least 6 characters." });
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
+      const riderData: any = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+      };
+
+      if (data.password) {
+        riderData.password = data.password;
+      }
+
       if (rider) {
-        await updateRider({ ...data, id: rider.id });
+        await updateRider({ ...riderData, id: rider.id });
         toast({ title: "Rider Updated", description: `${data.name} has been successfully updated.` });
       } else {
-        await addRider(data);
+        await addRider(riderData as Omit<Rider, 'id'>);
         toast({ title: "Rider Added", description: `${data.name} has been successfully added.` });
       }
       onFormSubmit();
@@ -153,19 +185,30 @@ export default function RiderFormDialog({
             />
             <FormField
               control={form.control}
-              name="isActive"
+              name="password"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>Active Status</FormLabel>
-                    <FormMessage />
-                  </div>
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Input type="password" placeholder={rider ? "Leave blank to keep unchanged" : "••••••••"} {...field} />
                   </FormControl>
+                  <FormDescription>
+                    {rider ? "" : "Password must be at least 6 characters."}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
