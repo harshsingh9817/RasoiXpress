@@ -25,12 +25,10 @@ const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       let script = document.getElementById(id) as HTMLScriptElement;
       if (script) {
-        // If script is already in the DOM, check if google.maps is available.
         const checkGoogle = () => {
           if (window.google && window.google.maps) {
             resolve();
           } else {
-            // It might be loading, so check again after a short delay.
             setTimeout(checkGoogle, 100);
           }
         };
@@ -49,14 +47,50 @@ const loadScript = (src: string, id: string): Promise<void> => {
     });
 };
 
+// Polyline decoder from the user's example
+function decodePolyline(encoded: string): { lat: number; lng: number }[] {
+    if (!encoded) {
+      return [];
+    }
+    let points: { lat: number; lng: number }[] = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+  
+    while (index < len) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+  
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+  
+      points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+    }
+  
+    return points;
+}
+
+
 export default function DirectionsMap({ destinationAddress, destinationCoords, apiUrl, useLiveLocationForOrigin = false }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const initMap = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps) return;
+    const initMap = useCallback(async () => {
+        if (!mapRef.current || !window.google?.maps || !apiUrl) return;
 
         setIsLoading(false);
         setError(null);
@@ -69,56 +103,90 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
             fullscreenControl: false,
         });
 
-        const directionsService = new window.google.maps.DirectionsService();
-        const directionsRenderer = new window.google.maps.DirectionsRenderer();
-        
-        directionsRenderer.setMap(map);
+        const getOrigin = (): Promise<string> => {
+            return new Promise((resolve, reject) => {
+                if (useLiveLocationForOrigin) {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                resolve(`${position.coords.latitude},${position.coords.longitude}`);
+                            },
+                            () => {
+                                toast({ title: "Location Error", description: "Could not get your location. Please enable location services.", variant: "destructive"});
+                                reject("Geolocation failed. Please enable location services in your browser.");
+                            }
+                        );
+                    } else {
+                        reject("Your browser doesn't support geolocation.");
+                    }
+                } else {
+                    resolve(RESTAURANT_LOCATION);
+                }
+            });
+        };
 
-        const calculateRoute = (origin: google.maps.LatLng | google.maps.LatLngLiteral | string) => {
-             const destination = destinationCoords 
-                ? new window.google.maps.LatLng(destinationCoords.lat, destinationCoords.lng) 
+        try {
+            const origin = await getOrigin();
+            const destination = destinationCoords 
+                ? `${destinationCoords.lat},${destinationCoords.lng}` 
                 : destinationAddress;
 
-             directionsService.route(
-                {
-                    origin: origin,
-                    destination: destination,
-                    travelMode: window.google.maps.TravelMode.DRIVING,
-                },
-                (result, status) => {
-                    if (status === window.google.maps.DirectionsStatus.OK && result) {
-                        directionsRenderer.setDirections(result);
-                    } else {
-                        console.error(`Error fetching directions: ${status}`);
-                        setError(`Could not load directions. The address might be invalid or unreachable.`);
-                    }
-                }
-            );
-        };
-        
-        if (useLiveLocationForOrigin) {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const origin = new window.google.maps.LatLng(
-                            position.coords.latitude,
-                            position.coords.longitude
-                        );
-                        calculateRoute(origin);
-                    },
-                    () => {
-                        setError("Geolocation failed. Please enable location services in your browser.");
-                        toast({ title: "Location Error", description: "Could not get your location. Please enable location services.", variant: "destructive"});
-                    }
-                );
-            } else {
-                setError("Your browser doesn't support geolocation.");
+            const urlParams = new URL(apiUrl).searchParams;
+            const apiKey = urlParams.get('key');
+            
+            if (!apiKey) {
+                throw new Error("API key not found in the provided map URL.");
             }
-        } else {
-            calculateRoute(RESTAURANT_LOCATION);
+
+            const directionsUrl = `https://maps.gomaps.pro/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
+
+            const response = await fetch(directionsUrl);
+            const data = await response.json();
+
+            if (data.status === 'OK' && data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+                const decodedPath = decodePolyline(route.overview_polyline.points);
+
+                if (decodedPath.length > 0) {
+                    const bounds = new window.google.maps.LatLngBounds();
+
+                    new window.google.maps.Marker({
+                        position: decodedPath[0],
+                        map: map,
+                        title: 'Origin'
+                    });
+                    bounds.extend(decodedPath[0]);
+
+                    new window.google.maps.Marker({
+                        position: decodedPath[decodedPath.length - 1],
+                        map: map,
+                        title: 'Destination'
+                    });
+                    bounds.extend(decodedPath[decodedPath.length - 1]);
+                    
+                    const routePolyline = new window.google.maps.Polyline({
+                        path: decodedPath,
+                        geodesic: true,
+                        strokeColor: '#E64A19', // Primary color
+                        strokeOpacity: 0.8,
+                        strokeWeight: 5,
+                    });
+
+                    routePolyline.setMap(map);
+                    map.fitBounds(bounds);
+                } else {
+                     throw new Error("Could not decode the route polyline.");
+                }
+
+            } else {
+                console.error("Error fetching directions:", data.error_message || data.status);
+                throw new Error(data.error_message || `Could not get directions: ${data.status}`);
+            }
+        } catch (err: any) {
+            setError(err.message || 'An unknown error occurred while fetching directions.');
         }
 
-    }, [destinationAddress, destinationCoords, useLiveLocationForOrigin, toast]);
+    }, [destinationAddress, destinationCoords, useLiveLocationForOrigin, toast, apiUrl]);
     
     useEffect(() => {
         let isMounted = true;
@@ -131,7 +199,6 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
 
         setIsLoading(true);
 
-        // Remove the 'callback' parameter to prevent conflicts with our loader
         const url = new URL(apiUrl);
         url.searchParams.delete('callback');
         const scriptSrc = url.toString();
