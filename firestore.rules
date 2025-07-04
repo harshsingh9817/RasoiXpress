@@ -3,90 +3,67 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global Admin Rule: Admins can read/write anything.
-    // This rule is evaluated first and grants broad access to the admin user.
-    match /{path=**} {
-      allow read, write: if request.auth.token.email == 'harshsingh9817@gmail.com';
+    // Helper function to check for admin role
+    function isAdmin() {
+      // Admin is identified by a specific email address.
+      return request.auth.token.email == 'harshsingh9817@gmail.com' && request.auth.token.email_verified;
     }
 
-    // --- Specific Collection Rules ---
-
-    // Users Collection
+    // Users can only read/write their own profile data
     match /users/{userId} {
+      allow read, update: if request.auth.uid == userId || isAdmin();
+      allow list: if isAdmin();
       allow create: if request.auth.uid == userId;
-      // Users can read/update their own profile.
-      allow read, update: if request.auth.uid == userId;
     }
 
-    // User Addresses Subcollection
+    // Users can manage their own addresses
     match /users/{userId}/addresses/{addressId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write, delete: if request.auth.uid == userId || isAdmin();
     }
 
-    // MenuItems Collection
+    // Menu and global settings are public. Only admins can write.
     match /menuItems/{itemId} {
-      // Anyone can read the menu.
       allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // Globals Collection (for hero section, etc.)
     match /globals/{docId} {
       allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // Orders Collection
+    // Users can create and read their own orders. Admins can manage all orders.
     match /orders/{orderId} {
-      // CREATE: A user can create an order for themselves.
       allow create: if request.auth.uid == request.resource.data.userId;
-
-      // READ: A customer can read their own order, OR a rider can read an available/assigned order.
-      allow read: if (request.auth.uid == resource.data.userId) ||
-                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true &&
-                        (resource.data.isAvailableForPickup == true || resource.data.deliveryRiderId == request.auth.uid));
-
-      // UPDATE: All update logic combined into a single rule.
-      allow update: if
-        // --- CUSTOMER ACTIONS ---
-        (request.auth.uid == resource.data.userId && (
-          // Customer cancels a recently placed order.
-          (resource.data.status == 'Order Placed' && request.resource.data.status == 'Cancelled' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason', 'isAvailableForPickup'])) ||
-          // Customer leaves a review on a delivered order.
-          (resource.data.status == 'Delivered' && request.resource.data.review != resource.data.review && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['review']))
-        )) ||
-        // --- RIDER ACTIONS ---
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true && (
-          // Rider accepts an available order.
-          (
-            resource.data.isAvailableForPickup == true &&
-            resource.data.deliveryRiderId == null &&
-            request.resource.data.deliveryRiderId == request.auth.uid &&
-            request.resource.data.status == 'Out for Delivery' &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveryRiderId', 'deliveryRiderName', 'isAvailableForPickup'])
-          ) ||
-          // Rider marks an assigned order as Delivered.
-          (
-            resource.data.deliveryRiderId == request.auth.uid &&
-            resource.data.status == 'Out for Delivery' &&
-            request.resource.data.status == 'Delivered' &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveryConfirmationCode', 'isAvailableForPickup'])
-          )
-        ));
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+      // Only admin can update status. The second rider app would need its own
+      // backend with a service account or expanded rules to update status.
+      allow update, delete: if isAdmin();
     }
 
-    // Riders Collection
-    match /riders/{riderId} {
-      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isDelivery == true;
+    // Admin messages can be created by admins and read by the target user.
+    match /adminMessages/{messageId} {
+      allow create: if isAdmin();
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
     }
-
-    // Support Tickets Collection
+    
+    // Support tickets can be created by anyone. Admins manage them.
     match /supportTickets/{ticketId} {
       allow create: if true;
-      allow read, update: if request.auth.uid == resource.data.userId;
+      allow read, update, list: if isAdmin();
     }
 
-    // Admin Messages Collection
-    match /adminMessages/{messageId} {
-      allow read: if request.auth.uid == resource.data.userId;
+    // --- Rider Rules ---
+    // This allows the second rider application to read rider data.
+    // An admin has full control to add/edit/remove riders from the main app.
+    match /riders/{riderId} {
+      // Allows any authenticated user (customer or rider) to read rider data.
+      // This is needed for your second app to query and log in riders.
+      // Be aware this means a user of the customer app could also potentially read this data.
+      allow read: if request.auth != null;
+
+      // Only admins can create, update, or delete riders from this application.
+      allow write: if isAdmin();
     }
   }
 }
