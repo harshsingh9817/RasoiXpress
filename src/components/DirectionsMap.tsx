@@ -23,12 +23,14 @@ interface DirectionsMapProps {
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const existingScript = document.getElementById(id);
-      if (existingScript) {
+      let script = document.getElementById(id) as HTMLScriptElement;
+      if (script) {
+        // If script is already in the DOM, check if google.maps is available.
         const checkGoogle = () => {
           if (window.google && window.google.maps) {
             resolve();
           } else {
+            // It might be loading, so check again after a short delay.
             setTimeout(checkGoogle, 100);
           }
         };
@@ -36,7 +38,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
         return;
       }
   
-      const script = document.createElement('script');
+      script = document.createElement('script');
       script.src = src;
       script.id = id;
       script.async = true;
@@ -72,8 +74,11 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
         
         directionsRenderer.setMap(map);
 
-        const calculateRoute = (origin: google.maps.LatLngLiteral | string) => {
-             const destination = destinationCoords || destinationAddress;
+        const calculateRoute = (origin: google.maps.LatLng | google.maps.LatLngLiteral | string) => {
+             const destination = destinationCoords 
+                ? new window.google.maps.LatLng(destinationCoords.lat, destinationCoords.lng) 
+                : destinationAddress;
+
              directionsService.route(
                 {
                     origin: origin,
@@ -95,10 +100,10 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const origin = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                        };
+                        const origin = new window.google.maps.LatLng(
+                            position.coords.latitude,
+                            position.coords.longitude
+                        );
                         calculateRoute(origin);
                     },
                     () => {
@@ -126,7 +131,12 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
 
         setIsLoading(true);
 
-        loadScript(apiUrl, MAP_SCRIPT_ID)
+        // Remove the 'callback' parameter to prevent conflicts with our loader
+        const url = new URL(apiUrl);
+        url.searchParams.delete('callback');
+        const scriptSrc = url.toString();
+
+        loadScript(scriptSrc, MAP_SCRIPT_ID)
             .then(() => {
                 if (isMounted) initMap();
             })

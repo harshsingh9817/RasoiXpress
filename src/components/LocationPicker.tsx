@@ -42,27 +42,27 @@ interface LocationPickerProps {
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const existingScript = document.getElementById(id);
-      if (existingScript) {
-        const checkGoogle = () => {
-          if (window.google && window.google.maps) {
-            resolve();
-          } else {
-            setTimeout(checkGoogle, 100);
-          }
-        };
-        checkGoogle();
-        return;
-      }
-  
-      const script = document.createElement('script');
-      script.src = src;
-      script.id = id;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-      document.head.appendChild(script);
+        let script = document.getElementById(id) as HTMLScriptElement;
+        if (script) {
+            const checkGoogle = () => {
+                if (window.google && window.google.maps) {
+                    resolve();
+                } else {
+                    setTimeout(checkGoogle, 100);
+                }
+            };
+            checkGoogle();
+            return;
+        }
+
+        script = document.createElement('script');
+        script.src = src;
+        script.id = id;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
     });
 };
 
@@ -118,7 +118,11 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
             return;
         }
         
-        loadScript(apiUrl, MAP_SCRIPT_ID)
+        const url = new URL(apiUrl);
+        url.searchParams.delete('callback');
+        const scriptSrc = url.toString();
+
+        loadScript(scriptSrc, MAP_SCRIPT_ID)
             .then(() => {
                 if (isMounted) initMap();
             })
