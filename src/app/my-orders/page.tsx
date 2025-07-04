@@ -109,7 +109,15 @@ export default function MyOrdersPage() {
     const handleConfirmCancellation = async () => {
         if (!orderToCancel || !selectedCancelReason) return;
         await cancelOrder(orderToCancel.id, selectedCancelReason);
-        toast({ title: 'Order Cancelled', description: `Order #${orderToCancel.id.slice(-6)} has been successfully cancelled.` });
+        
+        const isPrepaid = orderToCancel.paymentMethod === 'Razorpay';
+        const refundMessage = isPrepaid ? ' Your refund will be processed within 24-48 hours.' : '';
+
+        toast({
+            title: 'Order Cancelled',
+            description: `Order #${orderToCancel.id.slice(-6)} has been successfully cancelled.${refundMessage}`,
+        });
+
         setIsCancelDialogOpen(false);
     };
     
@@ -286,7 +294,29 @@ export default function MyOrdersPage() {
 
              {/* Dialogs */}
             <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-              <DialogContent><DialogHeader><DialogTitle>Confirm Cancellation</DialogTitle><DialogDescription>Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.slice(-6)}</span>.</DialogDescription></DialogHeader><div className="py-4"><Select value={selectedCancelReason} onValueChange={setSelectedCancelReason}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{CANCELLATION_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div><DialogFooter><Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button><Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>Confirm</Button></DialogFooter></DialogContent>
+              <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Confirm Cancellation</DialogTitle>
+                    <DialogDescription>
+                        Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.slice(-6)}</span>.
+                        {orderToCancel?.paymentMethod === 'Razorpay' && (
+                            <p className="mt-2 text-sm text-primary">
+                                As this was a prepaid order, your refund will be processed within 24-48 hours upon cancellation.
+                            </p>
+                        )}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Select value={selectedCancelReason} onValueChange={setSelectedCancelReason}>
+                        <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                        <SelectContent>{CANCELLATION_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                    </Select>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Keep Order</Button>
+                    <Button variant="destructive" onClick={handleConfirmCancellation} disabled={!selectedCancelReason}>Confirm</Button>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
             {orderForBillView && (
               <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
