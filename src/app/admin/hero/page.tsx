@@ -47,6 +47,7 @@ import {
 const bannerSchema = z.object({
   src: z.string().url("Please enter a valid image URL."),
   hint: z.string().min(1, "AI hint is required (e.g., 'pizza meal')."),
+  order: z.coerce.number().min(1, "Order must be at least 1."),
 });
 
 const heroSchema = z.object({
@@ -98,6 +99,10 @@ export default function HeroManagementPage() {
     if (isAuthenticated && isAdmin) {
       const loadData = async () => {
         const data = await getHeroData();
+        // Sort banners by order before resetting the form
+        if (data.bannerImages && Array.isArray(data.bannerImages)) {
+          data.bannerImages.sort((a, b) => (a.order || 99) - (b.order || 99));
+        }
         form.reset({
             ...data,
             headlineColor: data.headlineColor || '#FFFFFF',
@@ -325,27 +330,42 @@ export default function HeroManagementPage() {
 
                   <div>
                     <h3 className="text-lg font-medium">Manage Banners</h3>
-                    <p className="text-sm text-muted-foreground">Add or remove banner images for the homepage carousel.</p>
+                    <p className="text-sm text-muted-foreground">Add or remove banner images for the homepage carousel. Set a display order for each banner.</p>
                   </div>
 
                   <div className="space-y-4">
                     {fields.map((field, index) => (
                       <div key={field.id} className="flex flex-col gap-4 p-4 border rounded-lg">
                         <div className="flex items-start gap-4">
-                            <div className="flex-1 space-y-2">
-                               <FormField
-                                control={form.control}
-                                name={`bannerImages.${index}.src`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Image URL</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="https://placehold.co/1280x400.png" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                            <div className="flex-1 space-y-4">
+                               <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name={`bannerImages.${index}.order`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Order</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="1" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name={`bannerImages.${index}.src`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Image URL</FormLabel>
+                                                <FormControl>
+                                                <Input placeholder="https://placehold.co/1280x400.png" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                               </div>
                                <FormField
                                 control={form.control}
                                 name={`bannerImages.${index}.hint`}
@@ -390,7 +410,7 @@ export default function HeroManagementPage() {
                    <Button
                       type="button"
                       variant="outline"
-                      onClick={() => append({ src: 'https://placehold.co/1280x400.png', hint: 'new banner' })}
+                      onClick={() => append({ src: 'https://placehold.co/1280x400.png', hint: 'new banner', order: fields.length + 1 })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Banner

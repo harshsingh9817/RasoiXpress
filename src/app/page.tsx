@@ -75,6 +75,10 @@ export default function HomePage() {
     });
 
     getHeroData().then(hero => {
+        // Sort banner images by the new 'order' property
+        if (hero.bannerImages && Array.isArray(hero.bannerImages)) {
+            hero.bannerImages.sort((a, b) => (a.order || 99) - (b.order || 99));
+        }
         setHeroData(hero);
         heroDataLoaded = true;
         checkLoadingDone();
@@ -136,7 +140,7 @@ export default function HomePage() {
        <section className="relative h-auto md:h-80 w-full rounded-lg overflow-hidden shadow-xl flex items-center">
         {heroData?.bannerImages?.map((banner, index) => (
             <Image
-                key={index}
+                key={banner.src + index}
                 src={banner.src}
                 alt={`Promotional banner ${index + 1}`}
                 layout="fill"

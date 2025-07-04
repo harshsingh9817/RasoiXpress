@@ -28,10 +28,10 @@ import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSet
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 
 const defaultBanners: BannerImage[] = [
-    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries' },
-    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles' },
+    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal', order: 1 },
+    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali', order: 2 },
+    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries', order: 3 },
+    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles', order: 4 },
 ];
 
 const defaultHeroData: HeroData = {

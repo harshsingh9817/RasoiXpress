@@ -107,6 +107,7 @@ export interface AppNotification {
 export interface BannerImage {
   src: string;
   hint: string;
+  order: number;
 }
 
 export interface HeroData {
