@@ -277,6 +277,7 @@ export default function CheckoutPage() {
             await finalizeOrder(finalOrderData);
           } else {
             toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
+            setIsProcessingPayment(false);
           }
         },
         prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
@@ -287,13 +288,13 @@ export default function CheckoutPage() {
       paymentObject.on('payment.failed', (response: any) => {
         console.error('Razorpay payment failed:', response.error);
         toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
+        setIsProcessingPayment(false);
       });
       paymentObject.open();
 
     } catch (error: any) {
       console.error("Error during Razorpay process:", error);
       toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
-    } finally {
       setIsProcessingPayment(false);
     }
   };
