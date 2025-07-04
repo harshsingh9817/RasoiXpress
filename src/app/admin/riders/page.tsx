@@ -38,6 +38,7 @@ import {
   Trash2,
   Bike,
   Search,
+  PhoneCall,
 } from "lucide-react";
 import RiderFormDialog from "@/components/admin/RiderFormDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -185,6 +186,12 @@ export default function RiderManagementPage() {
                     <TableCell>{item.phone}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                         <Button asChild variant="outline" size="icon">
+                            <a href={`tel:${item.phone}`}>
+                                <PhoneCall className="h-4 w-4" />
+                                <span className="sr-only">Call {item.name}</span>
+                            </a>
+                         </Button>
                          <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
                            <Edit className="h-4 w-4" />
                            <span className="sr-only">Edit</span>
