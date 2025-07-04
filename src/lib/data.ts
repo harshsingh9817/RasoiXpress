@@ -154,6 +154,8 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 
     if (status === 'Preparing') {
         updateData.isAvailableForPickup = true;
+    } else if (status === 'Out for Delivery' || status === 'Delivered' || status === 'Cancelled') {
+        updateData.isAvailableForPickup = false;
     }
     
     await updateDoc(docRef, updateData);
@@ -544,10 +546,27 @@ export async function resolveSupportTicket(ticketId: string): Promise<void> {
 // --- Rider Management ---
 export async function getRiders(): Promise<Rider[]> {
   const ridersCol = collection(db, 'riders');
-  // Only fetch riders who are marked as active
-  const q = query(ridersCol, where("isActive", "==", true));
+  const q = query(ridersCol, orderBy("name"));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Rider[];
+}
+
+export async function addRider(riderData: Omit<Rider, 'id'>): Promise<Rider> {
+    const ridersCol = collection(db, 'riders');
+    const docRef = await addDoc(ridersCol, riderData);
+    const docSnap = await getDoc(docRef);
+    return { id: docSnap.id, ...docSnap.data() } as Rider;
+}
+
+export async function updateRider(updatedRider: Rider): Promise<void> {
+    const { id, ...riderData } = updatedRider;
+    const docRef = doc(db, 'riders', id);
+    await updateDoc(docRef, riderData);
+}
+
+export async function deleteRider(riderId: string): Promise<void> {
+    const docRef = doc(db, 'riders', riderId);
+    await deleteDoc(docRef);
 }
 
 export async function assignRiderToOrder(orderId: string, riderId: string, riderName: string): Promise<void> {
