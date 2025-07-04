@@ -8,8 +8,8 @@ export async function POST(request: Request) {
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
   if (!keyId || !keySecret) {
-    console.error("Razorpay API keys are not configured on the server.");
-    return NextResponse.json({ error: 'Payment gateway is not configured. Please contact support.' }, { status: 500 });
+    console.error("Razorpay API keys are not configured on the server. Please check the .env file.");
+    return NextResponse.json({ error: 'Payment gateway is not configured on the server. Please check your .env file or contact support.' }, { status: 500 });
   }
 
   const razorpay = new Razorpay({
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   try {
     const { amount, currency = 'INR' } = await request.json();
 
-    if (!amount) {
-      return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: 'A valid amount is required to create a payment.' }, { status: 400 });
     }
 
     const options = {
@@ -37,8 +37,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(order);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Razorpay order creation error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    // Extract a more descriptive error message from Razorpay's response if available
+    const description = error?.error?.description || 'An unexpected error occurred with the payment gateway.';
+    return NextResponse.json({ error: description }, { status: 500 });
   }
 }
