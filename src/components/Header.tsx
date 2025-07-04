@@ -28,33 +28,8 @@ const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; m
   'Cancelled': { title: 'Order Cancelled', message: 'Your order has been successfully cancelled.' },
 };
 
-const getNotificationIcon = (notification: AppNotification) => {
-    const iconClass = `h-6 w-6 flex-shrink-0 transition-colors ${!notification.read ? 'text-primary' : 'text-muted-foreground'}`;
-    switch (notification.type) {
-        case 'admin_new_order': return <Package className={iconClass} />;
-        case 'admin_order_accepted': return <Bike className={iconClass} />;
-        case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
-        case 'admin_message': return <MessageSquare className={iconClass} />;
-        case 'delivery_available': return <Bike className={iconClass} />;
-        case 'admin_new_support_ticket': return <LifeBuoy className={iconClass} />;
-        case 'order_update':
-            if (notification.orderStatus) {
-                switch (notification.orderStatus) {
-                    case 'Order Placed': return <PackagePlus className={iconClass} />;
-                    case 'Confirmed': return <ClipboardCheck className={iconClass} />;
-                    case 'Preparing': return <ChefHat className={iconClass} />;
-                    case 'Out for Delivery': return <Bike className={iconClass} />;
-                    case 'Delivered': return <DeliveredIcon className={iconClass} />;
-                    case 'Cancelled': return <XCircle className={iconClass} />;
-                }
-            }
-    }
-    return <Bell className={iconClass} />;
-};
-
 const Header = () => {
-  const { user, isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
-  const router = useRouter();
+  const { user, isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -82,8 +57,6 @@ const Header = () => {
 
     const storageKey = isAdmin 
         ? 'rasoiExpressAdminNotifications' 
-        : isDelivery 
-        ? 'rasoiExpressDeliveryNotifications' 
         : `rasoiExpressUserNotifications_${user.uid}`;
     
     const syncNotificationsFromStorage = () => {
@@ -100,7 +73,7 @@ const Header = () => {
     
     window.addEventListener('notificationsUpdated', syncNotificationsFromStorage);
     
-    const processNotifications = (newItems: (Order | AdminMessage | SupportTicket)[], type: 'order' | 'message' | 'admin_order' | 'delivery_order' | 'support_ticket') => {
+    const processNotifications = (newItems: (Order | AdminMessage | SupportTicket)[], type: 'order' | 'message' | 'admin_order' | 'support_ticket') => {
         const allStoredNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const generatedNotifications: AppNotification[] = [];
         const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
@@ -117,23 +90,11 @@ const Header = () => {
                        notif = { id, timestamp: now, title: `New Order!`, message: `Order #${order.id.slice(-6)} from ${order.customerName}.`, read: false, type: 'admin_new_order', orderId: order.id, link: '/admin/orders' };
                     }
                 }
-                if (order.status === 'Out for Delivery' && order.deliveryRiderId) {
-                    id = `notif-admin-order-accepted-${order.id}`;
-                    if (!allStoredNotifications.some(n => n.id === id)) {
-                       notif = { id, timestamp: now, title: `Delivery Started`, message: `${order.deliveryRiderName || 'A rider'} has accepted order #${order.id.slice(-6)}.`, read: false, type: 'admin_order_accepted', orderId: order.id, link: '/admin/orders' };
-                    }
-                }
                 if (order.status === 'Delivered') {
                     id = `notif-admin-order-delivered-${order.id}`;
                     if (!allStoredNotifications.some(n => n.id === id)) {
                        notif = { id, timestamp: now, title: `Order Delivered`, message: `Order #${order.id.slice(-6)} for ${order.customerName} has been delivered.`, read: false, type: 'admin_order_delivered', orderId: order.id, link: '/admin/orders' };
                     }
-                }
-            } else if (type === 'delivery_order' && 'status' in item && item.status === 'Out for Delivery' && !(item as Order).deliveryRiderId) {
-                const order = item as Order;
-                id = `notif-delivery-new-order-${order.id}`;
-                if (!allStoredNotifications.some(n => n.id === id)) {
-                   notif = { id, timestamp: now, title: `New Delivery Available!`, message: `Order #${order.id.slice(-6)} is ready for pickup.`, read: false, type: 'delivery_available', orderId: order.id, link: `/delivery/orders/${order.id}` };
                 }
             } else if (type === 'order' && 'status' in item) {
                 const order = item as Order;
@@ -189,8 +150,6 @@ const Header = () => {
     if (isAdmin) {
         unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'admin_order')));
         unsubscribers.push(listenToSupportTickets(tickets => processNotifications(tickets, 'support_ticket')));
-    } else if (isDelivery) {
-        unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'delivery_order')));
     } else {
         unsubscribers.push(listenToUserOrders(user.uid, orders => processNotifications(orders, 'order')));
         unsubscribers.push(listenToUserAdminMessages(user.uid, messages => processNotifications(messages, 'message')));
@@ -204,7 +163,7 @@ const Header = () => {
         window.removeEventListener('notificationsUpdated', syncNotificationsFromStorage);
     };
 
-}, [isClient, isAuthenticated, user, isAdmin, isDelivery, isAuthLoading]);
+}, [isClient, isAuthenticated, user, isAdmin, isAuthLoading]);
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
@@ -221,17 +180,16 @@ const Header = () => {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-sidebar-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
-          <Link href={isDelivery ? '/delivery/dashboard' : '/'} aria-label="Home"><RasoiXpressLogo /></Link>
+          <Link href='/' aria-label="Home"><RasoiXpressLogo /></Link>
           
           <nav className="hidden md:flex items-center space-x-2">
-            {!isDelivery && <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>}
-            {!isDelivery && <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>}
+            <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>
+            <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>
             <Button variant="ghost" onClick={() => setIsHelpDialogOpen(true)}><HelpCircle className="mr-2 h-4 w-4" />Help</Button>
-            {isDelivery && <Link href="/delivery/dashboard"><Button variant="ghost"><Bike className="mr-2 h-4 w-4" />Rider Panel</Button></Link>}
             {isAdmin && <Link href="/admin"><Button variant="ghost" className="text-red-600"><ShieldCheck className="mr-2 h-4 w-4" />Admin</Button></Link>}
             
             {isAuthenticated ? (
-                <Link href={isDelivery ? "/delivery/profile" : "/profile"}><Button variant="ghost"><User className="mr-2 h-4 w-4" />Profile</Button></Link>
+                <Link href="/profile"><Button variant="ghost"><User className="mr-2 h-4 w-4" />Profile</Button></Link>
             ) : (
                 <Link href="/login"><Button variant="ghost"><LogIn className="mr-2 h-4 w-4"/>Login</Button></Link>
             )}

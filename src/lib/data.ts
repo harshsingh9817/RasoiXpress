@@ -22,7 +22,7 @@ import {
 import { db, firebaseConfig } from './firebase';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, Rider, SupportTicket, BannerImage } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -151,17 +151,24 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     const docRef = doc(db, 'orders', orderId);
     const dataToUpdate: Record<string, any> = { status };
 
-    if (status === 'Out for Delivery') {
-        // This makes the order available for riders when admin sets this status.
+    // When admin marks as 'Preparing', it becomes available for riders in the other app.
+    if (status === 'Preparing') {
         dataToUpdate.isAvailableForPickup = true;
-    } else if (status === 'Delivered') {
+    }
+    
+    // If an order is marked as delivered or cancelled, it is no longer available for pickup.
+    // The delivery rider app will handle the 'Out for Delivery' status change.
+    if (status === 'Delivered') {
         dataToUpdate.deliveryConfirmationCode = deleteField();
         dataToUpdate.isAvailableForPickup = false;
     } else if (status === 'Cancelled') {
         dataToUpdate.isAvailableForPickup = false;
+        // Optionally add a cancellation reason if one isn't already present
+        const currentOrder = await getDoc(docRef);
+        if (currentOrder.exists() && !currentOrder.data().cancellationReason) {
+            dataToUpdate.cancellationReason = 'Cancelled by Admin';
+        }
     }
-    // Note: 'isAvailableForPickup' is NOT changed for 'Confirmed' or 'Preparing' statuses anymore.
-    // It's set to 'false' inside `acceptOrderForDelivery` when a rider takes the job.
     
     await updateDoc(docRef, dataToUpdate);
 }
@@ -510,86 +517,6 @@ export async function sendAdminMessage(userId: string, userEmail: string, title:
         title,
         message,
         timestamp: serverTimestamp(),
-    });
-}
-
-// --- Rider Management ---
-export async function getRiders(): Promise<Rider[]> {
-    const ridersCol = collection(db, 'riders');
-    const snapshot = await getDocs(query(ridersCol, orderBy("fullName")));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Rider[];
-}
-
-export async function getRiderEmails(): Promise<string[]> {
-    const ridersCol = collection(db, 'riders');
-    const snapshot = await getDocs(ridersCol);
-    if (snapshot.empty) {
-        return [];
-    }
-    return snapshot.docs.map(doc => doc.data().email as string);
-}
-
-export async function addRider(fullName: string, email: string, phone: string, password?: string): Promise<void> {
-    const ridersCol = collection(db, 'riders');
-    const lowercasedEmail = email.toLowerCase();
-    
-    const riderQuery = query(ridersCol, where("email", "==", lowercasedEmail));
-    const riderSnapshot = await getDocs(riderQuery);
-    if (!riderSnapshot.empty) {
-        throw new Error("A rider with this email already exists in the delivery team.");
-    }
-    
-    if (password) {
-        let secondaryApp;
-        try {
-            const appName = `rider-creation-${Date.now()}`;
-            secondaryApp = initializeApp(firebaseConfig, appName);
-            const secondaryAuth = getAuth(secondaryApp);
-            
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, lowercasedEmail, password);
-            const { user } = userCredential;
-            
-            await updateProfile(user, { displayName: fullName });
-            
-            await setDoc(doc(db, "users", user.uid), {
-                uid: user.uid,
-                email: user.email,
-                displayName: fullName,
-                photoURL: user.photoURL,
-                createdAt: serverTimestamp(),
-                mobileNumber: phone,
-                hasCompletedFirstOrder: false,
-                isDelivery: true
-            });
-
-        } catch (error: any) {
-            if (error.code === 'auth/email-already-in-use') {
-                 throw new Error("A user account with this email already exists.");
-            } else if (error.code === 'auth/weak-password') {
-                throw new Error("Password is too weak. It must be at least 6 characters long.");
-            }
-            console.error("Error creating rider auth user:", error);
-            throw new Error(error.message || "Could not create the rider's user account.");
-        } finally {
-            if (secondaryApp) {
-                await deleteApp(secondaryApp);
-            }
-        }
-    }
-    
-    await addDoc(ridersCol, { fullName, email: lowercasedEmail, phone });
-}
-
-
-export async function deleteRider(riderId: string): Promise<void> {
-    const docRef = doc(db, 'riders', riderId);
-    await deleteDoc(docRef);
-}
-
-export async function clearRiderDeliveryCount(riderId: string): Promise<void> {
-    const docRef = doc(db, 'riders', riderId);
-    await updateDoc(docRef, {
-        lastPaymentDate: serverTimestamp()
     });
 }
 

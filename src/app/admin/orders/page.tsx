@@ -49,7 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -57,8 +57,18 @@ import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import DirectionsMap from "@/components/DirectionsMap";
+import { cn } from "@/lib/utils";
 
-const ALL_ORDER_STATUSES: OrderStatus[] = [
+const ORDER_PROGRESS_STEPS: OrderStatus[] = [
+  'Order Placed',
+  'Confirmed',
+  'Preparing',
+  'Out for Delivery',
+  'Delivered',
+];
+
+const ALL_FILTER_STATUSES: (OrderStatus | 'All')[] = [
+  'All',
   'Order Placed',
   'Confirmed',
   'Preparing',
@@ -83,6 +93,9 @@ export default function AdminOrdersPage() {
   
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
@@ -128,29 +141,30 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'Delivered':
       case 'Out for Delivery':
-        return 'default'; // This is primary color in badge variants
+        return 'default';
       case 'Cancelled':
         return 'destructive';
       default:
         return 'secondary';
     }
   };
-
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  
+  const handleProgressOrder = async (order: Order) => {
+    const currentIndex = ORDER_PROGRESS_STEPS.indexOf(order.status);
+    if (currentIndex === -1 || currentIndex >= ORDER_PROGRESS_STEPS.length - 1) {
+      return; // Cannot progress 'Delivered' or 'Cancelled' orders
+    }
+    const nextStatus = ORDER_PROGRESS_STEPS[currentIndex + 1];
+    
     try {
-      await updateOrderStatus(orderId, newStatus);
+      await updateOrderStatus(order.id, nextStatus);
       toast({
         title: 'Order Status Updated',
-        description: `Order #${orderId.slice(-6)} is now marked as ${newStatus}.`,
+        description: `Order #${order.id.slice(-6)} is now marked as ${nextStatus}.`,
       });
-      // Real-time listener will update the state automatically
     } catch (error) {
       console.error("Failed to update order status", error);
-      toast({
-        title: "Update Failed",
-        description: "Could not update the order status.",
-        variant: "destructive",
-      });
+      toast({ title: "Update Failed", description: "Could not update the order status.", variant: "destructive" });
     }
   };
 
@@ -158,6 +172,25 @@ export default function AdminOrdersPage() {
     setOrderToMessage(order);
     setMessageContent('');
     setIsMessageDialogOpen(true);
+  };
+
+  const handleOpenCancelDialog = (order: Order) => {
+    setOrderToCancel(order);
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (orderToCancel) {
+      try {
+        await updateOrderStatus(orderToCancel.id, 'Cancelled');
+        toast({ title: "Order Cancelled", description: `Order #${orderToCancel.id.slice(-6)} has been cancelled.`});
+      } catch (error) {
+        console.error("Failed to cancel order", error);
+        toast({ title: "Cancellation Failed", description: "Could not cancel the order.", variant: "destructive" });
+      }
+    }
+    setIsCancelDialogOpen(false);
+    setOrderToCancel(null);
   };
 
   const handleDelete = (order: Order) => {
@@ -170,7 +203,6 @@ export default function AdminOrdersPage() {
         try {
             await deleteOrder(orderToDelete.id);
             toast({ title: "Order Deleted", description: `Order #${orderToDelete.id.slice(-6)} has been removed.`});
-            // The real-time listener will automatically update the list.
         } catch (error) {
             console.error("Failed to delete order", error);
             toast({ title: "Delete Failed", description: "Could not delete the order.", variant: "destructive" });
@@ -242,14 +274,13 @@ export default function AdminOrdersPage() {
               </div>
               <Select
                 value={filterStatus}
-                onValueChange={(value: OrderStatus | 'All') => setFilterStatus(value)}
+                onValueChange={(value) => setFilterStatus(value as OrderStatus | 'All')}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  {ALL_ORDER_STATUSES.map(status => (
+                  {ALL_FILTER_STATUSES.map(status => (
                     <SelectItem key={status} value={status}>{status}</SelectItem>
                   ))}
                 </SelectContent>
@@ -270,41 +301,46 @@ export default function AdminOrdersPage() {
             </TableHeader>
             <TableBody>
               {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
-                    <TableCell>{order.customerName}</TableCell>
-                    <TableCell>{new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
-                    <TableCell>
-                       <Select
-                         value={order.status}
-                         onValueChange={(newStatus: OrderStatus) => handleStatusChange(order.id, newStatus)}
-                       >
-                         <SelectTrigger className="w-full">
-                           <SelectValue placeholder="Update status" />
-                         </SelectTrigger>
-                         <SelectContent>
-                           {ALL_ORDER_STATUSES.map(status => (
-                             <SelectItem key={status} value={status}>{status}</SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                    </TableCell>
-                    <TableCell className="text-right">Rs.{order.total.toFixed(2)}</TableCell>
-                    <TableCell>
-                        <div className="flex justify-center gap-2">
-                            <Button variant="outline" size="icon" onClick={() => setSelectedOrder(order)}>
-                               <Eye className="h-4 w-4" />
-                               <span className="sr-only">View Details</span>
-                            </Button>
-                            <Button variant="destructive" size="icon" onClick={() => handleDelete(order)}>
-                               <Trash2 className="h-4 w-4" />
-                               <span className="sr-only">Delete Order</span>
-                            </Button>
-                        </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredOrders.map((order) => {
+                    const currentStatusIndex = ORDER_PROGRESS_STEPS.indexOf(order.status);
+                    const canProgress = currentStatusIndex !== -1 && currentStatusIndex < ORDER_PROGRESS_STEPS.length - 1;
+                    const nextStatus = canProgress ? ORDER_PROGRESS_STEPS[currentStatusIndex + 1] : '';
+
+                    return (
+                        <TableRow key={order.id}>
+                            <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
+                            <TableCell>{order.customerName}</TableCell>
+                            <TableCell>{new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={getStatusVariant(order.status)} className="w-fit">{order.status}</Badge>
+                                    {canProgress && (
+                                        <Button size="sm" variant="outline" onClick={() => handleProgressOrder(order)}>
+                                           Next: {nextStatus} <ChevronRight className="ml-1 h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right">Rs.{order.total.toFixed(2)}</TableCell>
+                            <TableCell>
+                                <div className="flex justify-center gap-2">
+                                    <Button variant="outline" size="icon" onClick={() => setSelectedOrder(order)}>
+                                        <Eye className="h-4 w-4" />
+                                        <span className="sr-only">View Details</span>
+                                    </Button>
+                                    <Button variant="outline" size="icon" onClick={() => handleOpenCancelDialog(order)} disabled={order.status === 'Cancelled' || order.status === 'Delivered'}>
+                                        <Ban className="h-4 w-4" />
+                                        <span className="sr-only">Cancel Order</span>
+                                    </Button>
+                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(order)}>
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete Order</span>
+                                    </Button>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
@@ -457,6 +493,25 @@ export default function AdminOrdersPage() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
+            <AlertDialogDescriptionElement>
+                This action will mark order
+                <span className="font-semibold"> #{orderToCancel?.id.slice(-6)} </span>
+                as 'Cancelled'. This cannot be undone.
+            </AlertDialogDescriptionElement>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancel} className="bg-destructive hover:bg-destructive/90">
+                Yes, Cancel Order
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>

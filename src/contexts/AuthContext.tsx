@@ -25,7 +25,6 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  isDelivery: boolean;
   login: (identifier?: string, password?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signup: (email?: string, password?: string, fullName?: string, mobileNumber?: string) => Promise<void>;
@@ -67,7 +66,6 @@ const manageUserInFirestore = async (user: User, extraData: { mobileNumber?: str
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isDelivery, setIsDelivery] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -79,29 +77,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
-
             const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
-            let isDeliveryClaim = false;
-
-            if (userDocSnap.exists()) {
-                isDeliveryClaim = userDocSnap.data()?.isDelivery === true;
-            }
-            
             setIsAdmin(isAdminClaim);
-            setIsDelivery(isDeliveryClaim);
         } catch(error) {
             console.error("Error fetching user roles:", error);
-            // If roles fail, log user out to prevent inconsistent state
             await firebaseSignOut(auth);
             setIsAdmin(false);
-            setIsDelivery(false);
         }
       } else {
         setUser(null);
         setIsAdmin(false);
-        setIsDelivery(false);
       }
       setIsLoading(false);
     });
@@ -116,47 +101,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const isAuthenticated = !!user;
-    const publicPaths = ['/login', '/signup'];
-    const deliveryPublicPath = '/delivery/login';
-    const profileSetupPath = '/profile';
-
-    const isPublicPath = publicPaths.includes(pathname);
-    const isDeliveryPublicPath = pathname === deliveryPublicPath;
+    const isPublicPath = ['/login', '/signup'].includes(pathname);
+    const isAdminPath = pathname.startsWith('/admin');
 
     if (!isAuthenticated) {
-      // User is not authenticated
-      if (!isPublicPath && !isDeliveryPublicPath) {
-        // And is on a protected route
-        if (pathname.startsWith('/delivery')) {
-          router.replace(deliveryPublicPath);
-        } else {
-          router.replace('/login');
-        }
+      if (!isPublicPath) {
+        router.replace('/login');
       }
     } else {
-      // User is authenticated
-      if (isDelivery) {
-        // User is a delivery partner
-        if (!pathname.startsWith('/delivery') && pathname !== '/notifications') {
-          router.replace('/delivery/dashboard');
-        }
-      } else if (isAdmin) {
-        // User is an admin
-        if (isPublicPath || isDeliveryPublicPath) {
+      if (isAdmin) {
+        if (isPublicPath) {
           router.replace('/admin');
         }
       } else {
-        // User is a regular customer
-        if (isPublicPath || isDeliveryPublicPath || pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
-            // Allow access to profile page for setup
-            if (pathname === profileSetupPath && router.asPath.includes('setup=true')) {
-              return;
-            }
+        if (isPublicPath || isAdminPath) {
             router.replace('/');
         }
       }
     }
-  }, [user, isAdmin, isDelivery, isLoading, pathname, router]);
+  }, [user, isAdmin, isLoading, pathname, router]);
 
   const sendPasswordReset = async (email: string) => {
     if (!email) {
@@ -207,7 +170,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (!response.ok) {
             const data = await response.json();
-            // If API fails (e.g., user not found), we throw a generic error to be caught by the block below.
             throw new Error(data.error || "auth/invalid-credential");
         }
         const data = await response.json();
@@ -270,7 +232,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await signInWithPopup(auth, provider);
       await manageUserInFirestore(userCredential.user);
 
-      // Check if user profile is complete (has an address)
       const userAddresses = await getAddresses(userCredential.user.uid);
       if (userAddresses.length === 0) {
         router.push('/profile?setup=true');
@@ -351,7 +312,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isAdmin, isDelivery, login, signInWithGoogle, signup, logout, isLoading, sendPasswordReset }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isAdmin, login, signInWithGoogle, signup, logout, isLoading, sendPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

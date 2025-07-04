@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import HelpDialog from './HelpDialog';
 
 const BottomNav = () => {
-    const { isAuthenticated, isAdmin, isDelivery, isLoading: isAuthLoading } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
     const pathname = usePathname();
     const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
 
@@ -50,32 +50,11 @@ const BottomNav = () => {
         </>
     );
 
-    const renderDeliveryNav = () => (
-        <>
-            <Link href="/delivery/dashboard" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/delivery/dashboard') ? 'text-primary' : 'text-muted-foreground')}>
-                <Bike className="h-6 w-6" />
-                <span className="text-xs font-medium">Dashboard</span>
-            </Link>
-             <Link href="/notifications" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/notifications') ? 'text-primary' : 'text-muted-foreground')}>
-                <Bell className="h-6 w-6" />
-                <span className="text-xs font-medium">Notifications</span>
-            </Link>
-            <button onClick={() => setIsHelpDialogOpen(true)} className="flex flex-col items-center gap-1 p-2 rounded-md text-muted-foreground">
-                <HelpCircle className="h-6 w-6" />
-                <span className="text-xs font-medium">Help</span>
-            </button>
-            <Link href="/delivery/profile" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/delivery/profile') ? 'text-primary' : 'text-muted-foreground')}>
-                <User className="h-6 w-6" />
-                <span className="text-xs font-medium">Profile</span>
-            </Link>
-        </>
-    );
-
     return (
         <>
             <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur md:hidden">
                 <nav className="flex h-16 items-center justify-around px-2">
-                    {isDelivery ? renderDeliveryNav() : renderCustomerNav()}
+                    {renderCustomerNav()}
                 </nav>
             </footer>
             <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
