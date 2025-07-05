@@ -147,8 +147,10 @@ export default function CheckoutPage() {
             selectedAddress.lng
         );
         setDistance(dist);
+        
+        const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
 
-        if (dist > 5) {
+        if (dist > maxDistance) {
             setIsServiceable(false);
             setDeliveryFee(0);
             return; // Exit early
@@ -378,6 +380,12 @@ export default function CheckoutPage() {
     toast({ title: "Address removed." });
   };
 
+  const handleNewAddressAdded = (newAddressId: string) => {
+    loadPageData().then(() => {
+      setSelectedAddressId(newAddressId);
+    });
+  };
+
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -471,7 +479,7 @@ export default function CheckoutPage() {
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitleElement>Out of Delivery Area</AlertTitleElement>
                       <AlertDescription>
-                        Sorry, this location is more than 5km away. We cannot deliver to this address.
+                        Sorry, this location is more than {paymentSettings?.deliveryRadiusKm || 5}km away. We cannot deliver to this address.
                       </AlertDescription>
                     </Alert>
                 )}
@@ -527,7 +535,7 @@ export default function CheckoutPage() {
     <LocationPicker 
         isOpen={isMapOpen} 
         onOpenChange={setIsMapOpen} 
-        onSaveSuccess={loadPageData}
+        onSaveSuccess={handleNewAddressAdded}
         apiUrl={paymentSettings?.mapApiUrl}
      />
      

@@ -36,7 +36,7 @@ const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSaveSuccess: () => void;
+    onSaveSuccess: (newAddressId: string) => void;
     apiUrl: string | undefined;
 }
 
@@ -188,10 +188,10 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                 lng: lng,
             };
 
-            await addAddress(user.uid, addressToSave);
+            const newAddress = await addAddress(user.uid, addressToSave);
 
             toast({ title: "Address Saved!", description: "The new address has been added to your profile." });
-            onSaveSuccess();
+            onSaveSuccess(newAddress.id);
             onOpenChange(false);
 
         } catch (error: any) {

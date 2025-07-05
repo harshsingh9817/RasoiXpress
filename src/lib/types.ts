@@ -125,6 +125,7 @@ export interface PaymentSettings {
   isRazorpayEnabled: boolean;
   isDeliveryFeeEnabled: boolean;
   mapApiUrl: string;
+  deliveryRadiusKm?: number;
 }
 
 export interface DailyChartData {

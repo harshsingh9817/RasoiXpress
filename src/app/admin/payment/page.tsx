@@ -27,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound, MapPin, DollarSign } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
@@ -39,6 +39,7 @@ const paymentSettingsSchema = z.object({
   isRazorpayEnabled: z.boolean().optional(),
   isDeliveryFeeEnabled: z.boolean().optional(),
   mapApiUrl: z.string().url("Please enter a valid URL.").optional(),
+  deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -55,6 +56,7 @@ export default function PaymentSettingsPage() {
       isRazorpayEnabled: true,
       isDeliveryFeeEnabled: true,
       mapApiUrl: '',
+      deliveryRadiusKm: 5,
     },
   });
 
@@ -70,6 +72,7 @@ export default function PaymentSettingsPage() {
           isRazorpayEnabled: data.isRazorpayEnabled,
           isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           mapApiUrl: data.mapApiUrl || '',
+          deliveryRadiusKm: data.deliveryRadiusKm || 5,
         });
       }
       loadSettings();
@@ -82,7 +85,8 @@ export default function PaymentSettingsPage() {
       await updatePaymentSettings({
         isRazorpayEnabled: data.isRazorpayEnabled,
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
-        mapApiUrl: data.mapApiUrl
+        mapApiUrl: data.mapApiUrl,
+        deliveryRadiusKm: data.deliveryRadiusKm,
       });
       toast({
         title: "Settings Updated",
@@ -146,26 +150,47 @@ export default function PaymentSettingsPage() {
                 )}
                 />
               
-               <FormField
-                control={form.control}
-                name="isDeliveryFeeEnabled"
-                render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <FormLabel className="text-base flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Enable Delivery Fees</FormLabel>
-                        <FormDescription>
-                           Turn this on to charge delivery fees based on distance for orders under the free delivery threshold.
-                        </FormDescription>
-                    </div>
-                    <FormControl>
-                        <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        />
-                    </FormControl>
+               <Separator />
+                
+               <div className="space-y-2">
+                 <h3 className="font-medium text-lg">Delivery Settings</h3>
+                 <FormField
+                  control={form.control}
+                  name="isDeliveryFeeEnabled"
+                  render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                          <FormLabel className="text-base flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Enable Delivery Fees</FormLabel>
+                          <FormDescription>
+                            Turn this on to charge delivery fees based on distance for orders under the free delivery threshold.
+                          </FormDescription>
+                      </div>
+                      <FormControl>
+                          <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          />
+                      </FormControl>
+                      </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="deliveryRadiusKm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><Radius className="mr-2 h-4 w-4"/>Delivery Radius (in km)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" placeholder="5" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                       <FormDescription>
+                          Set the maximum distance from the restaurant that you will deliver to.
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
-                )}
-              />
+                  )}
+                />
+               </div>
               
               <Separator />
 

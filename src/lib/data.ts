@@ -70,6 +70,7 @@ const defaultPaymentSettings: PaymentSettings = {
     isRazorpayEnabled: true,
     isDeliveryFeeEnabled: true,
     mapApiUrl: 'https://maps.gomaps.pro/maps/api/js?key=AlzaSyGRY90wWGv1cIycdXYYuKjwkEWGq80P-Nc&libraries=places&callback=initMap',
+    deliveryRadiusKm: 5,
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {
@@ -362,7 +363,8 @@ export async function getAddresses(userId: string): Promise<Address[]> {
 export async function addAddress(userId: string, addressData: Omit<Address, 'id'>): Promise<Address> {
     const addressesCol = collection(db, 'users', userId, 'addresses');
     const docRef = await addDoc(addressesCol, addressData);
-    return { ...addressData, id: docRef.id } as Address;
+    const newAddress = { ...addressData, id: docRef.id } as Address;
+    return newAddress;
 }
 
 export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
