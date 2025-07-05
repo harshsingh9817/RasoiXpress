@@ -320,6 +320,36 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
     return unsubscribe;
 }
 
+export function listenToRiderAppOrders(): () => void {
+    const riderOrdersCol = collection(riderDb, 'orders');
+    
+    const unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+            if (change.type === "modified") {
+                const riderOrderData = change.doc.data();
+                const orderId = change.doc.id;
+
+                if (riderOrderData.status === 'Completed') {
+                    const mainOrderRef = doc(db, 'orders', orderId);
+                    
+                    try {
+                        const mainOrderSnap = await getDoc(mainOrderRef);
+                        if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
+                            await updateDoc(mainOrderRef, { status: 'Delivered' });
+                        }
+                    } catch (error) {
+                        console.error(`Failed to sync order ${orderId} status from rider app:`, error);
+                    }
+                }
+            }
+        });
+    }, (error) => {
+        console.error("Error listening to rider app orders:", error);
+    });
+
+    return unsubscribe;
+}
+
 
 // --- Address Management ---
 export async function getAddresses(userId: string): Promise<Address[]> {
