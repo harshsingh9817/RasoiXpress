@@ -20,10 +20,32 @@ import {
   onSnapshot,
   deleteField,
 } from 'firebase/firestore';
-import { db, firebaseConfig } from './firebase';
-import { initializeApp, deleteApp } from 'firebase/app';
+import { db } from './firebase';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Rider } from './types';
+import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
+
+// --- Rider App Firebase Configuration ---
+const riderFirebaseConfig = {
+  apiKey: "AIzaSyBNIILD1uWJbar-RHo3rsuzL8r6glZBWtY",
+  authDomain: "swiftroute-o3gkb.firebaseapp.com",
+  projectId: "swiftroute-o3gkb",
+  storageBucket: "swiftroute-o3gkb.firebasestorage.app",
+  messagingSenderId: "859125154400",
+  appId: "1:859125154400:web:ed9ed9ac910967c7a0b905"
+};
+
+const RIDER_APP_NAME = 'riderApp';
+
+// Initialize the secondary Firebase app safely
+const secondaryApps = getApps();
+const riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
+  ? initializeApp(riderFirebaseConfig, RIDER_APP_NAME)
+  : getApp(RIDER_APP_NAME);
+
+const riderDb = getSecondaryFirestore(riderApp);
+
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -150,8 +172,8 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
+    
     const updateData: { status: Order['status'], isAvailableForPickup?: boolean } = { status };
-
     if (status === 'Preparing') {
         updateData.isAvailableForPickup = true;
     } else if (status === 'Out for Delivery' || status === 'Delivered' || status === 'Cancelled') {
@@ -159,7 +181,29 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
+
+    // New logic for rider app integration
+    if (status === 'Out for Delivery') {
+        try {
+            const orderSnap = await getDoc(docRef);
+            if (orderSnap.exists()) {
+                const orderData = { id: orderSnap.id, ...orderSnap.data() };
+                
+                // Create a reference to the 'orders' collection in the secondary database
+                const riderOrderRef = doc(riderDb, 'orders', orderId);
+                
+                // Write the order data to the secondary database
+                // Using setDoc with merge:true ensures we create or update the document
+                await setDoc(riderOrderRef, orderData, { merge: true });
+            }
+        } catch (error) {
+            console.error("Failed to sync order to rider database:", error);
+            // We might want to handle this error, but for now, we'll just log it
+            // so it doesn't break the main app's functionality.
+        }
+    }
 }
+
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
