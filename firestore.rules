@@ -3,62 +3,72 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-    function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
-    }
-
-    function isAuthenticated() {
+    // Helper functions to keep rules clean
+    function isAuth() {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      // Admin identified by a specific email address.
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isAuth() && request.auth.uid == userId;
     }
-
-    // --- User Data ---
-    match /users/{userId} {
-      allow read, update: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated();
-
-      // Addresses subcollection
-      match /addresses/{addressId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-    }
-
-    // --- Public Content ---
-    match /menuItems/{menuItemId} {
-      allow read: if isAuthenticated();
+    
+    // Allow anyone to read menu items and global settings
+    match /menuItems/{itemId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /globals/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // --- Orders ---
+    // Users can manage their own data. Admins can manage all user data.
+    match /users/{userId} {
+      // An owner can get their own document. An admin can get any user's document.
+      allow get: if isOwner(userId) || isAdmin();
+      // An admin can list all users for features like broadcasting messages.
+      allow list: if isAdmin();
+      // An owner or an admin can update a user document.
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    match /users/{userId}/addresses/{addressId} {
+      // An owner or an admin can read and write addresses.
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Users can only create their own orders
+    // Users can read their own orders
+    // Users can cancel their own orders if the status is 'Order Placed'
+    // Admins can do anything
     match /orders/{orderId} {
-      allow read: if (isOwner(resource.data.userId)) || isAdmin();
-      allow create: if isOwner(request.resource.data.userId);
-      // Allow admin to update, or a user to update ONLY to cancel the order.
-      allow update: if isAdmin() || (isOwner(resource.data.userId) && request.resource.data.status == 'Cancelled');
-      allow delete: if isAdmin();
-    }
-
-    // --- Admin & Support Messaging ---
-    match /adminMessages/{messageId} {
       allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow write: if isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if (isOwner(resource.data.userId) && request.resource.data.status == 'Cancelled' && resource.data.status == 'Order Placed') || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Rules for admin messages. Users can only read messages sent to them.
+    match /adminMessages/{messageId} {
+        allow read: if isOwner(resource.data.userId) || isAdmin();
+        allow write: if isAdmin();
     }
 
+    // Rules for support tickets. Users can create them. Admins can read/write them all.
     match /supportTickets/{ticketId} {
-      // Admin can read all tickets and update them (reply/resolve)
-      allow read, update: if isAdmin();
-      // Any authenticated user can create a support ticket for themselves
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow delete: if isAdmin();
+        allow read: if isAdmin();
+        allow create: if isAuth();
+        allow update, delete: if isAdmin();
+    }
+
+    // Default deny all access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
