@@ -20,7 +20,7 @@ import {
   onSnapshot,
   deleteField,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
@@ -516,7 +516,7 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
     return processAnalyticsData(allOrders, dateRange);
 }
 
-// --- Admin Messaging ---
+// --- Admin Messaging & User Profile ---
 export async function getAllUsers(): Promise<UserRef[]> {
     const usersCol = collection(db, 'users');
     const snapshot = await getDocs(usersCol);
@@ -528,6 +528,31 @@ export async function getUserProfile(userId: string): Promise<DocumentData | nul
     const userDocRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userDocRef);
     return userDoc.exists() ? userDoc.data() : null;
+}
+
+export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
+    if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        throw new Error("Unauthorized. User is not logged in or mismatch.");
+    }
+
+    const dataToUpdate: { [key: string]: any } = {};
+    if (data.displayName) {
+        dataToUpdate.displayName = data.displayName;
+    }
+    if (data.mobileNumber) {
+        dataToUpdate.mobileNumber = data.mobileNumber;
+    }
+
+    // Update Firebase Auth profile if displayName is changing
+    if (data.displayName && auth.currentUser.displayName !== data.displayName) {
+        await updateProfile(auth.currentUser, { displayName: data.displayName });
+    }
+
+    // Update Firestore document
+    if (Object.keys(dataToUpdate).length > 0) {
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, dataToUpdate, { merge: true });
+    }
 }
 
 export async function getAdminMessages(): Promise<AdminMessage[]> {

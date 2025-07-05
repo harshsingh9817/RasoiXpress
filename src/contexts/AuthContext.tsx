@@ -19,7 +19,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { getAddresses } from '@/lib/data';
+import { getAddresses, getUserProfile } from '@/lib/data';
 
 interface AuthContextType {
   user: User | null;
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const isAuthenticated = !!user;
-    const isPublicPath = ['/login', '/signup'].includes(pathname);
+    const isPublicPath = ['/login', '/signup', '/complete-profile'].includes(pathname);
     const isAdminPath = pathname.startsWith('/admin');
 
     if (!isAuthenticated) {
@@ -114,7 +114,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           router.replace('/admin');
         }
       } else {
-        if (isPublicPath || isAdminPath) {
+        if (isPublicPath && pathname !== '/complete-profile') {
+            router.replace('/');
+        }
+        if (isAdminPath) {
             router.replace('/');
         }
       }
@@ -231,6 +234,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userCredential = await signInWithPopup(auth, provider);
       await manageUserInFirestore(userCredential.user);
+
+      const userProfile = await getUserProfile(userCredential.user.uid);
+      if (!userProfile?.mobileNumber) {
+        router.push('/complete-profile');
+        toast({
+            title: 'Complete Your Profile',
+            description: 'Please provide a few more details to continue.',
+            duration: 5000,
+        });
+        return;
+      }
 
       const userAddresses = await getAddresses(userCredential.user.uid);
       if (userAddresses.length === 0) {
