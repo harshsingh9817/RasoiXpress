@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import type { Order, OrderItem, OrderStatus, PaymentSettings, Rider } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentSettings } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings } from "@/lib/data";
 import {

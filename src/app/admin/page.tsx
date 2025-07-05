@@ -152,21 +152,6 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </Link>
-        
-        <Link href="/admin/riders" className="block h-full">
-          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
-            <CardHeader>
-              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
-                  <Bike className="mr-2 h-6 w-6 text-primary"/>
-                  Manage Riders
-              </CardTitle>
-              <CardDescription>Add, edit, or remove delivery riders from the system.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Click here to manage your delivery personnel.</p>
-            </CardContent>
-          </Card>
-        </Link>
 
       </div>
     </div>

@@ -23,7 +23,7 @@ import {
 import { db } from './firebase';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Rider } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
 
 // --- Rider App Firebase Configuration ---
@@ -615,42 +615,6 @@ export async function replyToSupportTicket(
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
     const docRef = doc(db, 'supportTickets', ticketId);
     await updateDoc(docRef, { status: 'Resolved' });
-}
-
-// --- Rider Management ---
-export async function getRiders(): Promise<Rider[]> {
-  const ridersCol = collection(db, 'riders');
-  const q = query(ridersCol, orderBy("name"));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Rider[];
-}
-
-export async function addRider(riderData: Omit<Rider, 'id'>): Promise<Rider> {
-    const ridersCol = collection(db, 'riders');
-    const docRef = await addDoc(ridersCol, riderData);
-    const docSnap = await getDoc(docRef);
-    return { id: docSnap.id, ...docSnap.data() } as Rider;
-}
-
-export async function updateRider(updatedRider: Rider): Promise<void> {
-    const { id, ...riderData } = updatedRider;
-    const docRef = doc(db, 'riders', id);
-    await updateDoc(docRef, riderData);
-}
-
-export async function deleteRider(riderId: string): Promise<void> {
-    const docRef = doc(db, 'riders', riderId);
-    await deleteDoc(docRef);
-}
-
-export async function assignRiderToOrder(orderId: string, riderId: string, riderName: string): Promise<void> {
-  const docRef = doc(db, 'orders', orderId);
-  await updateDoc(docRef, { 
-    status: 'Out for Delivery',
-    deliveryRiderId: riderId,
-    deliveryRiderName: riderName,
-    isAvailableForPickup: false, // Rider has picked it up
-  });
 }
 
 // --- Other Data Functions ---

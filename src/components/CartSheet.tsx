@@ -32,7 +32,7 @@ const CartSheet = () => {
     isCartOpen,
     setIsCartOpen,
   } = useCart();
-  const { isAuthenticated, isDelivery, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -54,7 +54,7 @@ const CartSheet = () => {
   const itemCount = getCartItemCount();
   const showFAB = pathname !== '/checkout';
   
-  if (isAuthLoading || !isAuthenticated || isDelivery) {
+  if (isAuthLoading || !isAuthenticated) {
     return null;
   }
 
