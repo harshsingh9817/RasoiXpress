@@ -174,11 +174,16 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     
-    const updateData: { status: Order['status'], isAvailableForPickup?: boolean } = { status };
+    const updateData: { [key: string]: any } = { status };
     if (status === 'Preparing') {
         updateData.isAvailableForPickup = true;
-    } else if (status === 'Out for Delivery' || status === 'Delivered' || status === 'Cancelled') {
+    } else if (status === 'Out for Delivery' || status === 'Cancelled') {
         updateData.isAvailableForPickup = false;
+    }
+    
+    if (status === 'Delivered') {
+        updateData.isAvailableForPickup = false;
+        updateData.deliveryConfirmationCode = deleteField();
     }
     
     await updateDoc(docRef, updateData);
@@ -336,7 +341,10 @@ export function listenToRiderAppOrders(): () => void {
                     try {
                         const mainOrderSnap = await getDoc(mainOrderRef);
                         if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
-                            await updateDoc(mainOrderRef, { status: 'Delivered' });
+                            await updateDoc(mainOrderRef, { 
+                                status: 'Delivered',
+                                deliveryConfirmationCode: deleteField()
+                            });
                         }
                     } catch (error) {
                         console.error(`Failed to sync order ${orderId} status from rider app:`, error);
