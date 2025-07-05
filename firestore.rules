@@ -3,67 +3,62 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check for admin role
+    // --- Helper Functions ---
     function isAdmin() {
-      // Admin is identified by a specific email address.
-      return request.auth.token.email == 'harshsingh9817@gmail.com' && request.auth.token.email_verified;
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // Users can only read/write their own profile data
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- User Data ---
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId || isAdmin();
-      allow list: if isAdmin();
-      allow create: if request.auth.uid == userId;
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated();
+
+      // Addresses subcollection
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
 
-    // Users can manage their own addresses
-    match /users/{userId}/addresses/{addressId} {
-      allow read, write, delete: if request.auth.uid == userId || isAdmin();
-    }
-
-    // Menu and global settings are public. Only admins can write.
-    match /menuItems/{itemId} {
-      allow read: if true;
+    // --- Public Content ---
+    match /menuItems/{menuItemId} {
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     match /globals/{docId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Users can create and read their own orders. Admins can manage all orders.
+    // --- Orders ---
     match /orders/{orderId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read: if request.auth.uid == resource.data.userId || isAdmin();
-      // Only admin can update status. The second rider app would need its own
-      // backend with a service account or expanded rules to update status.
-      allow update, delete: if isAdmin();
+      allow read: if (isOwner(resource.data.userId)) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      // Allow admin to update, or a user to update ONLY to cancel the order.
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && request.resource.data.status == 'Cancelled');
+      allow delete: if isAdmin();
     }
 
-    // Admin messages can be created by admins and read by the target user.
+    // --- Admin & Support Messaging ---
     match /adminMessages/{messageId} {
-      allow create: if isAdmin();
-      allow read: if request.auth.uid == resource.data.userId || isAdmin();
-    }
-    
-    // Support tickets can be created by anyone. Admins manage them.
-    match /supportTickets/{ticketId} {
-      allow create: if true;
-      allow read, update, list: if isAdmin();
-    }
-
-    // --- Rider Rules ---
-    // This allows the second rider application to read rider data.
-    // An admin has full control to add/edit/remove riders from the main app.
-    match /riders/{riderId} {
-      // Allows any authenticated user (customer or rider) to read rider data.
-      // This is needed for your second app to query and log in riders.
-      // Be aware this means a user of the customer app could also potentially read this data.
-      allow read: if request.auth != null;
-
-      // Only admins can create, update, or delete riders from this application.
+      allow read: if isOwner(resource.data.userId) || isAdmin();
       allow write: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      // Admin can read all tickets and update them (reply/resolve)
+      allow read, update: if isAdmin();
+      // Any authenticated user can create a support ticket for themselves
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow delete: if isAdmin();
     }
   }
 }
