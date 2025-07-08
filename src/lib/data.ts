@@ -15,14 +15,15 @@ import {
   orderBy,
   runTransaction,
   serverTimestamp,
-  Query,
-  DocumentData,
+  type Query,
+  type DocumentData,
   onSnapshot,
   deleteField,
+  type Firestore,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signInAnonymously } from 'firebase/auth';
+import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
 
@@ -36,20 +37,30 @@ const riderFirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_APP_ID
 };
 
-const RIDER_APP_NAME = 'riderApp';
+const riderConfigIsValid = riderFirebaseConfig.apiKey && !riderFirebaseConfig.apiKey.startsWith('REPLACE_WITH_');
+let riderApp: FirebaseApp | undefined;
+let riderDb: Firestore | undefined;
+let riderAuth: Auth | undefined;
 
-// Initialize the secondary Firebase app safely
-const secondaryApps = getApps();
-const riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
-  ? initializeApp(riderFirebaseConfig, RIDER_APP_NAME)
-  : getApp(RIDER_APP_NAME);
+// Initialize the secondary Firebase app safely only if the configuration is valid
+if (riderConfigIsValid) {
+    const RIDER_APP_NAME = 'riderApp';
+    const secondaryApps = getApps();
+    riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
+      ? initializeApp(riderFirebaseConfig, RIDER_APP_NAME)
+      : getApp(RIDER_APP_NAME);
 
-const riderDb = getSecondaryFirestore(riderApp);
-const riderAuth = getAuth(riderApp);
+    riderDb = getSecondaryFirestore(riderApp);
+    riderAuth = getAuth(riderApp);
+} else {
+    console.warn('Rider app Firebase configuration is missing or incomplete in .env. Rider integration features will be disabled.');
+}
+
 
 // Helper to ensure anonymous authentication with the rider app service.
 let riderAuthPromise: Promise<any> | null = null;
 async function ensureRiderAuth() {
+    if (!riderAuth) throw new Error("Rider Auth service is not initialized due to missing configuration.");
     if (riderAuth.currentUser) {
         return riderAuth.currentUser;
     }
@@ -211,23 +222,22 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 
     // New logic for rider app integration
     if (status === 'Out for Delivery') {
-        try {
-            await ensureRiderAuth();
-            const orderSnap = await getDoc(docRef);
-            if (orderSnap.exists()) {
-                const orderData = { id: orderSnap.id, ...orderSnap.data() };
-                
-                // Create a reference to the 'orders' collection in the secondary database
-                const riderOrderRef = doc(riderDb, 'orders', orderId);
-                
-                // Write the order data to the secondary database
-                // Using setDoc with merge:true ensures we create or update the document
-                await setDoc(riderOrderRef, orderData, { merge: true });
+        if (riderDb) {
+            try {
+                await ensureRiderAuth();
+                const orderSnap = await getDoc(docRef);
+                if (orderSnap.exists()) {
+                    const orderData = { id: orderSnap.id, ...orderSnap.data() };
+                    
+                    const riderOrderRef = doc(riderDb, 'orders', orderId);
+                    
+                    await setDoc(riderOrderRef, orderData, { merge: true });
+                }
+            } catch (error) {
+                console.error("Failed to sync order to rider database:", error);
             }
-        } catch (error) {
-            console.error("Failed to sync order to rider database:", error);
-            // We might want to handle this error, but for now, we'll just log it
-            // so it doesn't break the main app's functionality.
+        } else {
+            console.warn("Rider DB not configured, skipping order sync for 'Out for Delivery'.");
         }
     }
 }
@@ -349,42 +359,57 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
 }
 
 export function listenToRiderAppOrders(): () => void {
-    const riderOrdersCol = collection(riderDb, 'orders');
-    
-    let unsubscribe = () => {};
+    if (!riderDb || !riderAuth) {
+        console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
+        return () => {}; // Return a no-op unsubscribe function
+    }
 
-    ensureRiderAuth().then(() => {
-        unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-                if (change.type === "modified") {
-                    const riderOrderData = change.doc.data();
-                    const orderId = change.doc.id;
+    let unsubscribeFromSnapshot: (() => void) | null = null;
 
-                    if (riderOrderData.status === 'Completed') {
-                        const mainOrderRef = doc(db, 'orders', orderId);
-                        
-                        try {
-                            const mainOrderSnap = await getDoc(mainOrderRef);
-                            if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
-                                await updateDoc(mainOrderRef, { 
-                                    status: 'Delivered',
-                                    deliveryConfirmationCode: deleteField()
-                                });
+    const setupListener = async () => {
+        try {
+            await ensureRiderAuth();
+            const riderOrdersCol = collection(riderDb, 'orders');
+            
+            unsubscribeFromSnapshot = onSnapshot(riderOrdersCol, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "modified") {
+                        const riderOrderData = change.doc.data();
+                        const orderId = change.doc.id;
+
+                        if (riderOrderData.status === 'Completed') {
+                            const mainOrderRef = doc(db, 'orders', orderId);
+                            
+                            try {
+                                const mainOrderSnap = await getDoc(mainOrderRef);
+                                if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
+                                    await updateDoc(mainOrderRef, { 
+                                        status: 'Delivered',
+                                        deliveryConfirmationCode: deleteField()
+                                    });
+                                }
+                            } catch (error) {
+                                console.error(`Failed to sync order ${orderId} status from rider app:`, error);
                             }
-                        } catch (error) {
-                            console.error(`Failed to sync order ${orderId} status from rider app:`, error);
                         }
                     }
-                }
+                });
+            }, (error) => {
+                console.error("Error listening to rider app orders:", error);
             });
-        }, (error) => {
-            console.error("Error listening to rider app orders:", error);
-        });
-    }).catch(error => {
-        console.error("Failed to authenticate with rider app service for listening:", error);
-    });
+        } catch (error) {
+            console.error("Failed to authenticate with rider app service for listening:", error);
+        }
+    };
 
-    return unsubscribe;
+    setupListener();
+
+    // Return a function that will properly clean up the listener when called
+    return () => {
+        if (unsubscribeFromSnapshot) {
+            unsubscribeFromSnapshot();
+        }
+    };
 }
 
 
@@ -581,7 +606,7 @@ export async function updateUserProfileData(userId: string, data: { displayName?
 
     // Update Firebase Auth profile if displayName is changing
     if (data.displayName && auth.currentUser.displayName !== data.displayName) {
-        await updateProfile(auth.currentUser, { displayName: data.displayName });
+        await auth.currentUser.updateProfile({ displayName: data.displayName });
     }
 
     // Update Firestore document
