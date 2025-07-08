@@ -22,18 +22,18 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signInAnonymously } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
 
 // --- Rider App Firebase Configuration ---
 const riderFirebaseConfig = {
-  apiKey: process.env.RIDER_FIREBASE_API_KEY,
-  authDomain: process.env.RIDER_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.RIDER_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.RIDER_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.RIDER_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.RIDER_FIREBASE_APP_ID
+  apiKey: process.env.NEXT_PUBLIC_RIDER_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_RIDER_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_RIDER_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_APP_ID
 };
 
 const RIDER_APP_NAME = 'riderApp';
@@ -45,6 +45,27 @@ const riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
   : getApp(RIDER_APP_NAME);
 
 const riderDb = getSecondaryFirestore(riderApp);
+const riderAuth = getAuth(riderApp);
+
+// Helper to ensure anonymous authentication with the rider app service.
+let riderAuthPromise: Promise<any> | null = null;
+async function ensureRiderAuth() {
+    if (riderAuth.currentUser) {
+        return riderAuth.currentUser;
+    }
+    // If a sign-in promise is already in progress, reuse it.
+    if (!riderAuthPromise) {
+        riderAuthPromise = signInAnonymously(riderAuth);
+    }
+    try {
+        const userCredential = await riderAuthPromise;
+        return userCredential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in to rider service failed:", error);
+        riderAuthPromise = null; // Reset promise on failure
+        throw error;
+    }
+}
 
 
 // --- Initial Data ---
@@ -191,6 +212,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     // New logic for rider app integration
     if (status === 'Out for Delivery') {
         try {
+            await ensureRiderAuth();
             const orderSnap = await getDoc(docRef);
             if (orderSnap.exists()) {
                 const orderData = { id: orderSnap.id, ...orderSnap.data() };
@@ -329,31 +351,37 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
 export function listenToRiderAppOrders(): () => void {
     const riderOrdersCol = collection(riderDb, 'orders');
     
-    const unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-            if (change.type === "modified") {
-                const riderOrderData = change.doc.data();
-                const orderId = change.doc.id;
+    let unsubscribe = () => {};
 
-                if (riderOrderData.status === 'Completed') {
-                    const mainOrderRef = doc(db, 'orders', orderId);
-                    
-                    try {
-                        const mainOrderSnap = await getDoc(mainOrderRef);
-                        if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
-                            await updateDoc(mainOrderRef, { 
-                                status: 'Delivered',
-                                deliveryConfirmationCode: deleteField()
-                            });
+    ensureRiderAuth().then(() => {
+        unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === "modified") {
+                    const riderOrderData = change.doc.data();
+                    const orderId = change.doc.id;
+
+                    if (riderOrderData.status === 'Completed') {
+                        const mainOrderRef = doc(db, 'orders', orderId);
+                        
+                        try {
+                            const mainOrderSnap = await getDoc(mainOrderRef);
+                            if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
+                                await updateDoc(mainOrderRef, { 
+                                    status: 'Delivered',
+                                    deliveryConfirmationCode: deleteField()
+                                });
+                            }
+                        } catch (error) {
+                            console.error(`Failed to sync order ${orderId} status from rider app:`, error);
                         }
-                    } catch (error) {
-                        console.error(`Failed to sync order ${orderId} status from rider app:`, error);
                     }
                 }
-            }
+            });
+        }, (error) => {
+            console.error("Error listening to rider app orders:", error);
         });
-    }, (error) => {
-        console.error("Error listening to rider app orders:", error);
+    }).catch(error => {
+        console.error("Failed to authenticate with rider app service for listening:", error);
     });
 
     return unsubscribe;
