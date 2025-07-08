@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
@@ -20,8 +20,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
-const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered' ];
-const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Accepted by Rider', 'Preparing', 'Out for Delivery', 'Delivered' ];
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Accepted by Rider': UserCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 

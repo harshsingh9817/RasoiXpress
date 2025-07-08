@@ -369,20 +369,47 @@ export function listenToRiderAppOrders(): () => void {
                 if (change.type === "modified") {
                     const riderOrderData = change.doc.data();
                     const orderId = change.doc.id;
+                    const mainOrderRef = doc(db, 'orders', orderId);
 
-                    if (riderOrderData.status === 'Completed' || riderOrderData.status === 'Delivered') {
-                        const mainOrderRef = doc(db, 'orders', orderId);
-                        try {
-                            const mainOrderSnap = await getDoc(mainOrderRef);
-                            if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
-                                await updateDoc(mainOrderRef, { 
-                                    status: 'Delivered',
-                                    deliveryConfirmationCode: deleteField()
-                                });
-                            }
-                        } catch (error) {
-                            console.error(`Failed to sync order ${orderId} status from rider app:`, error);
+                    try {
+                        const mainOrderSnap = await getDoc(mainOrderRef);
+                        if (!mainOrderSnap.exists()) {
+                            // If order doesn't exist in the main DB, no need to sync.
+                            return;
                         }
+
+                        const mainOrderData = mainOrderSnap.data();
+                        const updatePayload: { [key: string]: any } = {};
+
+                        // Sync rider info if it has changed or is new
+                        if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
+                            updatePayload.deliveryRiderId = riderOrderData.riderId;
+                            updatePayload.deliveryRiderName = riderOrderData.riderName || 'N/A';
+                        }
+                        
+                        // Sync status if it has changed
+                        if (riderOrderData.status && mainOrderData.status !== riderOrderData.status) {
+                            let newStatus = riderOrderData.status;
+                            
+                            // Standardize 'Completed' to 'Delivered'
+                            if (newStatus === 'Completed') {
+                                newStatus = 'Delivered';
+                            }
+
+                            updatePayload.status = newStatus;
+
+                            // If status is now Delivered, remove confirmation code
+                            if (newStatus === 'Delivered' && mainOrderData.deliveryConfirmationCode) {
+                                updatePayload.deliveryConfirmationCode = deleteField();
+                            }
+                        }
+                        
+                        // If there's anything to update, perform the update
+                        if (Object.keys(updatePayload).length > 0) {
+                            await updateDoc(mainOrderRef, updatePayload);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to sync order ${orderId} from rider app:`, error);
                     }
                 }
             });

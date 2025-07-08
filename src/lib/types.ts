@@ -35,6 +35,7 @@ export interface CartItem extends MenuItem {
 export type OrderStatus =
   | 'Order Placed'
   | 'Confirmed'
+  | 'Accepted by Rider'
   | 'Preparing'
   | 'Out for Delivery'
   | 'Delivered'
