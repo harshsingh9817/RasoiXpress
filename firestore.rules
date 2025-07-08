@@ -3,87 +3,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
+    // Helper functions to make rules more readable.
+    function isAuth() {
+      return request.auth != null;
+    }
+    
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuth() && request.auth.uid == userId;
     }
+    
     function isAdmin() {
-      // Admin identified by a specific email address
-      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
+      return isAuth() && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // Default Deny: Secure by default
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Globals Collection (Admin only)
+    // `globals` collection (hero, paymentSettings) should be readable by all authenticated users
+    // but only writable by the admin.
     match /globals/{docId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Menu Items Collection (Public read, admin write)
-    match /menuItems/{itemId} {
-      allow read: if request.auth != null;
+      allow read: if isAuth();
       allow write: if isAdmin();
     }
 
-    // Users Collection
+    // `menuItems` should be readable by all authenticated users, but only writable by the admin.
+    match /menuItems/{menuId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // `users` collection:
+    // Admin can read and write to any user document.
+    // A user can read and write to their own document.
     match /users/{userId} {
-      // A user can get and update their own profile document.
-      allow get, update: if isOwner(userId);
-      // The admin can list all users for features like broadcasting messages.
-      allow list: if isAdmin();
-      // A new user can create their own document upon signup.
-      allow create: if request.auth.uid == userId;
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      // Addresses subcollection:
+      // A user can manage their own addresses. Admin can also manage them.
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
 
-    // Addresses Sub-collection
-    match /users/{userId}/addresses/{addressId} {
-      // Users can fully manage their own addresses.
-      allow read, write, delete: if isOwner(userId);
-    }
-
-    // Orders Collection
+    // `orders` collection:
+    // Admin can read and write any order.
+    // A user can create their own order, and read/update their own orders.
     match /orders/{orderId} {
-      // Admin can get any single order. A user can get their own order.
-      allow get: if isAdmin() || isOwner(resource.data.userId);
-      
-      // Admin can list all orders. A user can only list orders if they query by their own userId.
-      allow list: if isAdmin() || 
-                    (request.auth.uid != null && 
-                     request.query.where.size() > 0 && 
-                     request.query.where[0].field == 'userId' && 
-                     request.query.where[0].op == '==' && 
-                     request.query.where[0].value == request.auth.uid);
-
-      // A user can create an order for themselves.
-      allow create: if request.auth.uid != null && isOwner(request.resource.data.userId);
-      
-      // Admin can update any order. A user can only update to cancel a pending order or to add a review.
-      allow update: if isAdmin() || 
-                     (isOwner(resource.data.userId) && 
-                      ( (request.resource.data.status == 'Cancelled' && resource.data.status == 'Order Placed') || 
-                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['review'])) 
-                      )
-                     );
-
-      // Only admin can delete orders.
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow read, update: if isAdmin() || (isAuth() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
+
+      // Allow a user to cancel their own order only if status is 'Order Placed'
+      match /orders/{orderId} where resource.data.status == 'Order Placed' {
+        allow update: if isAuth() && resource.data.userId == request.auth.uid && request.resource.data.status == 'Cancelled';
+      }
     }
     
-    // Admin Messages Sub-collection (For user notifications)
+    // `adminMessages` collection (for notifications from admin to users):
+    // Only admin can create.
+    // Users can only read messages sent to them.
     match /adminMessages/{messageId} {
-      allow read: if isOwner(resource.data.userId); // User reads their own messages
-      allow create: if isAdmin(); // Admin sends messages
+      allow create: if isAdmin();
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
     }
-    
-    // Support Tickets Collection
+
+    // `supportTickets` collection:
+    // Any authenticated user can create a ticket.
+    // Only admin can read the full list and update/delete tickets.
     match /supportTickets/{ticketId} {
-      // Anyone (even logged-out users) can create a ticket.
-      allow create: if true; 
-      // Only admin can read and update tickets.
-      allow read, update: if isAdmin();
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
     }
   }
 }

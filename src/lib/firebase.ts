@@ -1,19 +1,20 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage"; // Added
+import { getStorage } from "firebase/storage";
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration is now loaded from environment variables
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 export const firebaseConfig = {
-  apiKey: "AIzaSyD-lbYRzDMQCfAYUniT4ec-jkZ_okUWpW0",
-  authDomain: "rasoi-express-bd581.firebaseapp.com",
-  projectId: "rasoi-express-bd581",
-  storageBucket: "rasoi-express-bd581.appspot.com",
-  messagingSenderId: "344874952353",
-  appId: "1:344874952353:web:20309745abe5f0eab872e0",
-  measurementId: "G-QX9VFYXNB4"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
@@ -26,6 +27,6 @@ if (!getApps().length) {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // Added Storage instance
+const storage = getStorage(app);
 
-export { app, auth, db, storage }; // Export storage
+export { app, auth, db, storage };
