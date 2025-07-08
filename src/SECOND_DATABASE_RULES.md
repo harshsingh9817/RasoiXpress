@@ -33,28 +33,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated (even anonymously).
-    // This will be true for the main app's anonymous session and for authenticated riders.
+    // --- Helper Functions ---
+
+    // This function checks if a user is authenticated.
+    // This will be TRUE for the main app's anonymous login session.
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Riders can read their own profile data.
-    // Rider profiles are managed by the main application's admin panel, not created here.
-    match /riders/{riderId} {
-        allow read: if isAuthenticated();
-        allow write: if false;
+    // This function checks for the specific admin email.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // Orders are created/updated by the main app and updated by riders.
-    // Any authenticated session can read, create, or update orders.
-    // The specific business logic is handled in the application code.
+    // --- Collection Rules ---
+
+    // Orders are read and updated by the Rider App.
     match /orders/{orderId} {
-      allow read, write: if isAuthenticated();
-      allow delete: if false; // Deletes are restricted for safety.
+      // Allow any authenticated session (including anonymous) to read and update.
+      allow read, update: if isAuthenticated();
+
+      // Only the admin from the main app can create or delete orders in this database.
+      allow create, delete: if isAdmin();
     }
 
-    // Default deny all access to any other collections.
+    // Riders collection is not used by the rider app directly.
+    match /riders/{riderId} {
+        allow read, write: if false;
+    }
+
+    // Default deny access to any other collections to ensure security.
     match /{path=**} {
       allow read, write: if false;
     }
