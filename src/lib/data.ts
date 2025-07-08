@@ -28,12 +28,12 @@ import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
 
 // --- Rider App Firebase Configuration ---
 const riderFirebaseConfig = {
-  apiKey: "AIzaSyBNIILD1uWJbar-RHo3rsuzL8r6glZBWtY",
-  authDomain: "swiftroute-o3gkb.firebaseapp.com",
-  projectId: "swiftroute-o3gkb",
-  storageBucket: "swiftroute-o3gkb.firebasestorage.app",
-  messagingSenderId: "859125154400",
-  appId: "1:859125154400:web:ed9ed9ac910967c7a0b905"
+  apiKey: "AIzaSyBQdWbvM1v0J3KmO0kcyyGUrxFRYrgyRFY",
+  authDomain: "rasoi-rider-connect.firebaseapp.com",
+  projectId: "rasoi-rider-connect",
+  storageBucket: "rasoi-rider-connect.firebasestorage.app",
+  messagingSenderId: "462103412380",
+  appId: "1:462103412380:web:00b73371209446808e7759"
 };
 
 const RIDER_APP_NAME = 'riderApp';
