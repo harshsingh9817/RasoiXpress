@@ -42,7 +42,6 @@ let riderApp: FirebaseApp | undefined;
 let riderDb: Firestore | undefined;
 let riderAuth: Auth | undefined;
 
-// Initialize the secondary Firebase app safely only if the configuration is valid
 if (riderConfigIsValid) {
     const RIDER_APP_NAME = 'riderApp';
     const secondaryApps = getApps();
@@ -57,25 +56,27 @@ if (riderConfigIsValid) {
 }
 
 
-// Helper to ensure anonymous authentication with the rider app service.
 let riderAuthPromise: Promise<any> | null = null;
 async function ensureRiderAuth() {
-    if (!riderAuth) throw new Error("Rider Auth service is not initialized due to missing configuration.");
+    if (!riderAuth) {
+        console.warn("Rider Auth service is not initialized due to missing configuration.");
+        return null;
+    }
     if (riderAuth.currentUser) {
         return riderAuth.currentUser;
     }
-    // If a sign-in promise is already in progress, reuse it.
+
     if (!riderAuthPromise) {
-        riderAuthPromise = signInAnonymously(riderAuth);
+        riderAuthPromise = signInAnonymously(riderAuth)
+          .catch(error => {
+              console.error("Rider App Anonymous Sign-In Failed.", error);
+              console.error("This is likely because 'Anonymous' sign-in is not enabled in the 'rasoi-rider-connect' Firebase project's Authentication settings. Please enable it in the Firebase Console.");
+              riderAuthPromise = null; 
+              return null; 
+          });
     }
-    try {
-        const userCredential = await riderAuthPromise;
-        return userCredential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in to rider service failed:", error);
-        riderAuthPromise = null; // Reset promise on failure
-        throw error;
-    }
+    
+    return await riderAuthPromise;
 }
 
 
@@ -128,8 +129,6 @@ export async function getMenuItems(): Promise<MenuItem[]> {
 export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
     const menuItemsCol = collection(db, 'menuItems');
     
-    // Firestore does not allow 'undefined' values.
-    // We create a clean object that filters out any keys with an undefined value.
     const cleanData: { [key: string]: any } = {};
     Object.entries(newItemData).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -146,10 +145,8 @@ export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
     const { id, ...itemData } = updatedItem;
     
     const docRef = doc(db, 'menuItems', id);
-    // Convert the item data to a plain object to avoid issues with custom class instances
     const cleanData: { [key: string]: any } = JSON.parse(JSON.stringify(itemData));
     
-    // Remove any keys with undefined, null, or empty string values before updating
     Object.keys(cleanData).forEach(key => {
         if (cleanData[key] === undefined || cleanData[key] === null || cleanData[key] === '') {
             delete cleanData[key];
@@ -176,16 +173,13 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         createdAt: serverTimestamp(),
     });
 
-    // After successfully adding the order, update the user's first order status flag.
     const userRef = doc(db, "users", orderData.userId);
     try {
         const userDoc = await getDoc(userRef);
-        // We only update the flag if it's currently false.
         if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
             await updateDoc(userRef, { hasCompletedFirstOrder: true });
         }
     } catch (error) {
-        // Log this error but don't fail the order placement, as it's not critical.
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
 
@@ -220,21 +214,20 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     
     await updateDoc(docRef, updateData);
 
-    // New logic for rider app integration
     if (status === 'Out for Delivery') {
         if (riderDb) {
-            try {
-                await ensureRiderAuth();
-                const orderSnap = await getDoc(docRef);
-                if (orderSnap.exists()) {
-                    const orderData = { id: orderSnap.id, ...orderSnap.data() };
-                    
-                    const riderOrderRef = doc(riderDb, 'orders', orderId);
-                    
-                    await setDoc(riderOrderRef, orderData, { merge: true });
+            const riderUser = await ensureRiderAuth();
+            if (riderUser) {
+                try {
+                    const orderSnap = await getDoc(docRef);
+                    if (orderSnap.exists()) {
+                        const orderData = { id: orderSnap.id, ...orderSnap.data() };
+                        const riderOrderRef = doc(riderDb, 'orders', orderId);
+                        await setDoc(riderOrderRef, orderData, { merge: true });
+                    }
+                } catch (error) {
+                     console.error("Failed to sync order to rider database:", error);
                 }
-            } catch (error) {
-                console.error("Failed to sync order to rider database:", error);
             }
         } else {
             console.warn("Rider DB not configured, skipping order sync for 'Out for Delivery'.");
@@ -336,7 +329,6 @@ export function listenToOrderById(orderId: string, callback: (order: Order | nul
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
     if (!userId) return () => {};
     const messagesCol = collection(db, 'adminMessages');
-    // Removed orderBy to avoid needing a composite index. Sorting will be done on the client.
     const q = query(messagesCol, where('userId', '==', userId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const messages = snapshot.docs.map(doc => {
@@ -348,7 +340,6 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
             }
         }) as AdminMessage[];
 
-        // Sort messages on the client by timestamp, newest first.
         messages.sort((a, b) => b.timestamp - a.timestamp);
         
         callback(messages);
@@ -359,52 +350,49 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
 }
 
 export function listenToRiderAppOrders(): () => void {
-    if (!riderDb || !riderAuth) {
+    if (!riderDb) {
         console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
-        return () => {}; // Return a no-op unsubscribe function
+        return () => {};
     }
 
     let unsubscribeFromSnapshot: (() => void) | null = null;
 
     const setupListener = async () => {
-        try {
-            await ensureRiderAuth();
-            const riderOrdersCol = collection(riderDb, 'orders');
-            
-            unsubscribeFromSnapshot = onSnapshot(riderOrdersCol, (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "modified") {
-                        const riderOrderData = change.doc.data();
-                        const orderId = change.doc.id;
+        const riderUser = await ensureRiderAuth();
+        if (!riderUser) {
+            return; 
+        }
 
-                        if (riderOrderData.status === 'Completed') {
-                            const mainOrderRef = doc(db, 'orders', orderId);
-                            
-                            try {
-                                const mainOrderSnap = await getDoc(mainOrderRef);
-                                if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
-                                    await updateDoc(mainOrderRef, { 
-                                        status: 'Delivered',
-                                        deliveryConfirmationCode: deleteField()
-                                    });
-                                }
-                            } catch (error) {
-                                console.error(`Failed to sync order ${orderId} status from rider app:`, error);
+        const riderOrdersCol = collection(riderDb, 'orders');
+        unsubscribeFromSnapshot = onSnapshot(riderOrdersCol, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === "modified") {
+                    const riderOrderData = change.doc.data();
+                    const orderId = change.doc.id;
+
+                    if (riderOrderData.status === 'Completed' || riderOrderData.status === 'Delivered') {
+                        const mainOrderRef = doc(db, 'orders', orderId);
+                        try {
+                            const mainOrderSnap = await getDoc(mainOrderRef);
+                            if (mainOrderSnap.exists() && mainOrderSnap.data().status !== 'Delivered') {
+                                await updateDoc(mainOrderRef, { 
+                                    status: 'Delivered',
+                                    deliveryConfirmationCode: deleteField()
+                                });
                             }
+                        } catch (error) {
+                            console.error(`Failed to sync order ${orderId} status from rider app:`, error);
                         }
                     }
-                });
-            }, (error) => {
-                console.error("Error listening to rider app orders:", error);
+                }
             });
-        } catch (error) {
-            console.error("Failed to authenticate with rider app service for listening:", error);
-        }
+        }, (error) => {
+            console.error("Error listening to rider app orders:", error);
+        });
     };
 
     setupListener();
 
-    // Return a function that will properly clean up the listener when called
     return () => {
         if (unsubscribeFromSnapshot) {
             unsubscribeFromSnapshot();
@@ -483,7 +471,6 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         return defaultPaymentSettings;
     }
     const data = docSnap.data();
-    // Merge with defaults to ensure new fields are present even if not in Firestore
     return { ...defaultPaymentSettings, ...data };
 }
 
@@ -516,19 +503,16 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
     
     const dailyData: Map<string, { revenue: number; profit: number; loss: number }> = new Map();
 
-    // Calculate total profit and daily data based on delivered orders
     let totalProfit = 0;
     deliveredOrders.forEach(order => {
         const date = new Date(order.date).toISOString().split('T')[0];
         const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
         
-        // For each item, use its costPrice if available, otherwise estimate it as 70% of the selling price
         const itemsCost = order.items.reduce((sum, item) => {
-            const cost = item.costPrice ?? (item.price * 0.70); // Fallback to 30% margin estimate
+            const cost = item.costPrice ?? (item.price * 0.70);
             return sum + (cost * item.quantity);
         }, 0);
         
-        // Profit = (Total Revenue from customer) - (Taxes) - (Delivery Fee) - (Cost of Goods)
         const orderProfit = order.total - (order.totalTax || 0) - (order.deliveryFee || 0) - itemsCost;
 
         totalProfit += orderProfit;
@@ -604,12 +588,10 @@ export async function updateUserProfileData(userId: string, data: { displayName?
         dataToUpdate.mobileNumber = data.mobileNumber;
     }
 
-    // Update Firebase Auth profile if displayName is changing
     if (data.displayName && auth.currentUser.displayName !== data.displayName) {
         await auth.currentUser.updateProfile({ displayName: data.displayName });
     }
 
-    // Update Firestore document
     if (Object.keys(dataToUpdate).length > 0) {
         const userRef = doc(db, 'users', userId);
         await setDoc(userRef, dataToUpdate, { merge: true });
