@@ -398,16 +398,25 @@ export function listenToRiderAppOrders(): () => void {
                         // Sync rider info if it has changed or is new
                         if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
                             updatePayload.deliveryRiderId = riderOrderData.riderId;
-                            updatePayload.deliveryRiderName = riderOrderData.riderName || 'N/A';
                             
-                            // Fetch rider details to get phone number
+                            // Fetch rider details from the 'riders' collection for name and phone
                             try {
                                 const riderDetails = await getRiderByIdFromRiderDB(riderOrderData.riderId);
-                                if (riderDetails && riderDetails.phone) {
-                                    updatePayload.deliveryRiderPhone = riderDetails.phone;
+                                if (riderDetails) {
+                                    if (riderDetails.name) {
+                                        updatePayload.deliveryRiderName = riderDetails.name;
+                                    }
+                                    if (riderDetails.phone) {
+                                        updatePayload.deliveryRiderPhone = riderDetails.phone;
+                                    }
+                                } else {
+                                     // Fallback if rider profile not found for some reason
+                                     updatePayload.deliveryRiderName = 'Assigned Rider';
                                 }
                             } catch (riderError) {
                                 console.error(`Failed to fetch rider details for ${riderOrderData.riderId}:`, riderError);
+                                // Fallback
+                                updatePayload.deliveryRiderName = 'Assigned Rider';
                             }
                         }
                         
@@ -747,5 +756,6 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
 
 
