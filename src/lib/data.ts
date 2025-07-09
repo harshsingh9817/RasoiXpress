@@ -748,3 +748,4 @@ export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
 
+
