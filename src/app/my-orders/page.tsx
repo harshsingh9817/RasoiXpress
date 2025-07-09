@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
@@ -190,19 +190,52 @@ export default function MyOrdersPage() {
                                 const currentIndex = orderProgressSteps.indexOf(trackedOrder.status);
                                 const isCompleted = index < currentIndex;
                                 const isActive = index === currentIndex;
+                                const isAcceptedByRider = step === 'Accepted by Rider' && (isActive || isCompleted);
+                                
                                 return (
                                 <div key={step} className="flex items-start mb-6 last:mb-0">
                                     <div className={cn( "flex h-10 w-10 items-center justify-center rounded-full border-2 shrink-0", isActive ? "bg-primary border-primary text-primary-foreground animate-pulse" : isCompleted ? "bg-primary/80 border-primary/80 text-primary-foreground" : "bg-muted border-border text-muted-foreground" )}>
                                         <IconComponent className="h-5 w-5" />
                                     </div>
                                     <div className="ml-4 pt-1.5">
-                                        <p className={cn( "font-medium", isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground" )}>{step}</p>
+                                        <p className={cn( "font-medium", isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground" )}>
+                                            {step}
+                                            {isAcceptedByRider && trackedOrder.deliveryRiderName && (
+                                                <span className="text-sm font-normal text-muted-foreground block">
+                                                    by {trackedOrder.deliveryRiderName}
+                                                </span>
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
                                 );
                             })}
                         </div>
                     )}
+
+                    {trackedOrder.deliveryRiderName && trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && (
+                        <>
+                            <Separator className="my-4" />
+                            <div className="space-y-2">
+                                <h4 className="font-semibold text-base">Your Delivery Partner</h4>
+                                <div className="flex items-center justify-between rounded-md border p-3">
+                                    <p className="flex items-center gap-2">
+                                        <Bike className="h-5 w-5 text-primary" />
+                                        {trackedOrder.deliveryRiderName}
+                                    </p>
+                                    {trackedOrder.deliveryRiderPhone && (
+                                        <Button asChild size="sm">
+                                            <a href={`tel:${trackedOrder.deliveryRiderPhone}`}>
+                                                <Phone className="mr-2 h-4 w-4" />
+                                                Call Rider
+                                            </a>
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     {trackedOrder.status !== 'Cancelled' && trackedOrder.deliveryConfirmationCode && (
                         <>
                             <Separator className="my-4" />

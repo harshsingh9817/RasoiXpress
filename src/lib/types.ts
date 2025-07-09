@@ -71,6 +71,7 @@ export interface Order {
   totalTax: number; // New field to store the calculated total tax
   deliveryRiderId?: string;
   deliveryRiderName?: string;
+  deliveryRiderPhone?: string;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   isAvailableForPickup?: boolean;
@@ -170,3 +171,4 @@ export interface SupportTicket {
   reply?: string;
   repliedAt?: any;
 }
+

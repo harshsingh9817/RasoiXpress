@@ -349,6 +349,20 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
     return unsubscribe;
 }
 
+async function getRiderByIdFromRiderDB(riderId: string): Promise<DocumentData | null> {
+    if (!riderDb) {
+        console.warn("Rider DB not configured.");
+        return null;
+    }
+    await ensureRiderAuth();
+    const riderRef = doc(riderDb, 'riders', riderId);
+    const riderSnap = await getDoc(riderRef);
+    if (riderSnap.exists()) {
+        return riderSnap.data();
+    }
+    return null;
+}
+
 export function listenToRiderAppOrders(): () => void {
     if (!riderDb) {
         console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
@@ -385,6 +399,16 @@ export function listenToRiderAppOrders(): () => void {
                         if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
                             updatePayload.deliveryRiderId = riderOrderData.riderId;
                             updatePayload.deliveryRiderName = riderOrderData.riderName || 'N/A';
+                            
+                            // Fetch rider details to get phone number
+                            try {
+                                const riderDetails = await getRiderByIdFromRiderDB(riderOrderData.riderId);
+                                if (riderDetails && riderDetails.phone) {
+                                    updatePayload.deliveryRiderPhone = riderDetails.phone;
+                                }
+                            } catch (riderError) {
+                                console.error(`Failed to fetch rider details for ${riderOrderData.riderId}:`, riderError);
+                            }
                         }
                         
                         // Sync status if it has changed
@@ -723,3 +747,4 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
