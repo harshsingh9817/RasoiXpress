@@ -399,24 +399,24 @@ export function listenToRiderAppOrders(): () => void {
                         if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
                             updatePayload.deliveryRiderId = riderOrderData.riderId;
                             
-                            // Fetch rider details from the 'riders' collection for name and phone
                             try {
                                 const riderDetails = await getRiderByIdFromRiderDB(riderOrderData.riderId);
-                                if (riderDetails) {
-                                    if (riderDetails.name) {
-                                        updatePayload.deliveryRiderName = riderDetails.name;
-                                    }
-                                    if (riderDetails.phone) {
-                                        updatePayload.deliveryRiderPhone = riderDetails.phone;
-                                    }
-                                } else {
-                                     // Fallback if rider profile not found for some reason
-                                     updatePayload.deliveryRiderName = 'Assigned Rider';
-                                }
+                                
+                                // Robustly set rider name with a fallback
+                                updatePayload.deliveryRiderName = (riderDetails && typeof riderDetails.name === 'string' && riderDetails.name.trim()) 
+                                    ? riderDetails.name.trim() 
+                                    : 'An assigned rider';
+
+                                // Robustly set rider phone, ensuring it's null if not found
+                                updatePayload.deliveryRiderPhone = (riderDetails && typeof riderDetails.phone === 'string' && riderDetails.phone.trim())
+                                    ? riderDetails.phone.trim()
+                                    : null;
+
                             } catch (riderError) {
                                 console.error(`Failed to fetch rider details for ${riderOrderData.riderId}:`, riderError);
-                                // Fallback
-                                updatePayload.deliveryRiderName = 'Assigned Rider';
+                                // Fallback in case of an error during fetch
+                                updatePayload.deliveryRiderName = 'An assigned rider';
+                                updatePayload.deliveryRiderPhone = null;
                             }
                         }
                         
@@ -756,6 +756,7 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
 
 
 
