@@ -388,56 +388,47 @@ export function listenToRiderAppOrders(): () => void {
                     try {
                         const mainOrderSnap = await getDoc(mainOrderRef);
                         if (!mainOrderSnap.exists()) {
-                            // If order doesn't exist in the main DB, no need to sync.
                             return;
                         }
 
                         const mainOrderData = mainOrderSnap.data();
                         const updatePayload: { [key: string]: any } = {};
 
-                        // Sync rider info if it has changed or is new
                         if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
                             updatePayload.deliveryRiderId = riderOrderData.riderId;
                             
                             try {
                                 const riderDetails = await getRiderByIdFromRiderDB(riderOrderData.riderId);
                                 
-                                // Robustly set rider name with a fallback
                                 updatePayload.deliveryRiderName = (riderDetails && typeof riderDetails.name === 'string' && riderDetails.name.trim()) 
                                     ? riderDetails.name.trim() 
                                     : 'An assigned rider';
 
-                                // Robustly set rider phone, ensuring it's null if not found
                                 updatePayload.deliveryRiderPhone = (riderDetails && typeof riderDetails.phone === 'string' && riderDetails.phone.trim())
                                     ? riderDetails.phone.trim()
                                     : null;
 
                             } catch (riderError) {
                                 console.error(`Failed to fetch rider details for ${riderOrderData.riderId}:`, riderError);
-                                // Fallback in case of an error during fetch
                                 updatePayload.deliveryRiderName = 'An assigned rider';
                                 updatePayload.deliveryRiderPhone = null;
                             }
                         }
                         
-                        // Sync status if it has changed
                         if (riderOrderData.status && mainOrderData.status !== riderOrderData.status) {
                             let newStatus = riderOrderData.status;
                             
-                            // Standardize 'Completed' to 'Delivered'
                             if (newStatus === 'Completed') {
                                 newStatus = 'Delivered';
                             }
 
                             updatePayload.status = newStatus;
 
-                            // If status is now Delivered, remove confirmation code
                             if (newStatus === 'Delivered' && mainOrderData.deliveryConfirmationCode) {
                                 updatePayload.deliveryConfirmationCode = deleteField();
                             }
                         }
                         
-                        // If there's anything to update, perform the update
                         if (Object.keys(updatePayload).length > 0) {
                             await updateDoc(mainOrderRef, updatePayload);
                         }
@@ -573,7 +564,7 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
             return sum + (cost * item.quantity);
         }, 0);
         
-        const orderProfit = order.total - (order.totalTax || 0) - (order.deliveryFee || 0) - itemsCost;
+        const orderProfit = order.total - (order.totalTax || 0) - (order.deliveryFee || 0) - (order.discountAmount || 0) - itemsCost;
 
         totalProfit += orderProfit;
         
@@ -756,7 +747,3 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
-
-
-
-

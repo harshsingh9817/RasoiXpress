@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import CartItemCard from './CartItemCard';
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,16 +25,21 @@ import { useAuth } from '@/contexts/AuthContext';
 const CartSheet = () => {
   const {
     cartItems,
+    getCartSubtotal,
     getCartTotal,
+    getDiscountAmount,
     getCartItemCount,
     clearCart,
     applyCoupon,
+    removeCoupon,
+    appliedCoupon,
     isCartOpen,
     setIsCartOpen,
   } = useCart();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [couponCode, setCouponCode] = useState('');
 
   const handleApplyCoupon = (e: FormEvent) => {
     e.preventDefault();
@@ -49,7 +54,8 @@ const CartSheet = () => {
     router.push('/checkout');
   };
 
-  const [couponCode, setCouponCode] = useState('');
+  const subtotal = getCartSubtotal();
+  const discountAmount = getDiscountAmount();
   const total = getCartTotal();
   const itemCount = getCartItemCount();
   const showFAB = pathname !== '/checkout';
@@ -111,24 +117,45 @@ const CartSheet = () => {
               </ScrollArea>
               <Separator className="my-4" />
               <div className="px-6 space-y-4">
-                <form onSubmit={handleApplyCoupon} className="flex space-x-2">
-                  <Input
-                    type="text"
-                    placeholder="Enter coupon code"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1"
-                    aria-label="Coupon code"
-                  />
-                  <Button type="submit" variant="outline" className="text-accent border-accent hover:bg-accent/10">
-                    <Tag className="mr-2 h-4 w-4" /> Apply
-                  </Button>
-                </form>
-                <div className="flex justify-between text-lg font-semibold">
+                {appliedCoupon ? (
+                    <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
+                        <div className="text-sm">
+                            <p className="font-semibold text-green-700">Coupon Applied!</p>
+                            <p className="text-green-600">{appliedCoupon.code} ({appliedCoupon.discountPercent}% off)</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={removeCoupon}>
+                            <XCircle className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleApplyCoupon} className="flex space-x-2">
+                        <Input
+                            type="text"
+                            placeholder="Enter coupon code"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value)}
+                            className="flex-1"
+                            aria-label="Coupon code"
+                        />
+                        <Button type="submit" variant="outline" className="text-accent border-accent hover:bg-accent/10">
+                            <Tag className="mr-2 h-4 w-4" /> Apply
+                        </Button>
+                    </form>
+                )}
+
+                <div className="flex justify-between text-lg">
                   <span>Subtotal:</span>
-                  <span>Rs.{total.toFixed(2)}</span>
+                  <span>Rs.{subtotal.toFixed(2)}</span>
                 </div>
-                {/* Add more details like tax, delivery fee if needed */}
+                {discountAmount > 0 && (
+                    <div className="flex justify-between text-lg text-green-600">
+                        <span>Discount:</span>
+                        <span>- Rs.{discountAmount.toFixed(2)}</span>
+                    </div>
+                )}
+                
+                <Separator />
+                
                 <div className="flex justify-between text-xl font-bold text-primary">
                   <span>Total:</span>
                   <span>Rs.{total.toFixed(2)}</span>

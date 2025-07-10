@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag, XCircle } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +52,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 declare global { interface Window { Razorpay: any; } }
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen } = useCart();
+  const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon, removeCoupon } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -76,19 +76,23 @@ export default function CheckoutPage() {
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
   
-  // New state for delivery logic & first order
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [distance, setDistance] = useState<number | null>(null);
   const [isServiceable, setIsServiceable] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
 
 
-  const subTotal = getCartTotal();
+  const subTotal = getCartSubtotal();
+  const discountAmount = getDiscountAmount();
+  const totalAfterDiscount = getCartTotal();
+
   const totalTax = cartItems.reduce((acc, item) => {
     const itemTax = item.price * (item.taxRate || 0);
     return acc + (itemTax * item.quantity);
   }, 0);
-  const grandTotal = subTotal + deliveryFee + totalTax;
+  
+  // Grand total should be calculated on the final price after discount + delivery fee + taxes
+  const grandTotal = totalAfterDiscount + deliveryFee + totalTax;
 
   const loadPageData = useCallback(async () => {
     if (!user) return;
@@ -153,30 +157,27 @@ export default function CheckoutPage() {
         if (dist > maxDistance) {
             setIsServiceable(false);
             setDeliveryFee(0);
-            return; // Exit early
+            return;
         }
 
         setIsServiceable(true);
         
-        // Check global delivery fee setting first
         if (paymentSettings?.isDeliveryFeeEnabled === false) {
             setDeliveryFee(0);
             return;
         }
 
-        // Then check for first order
         const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
         if (isFirstOrder) {
-            setDeliveryFee(0); // Free delivery for the first order
+            setDeliveryFee(0);
             return;
         }
 
-        // Then check order total for fee calculation
         if (subTotal > 0 && subTotal < 300) {
             const fee = Math.round(dist * 25);
             setDeliveryFee(fee);
         } else {
-            setDeliveryFee(0); // Free delivery for orders >= 300
+            setDeliveryFee(0);
         }
 
     } else {
@@ -331,7 +332,9 @@ export default function CheckoutPage() {
         customerPhone: selectedAddress.phone,
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
         deliveryFee: deliveryFee,
-        totalTax: totalTax
+        totalTax: totalTax,
+        couponCode: appliedCoupon?.code,
+        discountAmount: discountAmount
     };
     
     if (paymentSettings?.isRazorpayEnabled) {
@@ -503,6 +506,12 @@ export default function CheckoutPage() {
                 )}
                 <div className="space-y-2 text-lg">
                     <div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div>
+                    {appliedCoupon && discountAmount > 0 && (
+                        <div className="flex justify-between items-center text-sm text-green-600">
+                          <span className='flex items-center gap-1'><Tag className="h-4 w-4" />Coupon '{appliedCoupon.code}'</span>
+                          <span>- Rs.{discountAmount.toFixed(2)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div>
                     <div className="flex justify-between text-sm">
                         <span>Delivery Fee:</span>

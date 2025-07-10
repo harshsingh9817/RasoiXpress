@@ -77,6 +77,8 @@ export interface Order {
   isAvailableForPickup?: boolean;
   shippingLat?: number;
   shippingLng?: number;
+  couponCode?: string;
+  discountAmount?: number;
 }
 
 export interface Address {
@@ -171,4 +173,3 @@ export interface SupportTicket {
   reply?: string;
   repliedAt?: any;
 }
-

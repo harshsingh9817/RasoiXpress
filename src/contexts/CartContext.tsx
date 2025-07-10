@@ -1,10 +1,11 @@
 
 "use client";
 
-import type { MenuItem, CartItem, HeroData } from '@/lib/types';
+import type { MenuItem, CartItem } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { getHeroData } from '@/lib/data';
+import { couponCodes } from '@/lib/coupons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,13 +19,21 @@ import {
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 import { Button } from '@/components/ui/button';
 
+interface AppliedCoupon {
+  code: string;
+  discountPercent: number;
+}
+
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: MenuItem, quantity?: number) => boolean;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   applyCoupon: (couponCode: string) => void;
+  removeCoupon: () => void;
+  getCartSubtotal: () => number;
   getCartTotal: () => number;
+  getDiscountAmount: () => number;
   getCartItemCount: () => number;
   clearCart: () => void;
   isCartOpen: boolean;
@@ -34,6 +43,7 @@ interface CartContextType {
   isFreeDeliveryDialogOpen: boolean;
   setIsFreeDeliveryDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setProceedAction: React.Dispatch<React.SetStateAction<(() => void) | null>>;
+  appliedCoupon: AppliedCoupon | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -43,6 +53,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
 
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
@@ -51,7 +62,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [proceedAction, setProceedAction] = useState<(() => void) | null>(null);
 
   useEffect(() => {
-    // Load cart from localStorage on initial render (client-side only)
     if (typeof window !== 'undefined') {
       const storedCart = localStorage.getItem('rasoiExpressCart');
       if (storedCart) {
@@ -59,32 +69,39 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           setCartItems(JSON.parse(storedCart));
         } catch (error) {
           console.error("Error parsing cart from localStorage:", error);
-          localStorage.removeItem('rasoiExpressCart'); // Clear corrupted cart data
+          localStorage.removeItem('rasoiExpressCart');
+        }
+      }
+      const storedCoupon = localStorage.getItem('rasoiExpressCoupon');
+      if (storedCoupon) {
+        try {
+          setAppliedCoupon(JSON.parse(storedCoupon));
+        } catch (error) {
+          console.error("Error parsing coupon from localStorage:", error);
+          localStorage.removeItem('rasoiExpressCoupon');
         }
       }
     }
 
-    // Fetch hero data to get ordering times
     getHeroData().then(heroData => {
         if (!heroData?.orderingTime) return;
-
         const checkTime = () => {
             try {
                 const [startTimeStr, endTimeStr] = heroData.orderingTime.split(' - ');
                 if (!startTimeStr || !endTimeStr) {
-                    setIsOrderingAllowed(true); // Default to allowed if format is wrong
+                    setIsOrderingAllowed(true);
                     return;
                 }
                 
                 const parseTime = (timeStr: string): Date | null => {
                     const match = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                    if (!match) return null; // Invalid format
+                    if (!match) return null;
                     const date = new Date();
                     let [, hoursStr, minutesStr, modifier] = match;
                     let hours = parseInt(hoursStr, 10);
                     const minutes = parseInt(minutesStr, 10);
                     if (modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
-                    if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0; // Midnight case
+                    if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
                     date.setHours(hours, minutes, 0, 0);
                     return date;
                 };
@@ -100,40 +117,41 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                          setOrderingTimeMessage(`Our ordering hours are from ${heroData.orderingTime}.`);
                     }
                 } else {
-                    setIsOrderingAllowed(true); // Fail open if parsing fails
+                    setIsOrderingAllowed(true);
                 }
             } catch (e) {
                 console.error("Error parsing ordering time:", e);
-                setIsOrderingAllowed(true); // Fail open in case of error
+                setIsOrderingAllowed(true);
             }
         };
-
         checkTime();
-        const interval = setInterval(checkTime, 60000); // Re-check every minute
+        const interval = setInterval(checkTime, 60000);
         return () => clearInterval(interval);
     });
-
   }, []);
 
   useEffect(() => {
-    // Save cart to localStorage whenever it changes (client-side only)
     if (typeof window !== 'undefined') {
       localStorage.setItem('rasoiExpressCart', JSON.stringify(cartItems));
+      if (appliedCoupon) {
+        localStorage.setItem('rasoiExpressCoupon', JSON.stringify(appliedCoupon));
+      } else {
+        localStorage.removeItem('rasoiExpressCoupon');
+      }
     }
-  }, [cartItems]);
+  }, [cartItems, appliedCoupon]);
 
   const addToCart = (item: MenuItem, quantityToAdd: number = 1): boolean => {
     if (!isOrderingAllowed) {
       setIsTimeGateDialogOpen(true);
       return false;
     }
-
     setCartItems(prevItems => {
       const existingItem = prevItems.find(cartItem => cartItem.id === item.id);
       if (existingItem) {
         return prevItems.map(cartItem =>
           cartItem.id === item.id
-            ? { ...cartItem, quantity: Math.min(cartItem.quantity + quantityToAdd, 10) } // Max 10 items
+            ? { ...cartItem, quantity: Math.min(cartItem.quantity + quantityToAdd, 10) }
             : cartItem
         );
       }
@@ -184,15 +202,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const applyCoupon = (couponCode: string) => {
-    // Placeholder for coupon logic
-    if (couponCode.toUpperCase() === "NIBBLE10") {
+    if (appliedCoupon) {
+        toast({
+            title: "Coupon Already Applied",
+            description: `Coupon "${appliedCoupon.code}" is already active.`,
+            variant: "destructive",
+            duration: 3000,
+        });
+        return;
+    }
+    if (couponCodes.has(couponCode.toUpperCase())) {
+      const randomDiscount = Math.floor(Math.random() * (20 - 5 + 1)) + 5; // Random integer between 5 and 20
+      setAppliedCoupon({ code: couponCode.toUpperCase(), discountPercent: randomDiscount });
       toast({
-        title: "Coupon NIBBLE10 applied!",
-        description: "You get 10% off your order.",
+        title: "Coupon Applied!",
+        description: `Congratulations! You've received a ${randomDiscount}% discount.`,
         variant: "default",
-        duration: 3000,
+        duration: 4000,
       });
-      // Actual discount logic would go here
     } else {
       toast({
         title: "Invalid coupon code.",
@@ -201,9 +228,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   };
+  
+  const removeCoupon = () => {
+    if (appliedCoupon) {
+      toast({
+        title: `Coupon "${appliedCoupon.code}" removed.`,
+        variant: 'default',
+        duration: 3000,
+      });
+      setAppliedCoupon(null);
+    }
+  };
+
+  const getCartSubtotal = () => {
+    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+  
+  const getDiscountAmount = () => {
+    if (!appliedCoupon) return 0;
+    const subtotal = getCartSubtotal();
+    return subtotal * (appliedCoupon.discountPercent / 100);
+  };
 
   const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const subtotal = getCartSubtotal();
+    const discountAmount = getDiscountAmount();
+    return subtotal - discountAmount;
   };
 
   const getCartItemCount = () => {
@@ -212,6 +262,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => {
     setCartItems([]);
+    setAppliedCoupon(null);
     toast({
       title: "Cart cleared.",
       variant: "default",
@@ -240,7 +291,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeFromCart,
         updateQuantity,
         applyCoupon,
+        removeCoupon,
+        getCartSubtotal,
         getCartTotal,
+        getDiscountAmount,
         getCartItemCount,
         clearCart,
         isCartOpen,
@@ -250,6 +304,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         isFreeDeliveryDialogOpen,
         setIsFreeDeliveryDialogOpen,
         setProceedAction,
+        appliedCoupon,
       }}
     >
       {children}
