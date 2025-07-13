@@ -333,8 +333,10 @@ export default function CheckoutPage() {
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
         deliveryFee: deliveryFee,
         totalTax: totalTax,
-        couponCode: appliedCoupon?.code,
-        discountAmount: discountAmount
+        ...(appliedCoupon && {
+          couponCode: appliedCoupon.code,
+          discountAmount: discountAmount
+        })
     };
     
     if (paymentSettings?.isRazorpayEnabled) {
