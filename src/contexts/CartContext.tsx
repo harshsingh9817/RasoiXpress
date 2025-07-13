@@ -4,8 +4,7 @@
 import type { MenuItem, CartItem } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getHeroData } from '@/lib/data';
-import { couponCodes } from '@/lib/coupons';
+import { getHeroData, checkCoupon } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -201,7 +200,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const applyCoupon = (couponCode: string) => {
+  const applyCoupon = async (couponCode: string) => {
     if (appliedCoupon) {
         toast({
             title: "Coupon Already Applied",
@@ -211,7 +210,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
         return;
     }
-    if (couponCodes.has(couponCode.toUpperCase())) {
+
+    const { isValid, error } = await checkCoupon(couponCode.toUpperCase());
+    
+    if (isValid) {
       const randomDiscount = Math.floor(Math.random() * (20 - 5 + 1)) + 5; // Random integer between 5 and 20
       setAppliedCoupon({ code: couponCode.toUpperCase(), discountPercent: randomDiscount });
       toast({
@@ -222,7 +224,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
     } else {
       toast({
-        title: "Invalid coupon code.",
+        title: "Invalid Coupon",
+        description: error || 'This coupon is not valid or has expired.',
         variant: "destructive",
         duration: 3000,
       });

@@ -20,12 +20,15 @@ import {
   onSnapshot,
   deleteField,
   type Firestore,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
+import { couponCodeList } from './coupons';
+
 
 // --- Rider App Firebase Configuration ---
 const riderFirebaseConfig = {
@@ -172,6 +175,12 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         ...orderData,
         createdAt: serverTimestamp(),
     });
+
+    // If a coupon was used, mark it as expired.
+    if (orderData.couponCode) {
+        const couponRef = doc(db, "coupons", orderData.couponCode);
+        await updateDoc(couponRef, { status: "expired" });
+    }
 
     const userRef = doc(db, "users", orderData.userId);
     try {
@@ -736,6 +745,46 @@ export async function replyToSupportTicket(
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
     const docRef = doc(db, 'supportTickets', ticketId);
     await updateDoc(docRef, { status: 'Resolved' });
+}
+
+// --- Coupon Management ---
+async function initializeCoupons() {
+  const couponsCol = collection(db, 'coupons');
+  const snapshot = await getDocs(couponsCol);
+  if (snapshot.empty) {
+    console.log(`Populating coupons collection...`);
+    const batch = writeBatch(db);
+    couponCodeList.forEach(code => {
+      const docRef = doc(db, 'coupons', code);
+      batch.set(docRef, { status: 'active' });
+    });
+    await batch.commit();
+    console.log('Coupons collection populated.');
+  }
+}
+
+// Call this once, perhaps on server startup or a dedicated admin action.
+// For this app, we can call it before checking a coupon.
+let couponsInitialized = false;
+export async function checkCoupon(code: string): Promise<{ isValid: boolean, error?: string }> {
+  if (!couponsInitialized) {
+    await initializeCoupons();
+    couponsInitialized = true;
+  }
+  
+  const couponRef = doc(db, 'coupons', code);
+  const couponSnap = await getDoc(couponRef);
+
+  if (!couponSnap.exists()) {
+    return { isValid: false, error: "This coupon code does not exist." };
+  }
+
+  const couponData = couponSnap.data();
+  if (couponData.status !== 'active') {
+    return { isValid: false, error: "This coupon has already been used or expired." };
+  }
+  
+  return { isValid: true };
 }
 
 // --- Other Data Functions ---

@@ -1,5 +1,4 @@
-
-export const couponCodes: Set<string> = new Set([
+export const couponCodeList: string[] = [
   "SAVE20-4F8B1A",
   "SAVE20-9C2D7E",
   "SAVE20-1A3B8C",
@@ -95,4 +94,4 @@ export const couponCodes: Set<string> = new Set([
   "SAVE20-1A4B7C",
   "SAVE20-6D1E8F",
   "SAVE20-B9C4A5",
-]);
+];
