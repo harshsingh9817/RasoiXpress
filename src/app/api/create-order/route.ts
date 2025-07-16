@@ -1,12 +1,14 @@
 
 import { NextResponse } from 'next/server';
 
-const API_URL = "https://script.google.com/macros/s/AKfycbx9VYQWe43bCrYHEmUCfGvFJcn0yxrOdAo6HI1L-3ISBfHqTIxveR_Z6No7ZfDdNzDbZg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxeGPey257u1Fq26y6AJ0cHMY37a8nhD2UzKqYeVoxrfOVQqDVdBrlkJrGvspKNtVmsXw/exec";
 
 export async function POST(request: Request) {
   try {
     const orderData = await request.json();
 
+    // The body received from the client-side `placeOrder` function is already
+    // structured correctly. We just need to forward it.
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
