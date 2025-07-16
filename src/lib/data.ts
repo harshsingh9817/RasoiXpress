@@ -27,7 +27,6 @@ import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
-import { couponCodeList } from './coupons';
 
 
 // --- Rider App Firebase Configuration ---
@@ -169,9 +168,14 @@ export async function getRestaurants(): Promise<Restaurant[]> { return []; }
 export async function getRestaurantById(id: string): Promise<Restaurant | undefined> { return undefined; }
 
 // --- Order Management ---
-export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    const ordersCol = collection(db, 'orders');
-    const docRef = await addDoc(ordersCol, {
+export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
+    const API_URL = "https://script.google.com/macros/s/AKfycbx9VYQWe43bCrYHEmUCfGvFJcn0yxrOdAo6HI1L-3ISBfHqTIxveR_Z6No7ZfDdNzDbZg/exec";
+
+    const docRef = doc(collection(db, 'orders'));
+    const newOrderId = docRef.id;
+
+    // First, save the order to our own database (Firestore)
+    await setDoc(docRef, {
         ...orderData,
         createdAt: serverTimestamp(),
     });
@@ -191,8 +195,34 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     } catch (error) {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
+    
+    // Now, send the order to the Google Apps Script
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "newOrder",
+                orderId: newOrderId,
+                userName: orderData.customerName,
+                address: orderData.shippingAddress
+            })
+        });
 
-    return { ...orderData, id: docRef.id } as Order;
+        if (!response.ok) {
+            throw new Error(`Google Script Error: ${response.statusText}`);
+        }
+        
+        const scriptResponseText = await response.text();
+        console.log("Google Script Response:", scriptResponseText);
+
+    } catch (error) {
+        console.error("Error sending order to Google Script, but order was saved in Firestore.", error);
+        // We don't re-throw the error, because the primary order placement was successful.
+        // This can be handled with a monitoring or retry system if needed.
+    }
+
+    return { ...orderData, id: newOrderId } as Order;
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
@@ -796,3 +826,4 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
@@ -222,10 +223,10 @@ export default function CheckoutPage() {
     setIsProcessingPayment(true);
     
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    if (!keyId) {
+    if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
       toast({
         title: "Configuration Error",
-        description: "Payment gateway is not configured. Please contact support.",
+        description: "Razorpay client key (NEXT_PUBLIC_RAZORPAY_KEY_ID) is not set in the .env.local file. Please contact support.",
         variant: "destructive",
       });
       setIsProcessingPayment(false);
@@ -585,3 +586,4 @@ export default function CheckoutPage() {
     </>
   );
 }
+
