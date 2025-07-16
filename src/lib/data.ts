@@ -27,6 +27,7 @@ import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
+import { couponCodeList } from './coupons';
 
 
 // --- Rider App Firebase Configuration ---
@@ -97,6 +98,8 @@ const defaultHeroData: HeroData = {
     subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
     orderingTime: '10:00 AM - 10:00 PM',
     bannerImages: defaultBanners,
+    headlineColor: "#FFFFFF",
+    subheadlineColor: "#E5E7EB"
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -169,8 +172,6 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
-    const API_URL = "https://script.google.com/macros/s/AKfycbx9VYQWe43bCrYHEmUCfGvFJcn0yxrOdAo6HI1L-3ISBfHqTIxveR_Z6No7ZfDdNzDbZg/exec";
-
     const docRef = doc(collection(db, 'orders'));
     const newOrderId = docRef.id;
 
@@ -196,9 +197,9 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
     
-    // Now, send the order to the Google Apps Script
+    // Now, send the order to our own API route which will proxy to Google Apps Script
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch('/api/create-order', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -210,14 +211,16 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         });
 
         if (!response.ok) {
-            throw new Error(`Google Script Error: ${response.statusText}`);
+            // The API route should provide a structured error
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error from order API: ${response.statusText}`);
         }
         
-        const scriptResponseText = await response.text();
-        console.log("Google Script Response:", scriptResponseText);
+        const scriptResponse = await response.json();
+        console.log("Google Script Response via API:", scriptResponse.message);
 
     } catch (error) {
-        console.error("Error sending order to Google Script, but order was saved in Firestore.", error);
+        console.error("Error sending order to API proxy, but order was saved in Firestore.", error);
         // We don't re-throw the error, because the primary order placement was successful.
         // This can be handled with a monitoring or retry system if needed.
     }
@@ -778,9 +781,11 @@ export async function resolveSupportTicket(ticketId: string): Promise<void> {
 }
 
 // --- Coupon Management ---
+let couponsInitialized = false;
 async function initializeCoupons() {
+  if (couponsInitialized) return;
   const couponsCol = collection(db, 'coupons');
-  const snapshot = await getDocs(couponsCol);
+  const snapshot = await getDocs(query(couponsCol, where('status', '==', 'active')));
   if (snapshot.empty) {
     console.log(`Populating coupons collection...`);
     const batch = writeBatch(db);
@@ -791,16 +796,11 @@ async function initializeCoupons() {
     await batch.commit();
     console.log('Coupons collection populated.');
   }
+  couponsInitialized = true;
 }
 
-// Call this once, perhaps on server startup or a dedicated admin action.
-// For this app, we can call it before checking a coupon.
-let couponsInitialized = false;
 export async function checkCoupon(code: string): Promise<{ isValid: boolean, error?: string }> {
-  if (!couponsInitialized) {
-    await initializeCoupons();
-    couponsInitialized = true;
-  }
+  await initializeCoupons();
   
   const couponRef = doc(db, 'coupons', code);
   const couponSnap = await getDoc(couponRef);
@@ -826,4 +826,3 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
-
