@@ -199,15 +199,36 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     
     // Now, send the order to our own API route which will proxy to Google Apps Script
     try {
+        const payloadForSheet = {
+            type: "newOrder",
+            orderId: newOrderId,
+            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+            customerName: orderData.customerName,
+            customerPhone: orderData.customerPhone,
+            userEmail: orderData.userEmail,
+            shippingAddress: orderData.shippingAddress,
+            shippingLat: orderData.shippingLat,
+            shippingLng: orderData.shippingLng,
+            paymentMethod: orderData.paymentMethod,
+            total: orderData.total,
+            totalTax: orderData.totalTax,
+            status: orderData.status,
+            deliveryConfirmationCode: orderData.deliveryConfirmationCode,
+            date: orderData.date,
+            items: orderData.items.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                description: item.description,
+                isPopular: item.isPopular,
+                isVegetarian: item.isVegetarian
+            }))
+        };
+        
         const response = await fetch('/api/create-order', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                type: "newOrder",
-                orderId: newOrderId,
-                userName: orderData.customerName,
-                address: orderData.shippingAddress
-            })
+            body: JSON.stringify(payloadForSheet)
         });
 
         if (!response.ok) {
@@ -221,8 +242,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
 
     } catch (error) {
         console.error("Error sending order to API proxy, but order was saved in Firestore.", error);
-        // We don't re-throw the error, because the primary order placement was successful.
-        // This can be handled with a monitoring or retry system if needed.
     }
 
     return { ...orderData, id: newOrderId } as Order;
@@ -826,3 +845,4 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
