@@ -82,6 +82,29 @@ async function ensureRiderAuth() {
     return await riderAuthPromise;
 }
 
+// Helper to call the Google Script API Proxy
+async function callGoogleScriptAPI(payload: object) {
+  try {
+    const response = await fetch('/api/create-order', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error from order API: ${response.statusText}`);
+    }
+    
+    const scriptResponse = await response.json();
+    console.log("Google Script Response via API:", scriptResponse.message);
+    return scriptResponse;
+
+  } catch (error) {
+      console.error("Error sending data to Google Script API.", error);
+      // We don't re-throw here to avoid breaking the primary app flow
+  }
+}
 
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
@@ -175,13 +198,11 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     const docRef = doc(collection(db, 'orders'));
     const newOrderId = docRef.id;
 
-    // First, save the order to our own database (Firestore)
     await setDoc(docRef, {
         ...orderData,
         createdAt: serverTimestamp(),
     });
 
-    // If a coupon was used, mark it as expired.
     if (orderData.couponCode) {
         const couponRef = doc(db, "coupons", orderData.couponCode);
         await updateDoc(couponRef, { status: "expired" });
@@ -197,52 +218,33 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
     
-    // Now, send the order to our own API route which will proxy to Google Apps Script
-    try {
-        const payloadForSheet = {
-            type: "newOrder",
-            orderId: newOrderId,
-            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-            customerName: orderData.customerName,
-            customerPhone: orderData.customerPhone,
-            userEmail: orderData.userEmail,
-            shippingAddress: orderData.shippingAddress,
-            shippingLat: orderData.shippingLat,
-            shippingLng: orderData.shippingLng,
-            paymentMethod: orderData.paymentMethod,
-            total: orderData.total,
-            totalTax: orderData.totalTax,
-            status: orderData.status,
-            deliveryConfirmationCode: orderData.deliveryConfirmationCode,
-            date: orderData.date,
-            items: orderData.items.map(item => ({
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                description: item.description,
-                isPopular: item.isPopular,
-                isVegetarian: item.isVegetarian
-            }))
-        };
-        
-        const response = await fetch('/api/create-order', {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payloadForSheet)
-        });
-
-        if (!response.ok) {
-            // The API route should provide a structured error
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Error from order API: ${response.statusText}`);
-        }
-        
-        const scriptResponse = await response.json();
-        console.log("Google Script Response via API:", scriptResponse.message);
-
-    } catch (error) {
-        console.error("Error sending order to API proxy, but order was saved in Firestore.", error);
-    }
+    const payloadForSheet = {
+        type: "newOrder",
+        orderId: newOrderId,
+        createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        customerName: orderData.customerName,
+        customerPhone: orderData.customerPhone,
+        userEmail: orderData.userEmail,
+        shippingAddress: orderData.shippingAddress,
+        shippingLat: orderData.shippingLat,
+        shippingLng: orderData.shippingLng,
+        paymentMethod: orderData.paymentMethod,
+        total: orderData.total,
+        totalTax: orderData.totalTax,
+        status: orderData.status,
+        deliveryConfirmationCode: orderData.deliveryConfirmationCode,
+        date: orderData.date,
+        items: orderData.items.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            description: item.description,
+            isPopular: item.isPopular,
+            isVegetarian: item.isVegetarian
+        }))
+    };
+    
+    await callGoogleScriptAPI(payloadForSheet);
 
     return { ...orderData, id: newOrderId } as Order;
 }
@@ -274,6 +276,9 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
+    
+    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status });
+
 
     if (status === 'Out for Delivery') {
         if (riderDb) {
@@ -300,6 +305,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
+    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status: 'Cancelled' });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -317,6 +323,7 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
+    await callGoogleScriptAPI({ type: 'deleteOrder', orderId });
 }
 
 export async function getAllOrders(): Promise<Order[]> {

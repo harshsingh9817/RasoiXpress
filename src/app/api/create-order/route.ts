@@ -7,24 +7,19 @@ export async function POST(request: Request) {
   try {
     const orderData = await request.json();
 
-    // The body received from the client-side `placeOrder` function is already
-    // structured correctly. We just need to forward it.
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData), // Forward the exact data received
+        body: JSON.stringify(orderData),
     });
 
     if (!response.ok) {
         const errorText = await response.text();
-        // Log the detailed error from Google Script for debugging
         console.error(`Google Script Error: ${response.status} ${response.statusText}`, errorText);
-        // Respond with a generic error to the client
-        return NextResponse.json({ error: 'Failed to communicate with the ordering service.' }, { status: 502 }); // Bad Gateway
+        return NextResponse.json({ error: 'Failed to communicate with the ordering service.' }, { status: 502 });
     }
     
     const scriptResponseText = await response.text();
-    // Return the successful response from the script
     return NextResponse.json({ message: scriptResponseText });
 
   } catch (error: any) {
@@ -32,3 +27,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
