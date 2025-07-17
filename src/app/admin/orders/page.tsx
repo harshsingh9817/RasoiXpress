@@ -63,10 +63,8 @@ import { cn } from "@/lib/utils";
 const ORDER_PROGRESS_STEPS: OrderStatus[] = [
   'Order Placed',
   'Confirmed',
-  'Accepted by Rider',
   'Preparing',
   'Out for Delivery',
-  'Delivered',
 ];
 
 const ALL_FILTER_STATUSES: (OrderStatus | 'All')[] = [
