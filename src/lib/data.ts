@@ -322,7 +322,7 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
-    await callGoogleScriptAPI({ type: 'deleteOrder', orderId });
+    await callGoogleScriptAPI({ type: 'deleteOrder', orderId: orderId });
 }
 
 export async function getAllOrders(): Promise<Order[]> {
@@ -872,6 +872,7 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
 
 
 
