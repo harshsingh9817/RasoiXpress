@@ -276,8 +276,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     
     await updateDoc(docRef, updateData);
     
-    await callGoogleScriptAPI({ type: 'updateOrder', orderId, status });
-
+    // The google sheet is only updated for cancellation/deletion now, not general status.
 
     if (status === 'Out for Delivery') {
         if (riderDb) {
@@ -877,3 +876,6 @@ export const getCurrentTrends = (): string[] => {
 
 
 
+
+
+    
