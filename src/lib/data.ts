@@ -276,7 +276,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     
     await updateDoc(docRef, updateData);
     
-    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status });
+    await callGoogleScriptAPI({ type: 'updateOrder', orderId, status });
 
 
     if (status === 'Out for Delivery') {
@@ -304,7 +304,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
-    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status: 'Cancelled' });
+    await callGoogleScriptAPI({ type: 'updateOrder', orderId, status: 'Cancelled' });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -322,7 +322,8 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
-    await callGoogleScriptAPI({ type: 'deleteOrder', orderId });
+    // The new script doesn't handle deletes, so we remove the API call.
+    // await callGoogleScriptAPI({ type: 'deleteOrder', orderId });
 }
 
 export async function getAllOrders(): Promise<Order[]> {
@@ -872,5 +873,6 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
 
 
