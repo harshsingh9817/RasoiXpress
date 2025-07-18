@@ -217,7 +217,33 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
     
-    // The call to Google Script is removed from here as the new script does not handle new orders.
+    const payloadForSheet = {
+      type: "newOrder",
+      orderId: newOrderId,
+      createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+      customerName: orderData.customerName,
+      customerPhone: orderData.customerPhone,
+      userEmail: orderData.userEmail,
+      shippingAddress: orderData.shippingAddress,
+      shippingLat: orderData.shippingLat,
+      shippingLng: orderData.shippingLng,
+      status: orderData.status,
+      paymentMethod: orderData.paymentMethod,
+      total: orderData.total,
+      totalTax: orderData.totalTax,
+      deliveryConfirmationCode: orderData.deliveryConfirmationCode,
+      date: orderData.date,
+      items: orderData.items.map(item => ({
+        name: ` ${item.name}`,
+        price: item.price,
+        quantity: item.quantity,
+        description: item.description + " ",
+        isPopular: item.isPopular,
+        isVegetarian: item.isVegetarian
+      }))
+    };
+    
+    await callGoogleScriptAPI(payloadForSheet);
 
     return { ...orderData, id: newOrderId } as Order;
 }
@@ -249,8 +275,6 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
-    
-    // No API call here as the script only handles cancel/delete
 
     if (status === 'Out for Delivery') {
         if (riderDb) {
