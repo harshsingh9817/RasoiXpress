@@ -5,12 +5,13 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxeGPey257u1Fq26y6AJ0cH
 
 export async function POST(request: Request) {
   try {
-    const orderData = await request.json();
+    const payload = await request.json();
 
+    // Directly forward the payload to the Google Script
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -28,3 +29,4 @@ export async function POST(request: Request) {
   }
 }
 
+    
