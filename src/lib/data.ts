@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -238,8 +237,7 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status: 'Deleted' });
-    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status: 'Deleted' });
+    await deleteDoc(docRef);
 }
 
 export async function getAllOrders(): Promise<Order[]> {
