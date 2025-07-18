@@ -234,12 +234,9 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
       deliveryConfirmationCode: orderData.deliveryConfirmationCode,
       date: orderData.date,
       items: orderData.items.map(item => ({
-        name: ` ${item.name}`,
+        name: item.name,
         price: item.price,
         quantity: item.quantity,
-        description: item.description + " ",
-        isPopular: item.isPopular,
-        isVegetarian: item.isVegetarian
       }))
     };
     
@@ -879,3 +876,4 @@ export const getCurrentTrends = (): string[] => {
     
 
     
+
