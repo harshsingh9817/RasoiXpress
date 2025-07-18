@@ -214,12 +214,14 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
+    await callGoogleScriptAPI({ type: "updateStatus", orderId, status });
 }
 
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
+    await callGoogleScriptAPI({ type: "updateStatus", orderId, status: "Cancelled" });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -236,7 +238,8 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await deleteDoc(docRef);
+    await updateDoc(docRef, { status: 'Deleted' });
+    await callGoogleScriptAPI({ type: 'updateStatus', orderId, status: 'Deleted' });
 }
 
 export async function getAllOrders(): Promise<Order[]> {
