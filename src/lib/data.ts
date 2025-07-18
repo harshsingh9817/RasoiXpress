@@ -15,71 +15,14 @@ import {
   orderBy,
   runTransaction,
   serverTimestamp,
-  type Query,
   type DocumentData,
   onSnapshot,
   deleteField,
-  type Firestore,
   writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
-import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
 
-
-// --- Rider App Firebase Configuration ---
-const riderFirebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_RIDER_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_RIDER_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_RIDER_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_APP_ID
-};
-
-const riderConfigIsValid = riderFirebaseConfig.apiKey && !riderFirebaseConfig.apiKey.startsWith('REPLACE_WITH_');
-let riderApp: FirebaseApp | undefined;
-let riderDb: Firestore | undefined;
-let riderAuth: Auth | undefined;
-
-if (riderConfigIsValid) {
-    const RIDER_APP_NAME = 'riderApp';
-    const secondaryApps = getApps();
-    riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
-      ? initializeApp(riderFirebaseConfig, RIDER_APP_NAME)
-      : getApp(RIDER_APP_NAME);
-
-    riderDb = getSecondaryFirestore(riderApp);
-    riderAuth = getAuth(riderApp);
-} else {
-    console.warn('Rider app Firebase configuration is missing or incomplete in .env. Rider integration features will be disabled.');
-}
-
-
-let riderAuthPromise: Promise<any> | null = null;
-async function ensureRiderAuth() {
-    if (!riderAuth) {
-        console.warn("Rider Auth service is not initialized due to missing configuration.");
-        return null;
-    }
-    if (riderAuth.currentUser) {
-        return riderAuth.currentUser;
-    }
-
-    if (!riderAuthPromise) {
-        riderAuthPromise = signInAnonymously(riderAuth)
-          .catch(error => {
-              console.error("Rider App Anonymous Sign-In Failed.", error);
-              console.error("This is likely because 'Anonymous' sign-in is not enabled in the 'rasoi-rider-connect' Firebase project's Authentication settings. Please enable it in the Firebase Console.");
-              riderAuthPromise = null; 
-              return null; 
-          });
-    }
-    
-    return await riderAuthPromise;
-}
 
 // Helper to call the Google Script API Proxy
 async function callGoogleScriptAPI(payload: object) {
@@ -101,7 +44,6 @@ async function callGoogleScriptAPI(payload: object) {
 
   } catch (error) {
       console.error("Error sending data to Google Script API.", error);
-      // We don't re-throw here to avoid breaking the primary app flow
   }
 }
 
@@ -272,33 +214,12 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
-
-    if (status === 'Out for Delivery') {
-        if (riderDb) {
-            const riderUser = await ensureRiderAuth();
-            if (riderUser) {
-                try {
-                    const orderSnap = await getDoc(docRef);
-                    if (orderSnap.exists()) {
-                        const orderData = { id: orderSnap.id, ...orderSnap.data() };
-                        const riderOrderRef = doc(riderDb, 'orders', orderId);
-                        await setDoc(riderOrderRef, orderData, { merge: true });
-                    }
-                } catch (error) {
-                     console.error("Failed to sync order to rider database:", error);
-                }
-            }
-        } else {
-            console.warn("Rider DB not configured, skipping order sync for 'Out for Delivery'.");
-        }
-    }
 }
 
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
-    await callGoogleScriptAPI({ type: 'cancelOrder', orderId });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -316,7 +237,6 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
-    await callGoogleScriptAPI({ type: 'deleteOrder', orderId: orderId });
 }
 
 export async function getAllOrders(): Promise<Order[]> {
@@ -410,106 +330,24 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
     return unsubscribe;
 }
 
-async function getRiderByIdFromRiderDB(riderId: string): Promise<DocumentData | null> {
-    if (!riderDb) {
-        console.warn("Rider DB not configured.");
-        return null;
-    }
-    await ensureRiderAuth();
-    const riderRef = doc(riderDb, 'riders', riderId);
-    const riderSnap = await getDoc(riderRef);
-    if (riderSnap.exists()) {
-        return riderSnap.data();
-    }
-    return null;
-}
 
-export function listenToRiderAppOrders(): () => void {
-    if (!riderDb) {
-        console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
-        return () => {};
-    }
-
-    let unsubscribeFromSnapshot: (() => void) | null = null;
-
-    const setupListener = async () => {
-        const riderUser = await ensureRiderAuth();
-        if (!riderUser) {
-            return; 
-        }
-
-        const riderOrdersCol = collection(riderDb, 'orders');
-        unsubscribeFromSnapshot = onSnapshot(riderOrdersCol, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-                if (change.type === "modified") {
-                    const riderOrderData = change.doc.data();
-                    const orderId = change.doc.id;
-                    const mainOrderRef = doc(db, 'orders', orderId);
-
-                    try {
-                        const mainOrderSnap = await getDoc(mainOrderRef);
-                        if (!mainOrderSnap.exists()) {
-                            return;
-                        }
-
-                        const mainOrderData = mainOrderSnap.data();
-                        const updatePayload: { [key: string]: any } = {};
-
-                        if (riderOrderData.riderId && mainOrderData.deliveryRiderId !== riderOrderData.riderId) {
-                            updatePayload.deliveryRiderId = riderOrderData.riderId;
-                            
-                            try {
-                                const riderDetails = await getRiderByIdFromRiderDB(riderOrderData.riderId);
-                                
-                                updatePayload.deliveryRiderName = (riderDetails && typeof riderDetails.name === 'string' && riderDetails.name.trim()) 
-                                    ? riderDetails.name.trim() 
-                                    : 'An assigned rider';
-
-                                updatePayload.deliveryRiderPhone = (riderDetails && typeof riderDetails.phone === 'string' && riderDetails.phone.trim())
-                                    ? riderDetails.phone.trim()
-                                    : null;
-
-                            } catch (riderError) {
-                                console.error(`Failed to fetch rider details for ${riderOrderData.riderId}:`, riderError);
-                                updatePayload.deliveryRiderName = 'An assigned rider';
-                                updatePayload.deliveryRiderPhone = null;
-                            }
-                        }
-                        
-                        if (riderOrderData.status && mainOrderData.status !== riderOrderData.status) {
-                            let newStatus = riderOrderData.status;
-                            
-                            if (newStatus === 'Completed') {
-                                newStatus = 'Delivered';
-                            }
-
-                            updatePayload.status = newStatus;
-
-                            if (newStatus === 'Delivered' && mainOrderData.deliveryConfirmationCode) {
-                                updatePayload.deliveryConfirmationCode = deleteField();
-                            }
-                        }
-                        
-                        if (Object.keys(updatePayload).length > 0) {
-                            await updateDoc(mainOrderRef, updatePayload);
-                        }
-                    } catch (error) {
-                        console.error(`Failed to sync order ${orderId} from rider app:`, error);
-                    }
-                }
-            });
-        }, (error) => {
-            console.error("Error listening to rider app orders:", error);
-        });
-    };
-
-    setupListener();
-
-    return () => {
-        if (unsubscribeFromSnapshot) {
-            unsubscribeFromSnapshot();
-        }
-    };
+export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
+    const ticketsCol = collection(db, 'supportTickets');
+    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tickets = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp?.toMillis() || Date.now(),
+            }
+        }) as SupportTicket[];
+        callback(tickets);
+    }, (error) => {
+        console.error("Error listening to support tickets:", error);
+    });
+    return unsubscribe;
 }
 
 
@@ -754,25 +592,6 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
     }) as SupportTicket[];
 }
 
-export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
-    const ticketsCol = collection(db, 'supportTickets');
-    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tickets = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                timestamp: data.timestamp?.toMillis() || Date.now(),
-            }
-        }) as SupportTicket[];
-        callback(tickets);
-    }, (error) => {
-        console.error("Error listening to support tickets:", error);
-    });
-    return unsubscribe;
-}
-
 export async function replyToSupportTicket(
     ticketId: string,
     userId: string,
@@ -866,14 +685,3 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
-
-
-
-
-
-
-
-    
-
-    
-

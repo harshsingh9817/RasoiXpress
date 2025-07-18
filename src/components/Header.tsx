@@ -17,7 +17,7 @@ import HelpDialog from './HelpDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { AppNotification, Order, OrderStatus, AdminMessage, SupportTicket } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders, listenToSupportTickets, listenToRiderAppOrders } from '@/lib/data';
+import { listenToAllOrders, listenToUserAdminMessages, listenToUserOrders, listenToSupportTickets } from '@/lib/data';
 
 const orderStatusNotificationMap: Partial<Record<OrderStatus, { title: string; message: string }>> = {
   'Order Placed': { title: 'Payment Successful!', message: 'Your order has been placed. The restaurant will confirm it shortly.' },
@@ -150,7 +150,6 @@ const Header = () => {
     if (isAdmin) {
         unsubscribers.push(listenToAllOrders(orders => processNotifications(orders, 'admin_order')));
         unsubscribers.push(listenToSupportTickets(tickets => processNotifications(tickets, 'support_ticket')));
-        unsubscribers.push(listenToRiderAppOrders());
     } else {
         unsubscribers.push(listenToUserOrders(user.uid, orders => processNotifications(orders, 'order')));
         unsubscribers.push(listenToUserAdminMessages(user.uid, messages => processNotifications(messages, 'message')));

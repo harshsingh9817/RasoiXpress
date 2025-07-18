@@ -7,6 +7,10 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
 
+    if (payload.type !== 'newOrder' || !payload.orderId) {
+        return NextResponse.json({ error: "Only 'newOrder' type with an orderId is allowed." }, { status: 400 });
+    }
+
     // Directly forward the payload to the Google Script
     const response = await fetch(API_URL, {
         method: "POST",
