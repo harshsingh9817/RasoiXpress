@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 
-const API_URL = "https://script.google.com/macros/library/d/12iX52dhAyZrpvWJYJB1X31uWDNuv-jI1dlO94woAQYCiGZ7McOmEho6-/2";
+const API_URL = "https://script.google.com/macros/s/AKfycbxeGPey257u1Fq26y6AJ0cHMY37a8nhD2UzKqYeVoxrfOVQqDVdBrlkJrGvspKNtVmsXw/exec";
 
 export async function POST(request: Request) {
   try {
@@ -28,5 +28,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
-    
