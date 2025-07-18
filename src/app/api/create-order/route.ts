@@ -8,15 +8,12 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const type = payload.type;
 
-    if (!type || (type !== 'newOrder' && type !== 'updateStatus')) {
-        return NextResponse.json({ error: "Invalid request type specified." }, { status: 400 });
+    if (!type || !payload.orderId) {
+        return NextResponse.json({ error: "Invalid request: type and orderId are required." }, { status: 400 });
     }
     
-    if (!payload.orderId) {
-        return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
-    }
-
-    // Directly forward the payload to the Google Script
+    // Directly forward the payload to the Google Script for any valid type.
+    // The script itself contains the logic to handle 'newOrder' vs 'updateStatus'.
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,10 +27,12 @@ export async function POST(request: Request) {
     }
     
     const scriptResponseText = await response.text();
+    // Log the success message from the script for debugging.
+    console.log("Google Script Response:", scriptResponseText);
     return NextResponse.json({ message: scriptResponseText });
 
   } catch (error: any) {
-    console.error('Create order API error:', error);
+    console.error('Order API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
