@@ -219,8 +219,9 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
-    await callGoogleScriptAPI({ type: "updateStatus", orderId, status: "Cancelled" });
+    const newStatus = 'Cancelled';
+    await updateDoc(docRef, { status: newStatus, cancellationReason: reason });
+    await callGoogleScriptAPI({ type: "updateStatus", orderId, status: newStatus });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
