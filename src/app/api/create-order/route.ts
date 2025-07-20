@@ -6,13 +6,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxeGPey257u1Fq26y6AJ0cH
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-    const type = payload.type;
-
-    if (!type || !payload.orderId) {
-        return NextResponse.json({ error: "Invalid request: type and orderId are required." }, { status: 400 });
-    }
     
-    // Directly forward the payload to the Google Script for any valid type.
+    // Directly forward the payload to the Google Script.
     // The script itself contains the logic to handle 'newOrder' vs 'updateStatus'.
     const response = await fetch(API_URL, {
         method: "POST",
