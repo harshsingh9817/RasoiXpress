@@ -116,11 +116,13 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     const docRef = doc(collection(db, 'orders'));
     const newOrderId = docRef.id;
 
-    await setDoc(docRef, {
-        ...orderData,
-        createdAt: serverTimestamp(),
-    });
+    const finalOrderData = {
+      ...orderData,
+      createdAt: serverTimestamp(),
+    };
 
+    await setDoc(docRef, finalOrderData);
+    
     const userRef = doc(db, "users", orderData.userId);
     try {
         const userDoc = await getDoc(userRef);
@@ -131,6 +133,23 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
     
+    // Send data to Google Sheet
+    try {
+        const sheetData = {
+            ...orderData,
+            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        };
+        const response = await fetch("https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec?action=addOrder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sheetData),
+          mode: 'no-cors', // Use no-cors for requests to Google Scripts to avoid CORS errors
+        });
+        console.log("Google Sheet response status:", response.status);
+    } catch (err) {
+        console.error("❌ Failed to add order to Google Sheet", err);
+    }
+
     return { ...orderData, id: newOrderId } as Order;
 }
 
@@ -657,3 +676,5 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
+
+    
