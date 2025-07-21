@@ -139,13 +139,12 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
             ...orderData,
             createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         };
-        const response = await fetch("https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec?action=addOrder", {
+        await fetch("https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec?action=addOrder", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sheetData),
-          mode: 'no-cors', // Use no-cors for requests to Google Scripts to avoid CORS errors
+          mode: 'no-cors',
         });
-        console.log("Google Sheet response status:", response.status);
     } catch (err) {
         console.error("❌ Failed to add order to Google Sheet", err);
     }
