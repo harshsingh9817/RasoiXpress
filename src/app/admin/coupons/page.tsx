@@ -126,8 +126,8 @@ export default function CouponManagementPage() {
     if (coupon) {
       form.reset({
         ...coupon,
-        validFrom: coupon.validFrom.toDate(),
-        validUntil: coupon.validUntil.toDate(),
+        validFrom: coupon.validFrom?.toDate(),
+        validUntil: coupon.validUntil?.toDate(),
       });
     } else {
       form.reset({
@@ -221,7 +221,10 @@ export default function CouponManagementPage() {
                     <TableCell className="font-medium">{coupon.code}</TableCell>
                     <TableCell>{coupon.discountPercent}%</TableCell>
                     <TableCell>
-                        {format(coupon.validFrom.toDate(), "PP")} - {format(coupon.validUntil.toDate(), "PP")}
+                        {coupon.validFrom && coupon.validUntil
+                            ? `${format(coupon.validFrom.toDate(), "PP")} - ${format(coupon.validUntil.toDate(), "PP")}`
+                            : 'N/A'
+                        }
                     </TableCell>
                     <TableCell>
                       <Badge variant={coupon.status === 'active' ? 'default' : 'secondary'}>{coupon.status}</Badge>
