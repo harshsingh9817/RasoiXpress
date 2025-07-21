@@ -178,6 +178,8 @@ export interface Coupon {
     id: string;
     code: string;
     discountPercent: number;
-    status: 'active' | 'used' | 'expired';
+    status: 'active' | 'inactive';
     createdAt: any; // Firestore timestamp
+    validFrom: any; // Firestore timestamp
+    validUntil: any; // Firestore timestamp
 }

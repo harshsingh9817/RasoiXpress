@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getCoupons, addCoupon, deleteCoupon } from "@/lib/data";
+import { getCoupons, addCoupon, updateCoupon, deleteCoupon } from "@/lib/data";
 import type { Coupon } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +48,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -56,14 +55,24 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Trash2, Tag, Percent, PackageSearch } from "lucide-react";
+import { PlusCircle, Trash2, Tag, Percent, PackageSearch, Edit, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const couponSchema = z.object({
   code: z.string().min(3, "Code must be at least 3 characters.").max(20, "Code cannot exceed 20 characters.").transform(v => v.toUpperCase()),
   discountPercent: z.coerce.number().min(1, "Discount must be at least 1%.").max(100, "Discount cannot exceed 100%."),
+  validFrom: z.date({ required_error: "A start date is required." }),
+  validUntil: z.date({ required_error: "An end date is required." }),
+  status: z.enum(['active', 'inactive']),
+}).refine(data => data.validUntil >= data.validFrom, {
+    message: "End date cannot be before the start date.",
+    path: ["validUntil"],
 });
 
 type CouponFormValues = z.infer<typeof couponSchema>;
@@ -77,6 +86,7 @@ export default function CouponManagementPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [couponToEdit, setCouponToEdit] = useState<Coupon | null>(null);
   const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
   
   const form = useForm<CouponFormValues>({
@@ -84,6 +94,7 @@ export default function CouponManagementPage() {
     defaultValues: {
       code: "",
       discountPercent: 10,
+      status: 'active',
     },
   });
 
@@ -110,16 +121,40 @@ export default function CouponManagementPage() {
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, loadCoupons]);
 
+  const handleOpenFormDialog = (coupon: Coupon | null) => {
+    setCouponToEdit(coupon);
+    if (coupon) {
+      form.reset({
+        ...coupon,
+        validFrom: coupon.validFrom.toDate(),
+        validUntil: coupon.validUntil.toDate(),
+      });
+    } else {
+      form.reset({
+        code: "",
+        discountPercent: 10,
+        status: 'active',
+        validFrom: new Date(),
+        validUntil: new Date(new Date().setDate(new Date().getDate() + 30)),
+      });
+    }
+    setIsFormOpen(true);
+  }
+
   const onSubmit = async (data: CouponFormValues) => {
     try {
-        await addCoupon(data);
-        toast({ title: "Coupon Created", description: `Coupon "${data.code}" has been created.` });
+        if (couponToEdit) {
+            await updateCoupon({ id: couponToEdit.id, ...data });
+            toast({ title: "Coupon Updated", description: `Coupon "${data.code}" has been updated.` });
+        } else {
+            await addCoupon(data);
+            toast({ title: "Coupon Created", description: `Coupon "${data.code}" has been created.` });
+        }
         await loadCoupons();
         setIsFormOpen(false);
-        form.reset();
     } catch (error: any) {
-        console.error("Failed to create coupon", error);
-        toast({ title: "Creation Failed", description: error.message || "Could not create the coupon.", variant: "destructive" });
+        console.error("Failed to save coupon", error);
+        toast({ title: "Save Failed", description: error.message || "Could not save the coupon.", variant: "destructive" });
     }
   };
 
@@ -165,61 +200,7 @@ export default function CouponManagementPage() {
                 Create, view, and manage promotional coupon codes for your customers.
               </CardDescription>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <DialogTrigger asChild>
-                <Button><PlusCircle className="mr-2 h-4 w-4" /> Add New Coupon</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Coupon</DialogTitle>
-                  <DialogDescription>
-                    Fill in the details for the new promotional coupon.
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                        <FormField
-                            control={form.control}
-                            name="code"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Coupon Code</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="E.g., SAVE20" {...field} />
-                                </FormControl>
-                                <FormDescription>Customers will use this code at checkout. It will be converted to uppercase.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="discountPercent"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Discount Percentage</FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Input type="number" placeholder="20" {...field} className="pl-8"/>
-                                        <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-                                    </div>
-                                </FormControl>
-                                <FormDescription>The percentage discount to apply to the order subtotal.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                            <Button type="submit" disabled={form.formState.isSubmitting}>
-                                {form.formState.isSubmitting && <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>}
-                                Create Coupon
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => handleOpenFormDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New Coupon</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -227,9 +208,9 @@ export default function CouponManagementPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Code</TableHead>
-                <TableHead className="text-center">Discount</TableHead>
+                <TableHead>Discount</TableHead>
+                <TableHead>Validity</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Date Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -238,12 +219,18 @@ export default function CouponManagementPage() {
                 coupons.map((coupon) => (
                   <TableRow key={coupon.id}>
                     <TableCell className="font-medium">{coupon.code}</TableCell>
-                    <TableCell className="text-center">{coupon.discountPercent}%</TableCell>
+                    <TableCell>{coupon.discountPercent}%</TableCell>
+                    <TableCell>
+                        {format(coupon.validFrom.toDate(), "PP")} - {format(coupon.validUntil.toDate(), "PP")}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={coupon.status === 'active' ? 'default' : 'secondary'}>{coupon.status}</Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(coupon.createdAt.seconds * 1000), "PP")}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
+                       <Button variant="outline" size="icon" onClick={() => handleOpenFormDialog(coupon)}>
+                           <Edit className="h-4 w-4" />
+                           <span className="sr-only">Edit Coupon</span>
+                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDelete(coupon)}>
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete Coupon</span>
@@ -263,6 +250,123 @@ export default function CouponManagementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{couponToEdit ? 'Edit Coupon' : 'Create New Coupon'}</DialogTitle>
+              <DialogDescription>
+                Fill in the details for the promotional coupon.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                    <FormField
+                        control={form.control}
+                        name="code"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Coupon Code</FormLabel>
+                            <FormControl>
+                                <Input placeholder="E.g., SAVE20" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="discountPercent"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Discount Percentage</FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Input type="number" placeholder="20" {...field} className="pl-8"/>
+                                    <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="validFrom"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Valid From</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PP") : <span>Pick a date</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="validUntil"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Valid Until</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        {field.value ? format(field.value, "PP") : <span>Pick a date</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                     <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Enable Coupon</FormLabel>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                checked={field.value === 'active'}
+                                onCheckedChange={(checked) => field.onChange(checked ? 'active' : 'inactive')}
+                                />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={form.formState.isSubmitting}>
+                            {form.formState.isSubmitting && <div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div>}
+                            {couponToEdit ? 'Save Changes' : 'Create Coupon'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+          </DialogContent>
+      </Dialog>
+
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>

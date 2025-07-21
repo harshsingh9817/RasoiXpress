@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -119,11 +120,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         ...orderData,
         createdAt: serverTimestamp(),
     });
-
-    if (orderData.couponCode) {
-        const couponRef = doc(db, "coupons", orderData.couponCode);
-        await updateDoc(couponRef, { status: "used" });
-    }
 
     const userRef = doc(db, "users", orderData.userId);
     try {
@@ -577,9 +573,8 @@ export async function getCoupons(): Promise<Coupon[]> {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coupon[];
 }
 
-export async function addCoupon(couponData: Omit<Coupon, 'id' | 'status' | 'createdAt'>): Promise<Coupon> {
+export async function addCoupon(couponData: Omit<Coupon, 'id' | 'createdAt'>): Promise<Coupon> {
     const couponsCol = collection(db, 'coupons');
-    // Check if coupon code already exists
     const q = query(couponsCol, where("code", "==", couponData.code));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -588,11 +583,28 @@ export async function addCoupon(couponData: Omit<Coupon, 'id' | 'status' | 'crea
 
     const newCoupon = {
         ...couponData,
-        status: 'active',
         createdAt: serverTimestamp(),
     };
     const docRef = await addDoc(couponsCol, newCoupon);
     return { id: docRef.id, ...newCoupon } as Coupon;
+}
+
+export async function updateCoupon(couponData: Partial<Coupon> & { id: string }): Promise<void> {
+    const { id, ...dataToUpdate } = couponData;
+    const docRef = doc(db, 'coupons', id);
+
+    // If code is being changed, check for uniqueness
+    if (dataToUpdate.code) {
+        const couponsCol = collection(db, 'coupons');
+        const q = query(couponsCol, where("code", "==", dataToUpdate.code));
+        const querySnapshot = await getDocs(q);
+        const conflictingDoc = querySnapshot.docs.find(d => d.id !== id);
+        if (conflictingDoc) {
+            throw new Error(`Coupon code "${dataToUpdate.code}" already exists.`);
+        }
+    }
+
+    await updateDoc(docRef, dataToUpdate);
 }
 
 export async function deleteCoupon(couponId: string): Promise<void> {
@@ -613,7 +625,23 @@ export async function checkCoupon(code: string): Promise<{ isValid: boolean, dis
   const couponData = couponDoc.data() as Coupon;
 
   if (couponData.status !== 'active') {
-    return { isValid: false, error: "This coupon has already been used or has expired." };
+    return { isValid: false, error: "This coupon is currently inactive." };
+  }
+
+  const now = new Date();
+  const validFrom = couponData.validFrom?.toDate();
+  const validUntil = couponData.validUntil?.toDate();
+
+  if (validFrom && now < validFrom) {
+    return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
+  }
+
+  if (validUntil) {
+    // Set to end of day
+    validUntil.setHours(23, 59, 59, 999);
+    if (now > validUntil) {
+      return { isValid: false, error: "This coupon has expired." };
+    }
   }
   
   return { isValid: true, discountPercent: couponData.discountPercent };
