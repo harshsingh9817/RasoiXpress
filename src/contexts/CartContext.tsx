@@ -211,14 +211,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
 
-    const { isValid, error } = await checkCoupon(couponCode.toUpperCase());
+    const { isValid, discountPercent, error } = await checkCoupon(couponCode.toUpperCase());
     
-    if (isValid) {
-      const randomDiscount = Math.floor(Math.random() * (20 - 5 + 1)) + 5; // Random integer between 5 and 20
-      setAppliedCoupon({ code: couponCode.toUpperCase(), discountPercent: randomDiscount });
+    if (isValid && discountPercent) {
+      setAppliedCoupon({ code: couponCode.toUpperCase(), discountPercent: discountPercent });
       toast({
         title: "Coupon Applied!",
-        description: `Congratulations! You've received a ${randomDiscount}% discount.`,
+        description: `Congratulations! You've received a ${discountPercent}% discount.`,
         variant: "default",
         duration: 4000,
       });
