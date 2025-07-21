@@ -1,4 +1,5 @@
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -130,6 +131,7 @@ export interface PaymentSettings {
   isDeliveryFeeEnabled: boolean;
   mapApiUrl: string;
   deliveryRadiusKm?: number;
+  orderExpirationMinutes?: number;
 }
 
 export interface DailyChartData {

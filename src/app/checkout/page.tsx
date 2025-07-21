@@ -196,7 +196,9 @@ export default function CheckoutPage() {
         clearCart();
         setCurrentStep('success');
 
-        // Start 5-minute expiration timer
+        const expirationMinutes = paymentSettings?.orderExpirationMinutes || 5;
+
+        // Start expiration timer
         setTimeout(async () => {
             const currentOrder = await getOrderById(placedOrder.id);
             if (currentOrder && currentOrder.status === 'Order Placed') {
@@ -210,7 +212,7 @@ export default function CheckoutPage() {
                     );
                 }
             }
-        }, 5 * 60 * 1000); // 5 minutes
+        }, expirationMinutes * 60 * 1000);
 
         setTimeout(() => { router.push('/my-orders'); }, 8000);
     } catch (error) {
