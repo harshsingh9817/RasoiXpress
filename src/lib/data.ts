@@ -138,6 +138,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     try {
         const sheetData = {
             ...orderData,
+            id: newOrderId, // Pass the generated ID
             createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         };
         await fetch("https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec?action=addOrder", {
@@ -170,7 +171,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     const updateData: { [key: string]: any } = { status };
     if (status === 'Preparing') {
         updateData.isAvailableForPickup = true;
-    } else if (status === 'Out for Delivery' || status === 'Cancelled') {
+    } else if (status === 'Out for Delivery' || status === 'Cancelled' || status === 'Expired') {
         updateData.isAvailableForPickup = false;
     }
     
@@ -523,28 +524,13 @@ export async function getAdminMessages(): Promise<AdminMessage[]> {
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
     const messagesCol = collection(db, 'adminMessages');
-    const docRef = await addDoc(messagesCol, {
+    await addDoc(messagesCol, {
         userId,
         userEmail: userEmail || null,
         title,
         message,
         timestamp: serverTimestamp(),
     });
-
-    // Also create a notification in the user's local storage for immediate feedback
-    const storageKey = `rasoiExpressUserNotifications_${userId}`;
-    const allStoredNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    const newNotification: AppNotification = {
-        id: `notif-message-${docRef.id}`,
-        timestamp: Date.now(),
-        title: title,
-        message: message,
-        read: false,
-        type: 'admin_message',
-    };
-    const updatedList = [newNotification, ...allStoredNotifications].slice(0, 50);
-    localStorage.setItem(storageKey, JSON.stringify(updatedList));
-    window.dispatchEvent(new Event('notificationsUpdated'));
 }
 
 // --- Support Ticket Management ---
