@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag, XCircle } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getOrderById, updateOrderStatus, sendAdminMessage } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
@@ -195,6 +195,23 @@ export default function CheckoutPage() {
         setOrderDetails(placedOrder);
         clearCart();
         setCurrentStep('success');
+
+        // Start 5-minute expiration timer
+        setTimeout(async () => {
+            const currentOrder = await getOrderById(placedOrder.id);
+            if (currentOrder && currentOrder.status === 'Order Placed') {
+                await updateOrderStatus(placedOrder.id, 'Expired');
+                if (user) {
+                    await sendAdminMessage(
+                        user.uid,
+                        user.email || 'N/A',
+                        `Order #${placedOrder.id.slice(-6)} Expired`,
+                        'Sorry, the restaurant did not confirm your order in time, and it has expired. If you paid online, your refund will be processed shortly.'
+                    );
+                }
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+
         setTimeout(() => { router.push('/my-orders'); }, 8000);
     } catch (error) {
         console.error("Failed to place order:", error);
@@ -586,4 +603,3 @@ export default function CheckoutPage() {
     </>
   );
 }
-

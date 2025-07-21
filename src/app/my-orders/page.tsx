@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone, TimerOff
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
@@ -21,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Accepted by Rider', 'Preparing', 'Out for Delivery', 'Delivered' ];
-const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Accepted by Rider': UserCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle };
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Accepted by Rider': UserCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 
@@ -91,6 +92,7 @@ export default function MyOrdersPage() {
           case 'Preparing': case 'Confirmed': return 'text-yellow-600';
           case 'Order Placed': return 'text-sky-600';
           case 'Cancelled': return 'text-red-600';
+          case 'Expired': return 'text-gray-500';
           default: return 'text-orange-600';
         }
     };
@@ -172,13 +174,14 @@ export default function MyOrdersPage() {
                         <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
-                    {trackedOrder.status === 'Cancelled' ? (
+                    {trackedOrder.status === 'Cancelled' || trackedOrder.status === 'Expired' ? (
                         <Card className="mt-4 border-destructive bg-destructive/10">
                             <CardHeader className="flex flex-row items-center space-x-3">
-                                <AlertTriangle className="h-8 w-8 text-destructive" />
+                                {trackedOrder.status === 'Cancelled' ? <AlertTriangle className="h-8 w-8 text-destructive" /> : <TimerOff className="h-8 w-8 text-destructive" />}
                                 <div>
-                                    <CardTitle className="text-destructive">Order Cancelled</CardTitle>
+                                    <CardTitle className="text-destructive">Order {trackedOrder.status}</CardTitle>
                                     {trackedOrder.cancellationReason && <CardDescription>Reason: {trackedOrder.cancellationReason}</CardDescription>}
+                                    {trackedOrder.status === 'Expired' && <CardDescription>The restaurant did not confirm your order in time.</CardDescription>}
                                 </div>
                             </CardHeader>
                         </Card>
@@ -213,7 +216,7 @@ export default function MyOrdersPage() {
                         </div>
                     )}
 
-                    {trackedOrder.deliveryRiderName && trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && (
+                    {trackedOrder.deliveryRiderName && trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && trackedOrder.status !== 'Expired' && (
                         <>
                             <Separator className="my-4" />
                             <div className="space-y-2">
@@ -236,7 +239,7 @@ export default function MyOrdersPage() {
                         </>
                     )}
 
-                    {trackedOrder.status !== 'Cancelled' && trackedOrder.deliveryConfirmationCode && (
+                    {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Expired' && trackedOrder.deliveryConfirmationCode && (
                         <>
                             <Separator className="my-4" />
                             <div className="p-4 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
@@ -284,7 +287,7 @@ export default function MyOrdersPage() {
                                       </div>
                                   </div>
                                   
-                                  {order.status !== 'Cancelled' && order.deliveryConfirmationCode && (
+                                  {order.status !== 'Cancelled' && order.status !== 'Expired' && order.deliveryConfirmationCode && (
                                     <div className="p-3 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
                                       <h3 className="font-semibold text-sm text-primary flex items-center justify-center">
                                         <ShieldCheck className="mr-2 h-4 w-4"/>

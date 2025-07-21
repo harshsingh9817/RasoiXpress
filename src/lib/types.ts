@@ -1,5 +1,4 @@
 
-
 export interface Restaurant {
   id: string;
   name: string;
@@ -39,7 +38,8 @@ export type OrderStatus =
   | 'Preparing'
   | 'Out for Delivery'
   | 'Delivered'
-  | 'Cancelled';
+  | 'Cancelled'
+  | 'Expired';
 
 export interface OrderItem extends MenuItem {
   quantity: number;
