@@ -213,15 +213,20 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
-    await callGoogleScriptAPI({ type: "updateStatus", orderId, status });
-}
 
+    // Sync status update to Google Sheet
+    await callGoogleScriptAPI({
+        type: "updateStatus",
+        orderId: orderId,
+        status: status,
+    });
+}
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     const newStatus = 'Cancelled';
     await updateDoc(docRef, { status: newStatus, cancellationReason: reason });
-    await callGoogleScriptAPI({ type: "updateStatus", orderId, status: newStatus });
+    await callGoogleScriptAPI({ type: "updateStatus", orderId: orderId, status: newStatus });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
