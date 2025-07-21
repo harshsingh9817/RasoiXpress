@@ -173,3 +173,11 @@ export interface SupportTicket {
   reply?: string;
   repliedAt?: any;
 }
+
+export interface Coupon {
+    id: string;
+    code: string;
+    discountPercent: number;
+    status: 'active' | 'used' | 'expired';
+    createdAt: any; // Firestore timestamp
+}

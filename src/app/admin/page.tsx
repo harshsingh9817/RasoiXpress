@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy, Store } from 'lucide-react';
+import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy, Store, Tag } from 'lucide-react';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 export default function AdminPage() {
@@ -149,6 +149,21 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Click here to respond to user inquiries.</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/coupons" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <Tag className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Coupons
+              </CardTitle>
+              <CardDescription>Create and manage promotional discount codes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to handle all customer coupons.</p>
             </CardContent>
           </Card>
         </Link>

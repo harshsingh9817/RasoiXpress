@@ -20,7 +20,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon } from './types';
 
 
 // --- Initial Data ---
@@ -122,7 +122,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
 
     if (orderData.couponCode) {
         const couponRef = doc(db, "coupons", orderData.couponCode);
-        await updateDoc(couponRef, { status: "expired" });
+        await updateDoc(couponRef, { status: "used" });
     }
 
     const userRef = doc(db, "users", orderData.userId);
@@ -570,62 +570,55 @@ export async function resolveSupportTicket(ticketId: string): Promise<void> {
 }
 
 // --- Coupon Management ---
-let couponsInitialized = false;
-const couponCodeList: string[] = [
-    "SAVE20-4F8B1A", "SAVE20-9C2D7E", "SAVE20-1A3B8C", "SAVE20-6D5E2F", "SAVE20-B9C4A1",
-    "SAVE20-E7F3D2", "SAVE20-2A1B9C", "SAVE20-7D6E5F", "SAVE20-C3B8A4", "SAVE20-F2E1D7",
-    "SAVE20-8A9B4C", "SAVE20-3D2E7F", "SAVE20-A6B5C1", "SAVE20-5F4E8D", "SAVE20-D1C7B2",
-    "SAVE20-4E3F6A", "SAVE20-9B8C2D", "SAVE20-1F7E5A", "SAVE20-6C4D8B", "SAVE20-B2A1E7",
-    "SAVE20-E8D5F3", "SAVE20-2C1B7A", "SAVE20-7F6E4D", "SAVE20-C8B9A2", "SAVE20-F1E7D6",
-    "SAVE20-8B9C3A", "SAVE20-3E2D6F", "SAVE20-A1B4C5", "SAVE20-5D4E7F", "SAVE20-D7C6B1",
-    "SAVE20-4A3B5E", "SAVE20-9E8D1C", "SAVE20-1B7A4F", "SAVE20-6D3C8E", "SAVE20-B5A2E1",
-    "SAVE20-E6D4F7", "SAVE20-2A9B6C", "SAVE20-7F5E3D", "SAVE20-C1B7A4", "SAVE20-F8E6D2",
-    "SAVE20-8A4B9C", "SAVE20-3D7E2F", "SAVE20-A2B6C1", "SAVE20-5E3F8D", "SAVE20-D6C1B7",
-    "SAVE20-4F8A2B", "SAVE20-9C3D6E", "SAVE20-1A7B4C", "SAVE20-6D2E8F", "SAVE20-B9C5A1",
-    "SAVE20-E4F2D7", "SAVE20-2A6B8C", "SAVE20-7D1E5F", "SAVE20-C3B9A4", "SAVE20-F2E8D6",
-    "SAVE20-8A9B3C", "SAVE20-3D7E6F", "SAVE20-A6B1C5", "SAVE20-5F4E8D", "SAVE20-D1C2B7",
-    "SAVE20-4E8F1A", "SAVE20-9B3C7D", "SAVE20-1F6E4A", "SAVE20-6C2D8B", "SAVE20-B7A1E9",
-    "SAVE20-E8D4F2", "SAVE20-2C6B7A", "SAVE20-7F1E4D", "SAVE20-C8B2A9", "SAVE20-F6E7D1",
-    "SAVE20-8B4C9A", "SAVE20-3E7D6F", "SAVE20-A1B5C4", "SAVE20-5D8E7F", "SAVE20-D2C6B8",
-    "SAVE20-4A9B1E", "SAVE20-9E3D5C", "SAVE20-1B6A4F", "SAVE20-6D8C3E", "SAVE20-B5A1E2",
-    "SAVE20-E1D4F6", "SAVE20-2A8B6C", "SAVE20-7F4E3D", "SAVE20-C1B6A7", "SAVE20-F8E2D9",
-    "SAVE20-8A3B9C", "SAVE20-3D6E2F", "SAVE20-A2B1C6", "SAVE20-5E8F3D", "SAVE20-D6C7B1",
-    "SAVE20-4F2A8B", "SAVE20-9C6D3E", "SAVE20-1A4B7C", "SAVE20-6D1E8F", "SAVE20-B9C4A5",
-];
-async function initializeCoupons() {
-  if (couponsInitialized) return;
-  const couponsCol = collection(db, 'coupons');
-  const snapshot = await getDocs(query(couponsCol, where('status', '==', 'active')));
-  if (snapshot.empty) {
-    console.log(`Populating coupons collection...`);
-    const batch = writeBatch(db);
-    couponCodeList.forEach(code => {
-      const docRef = doc(db, 'coupons', code);
-      batch.set(docRef, { status: 'active' });
-    });
-    await batch.commit();
-    console.log('Coupons collection populated.');
-  }
-  couponsInitialized = true;
+export async function getCoupons(): Promise<Coupon[]> {
+    const couponsCol = collection(db, 'coupons');
+    const q = query(couponsCol, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coupon[];
 }
 
-export async function checkCoupon(code: string): Promise<{ isValid: boolean, error?: string }> {
-  await initializeCoupons();
-  
-  const couponRef = doc(db, 'coupons', code);
-  const couponSnap = await getDoc(couponRef);
+export async function addCoupon(couponData: Omit<Coupon, 'id' | 'status' | 'createdAt'>): Promise<Coupon> {
+    const couponsCol = collection(db, 'coupons');
+    // Check if coupon code already exists
+    const q = query(couponsCol, where("code", "==", couponData.code));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        throw new Error(`Coupon code "${couponData.code}" already exists.`);
+    }
 
-  if (!couponSnap.exists()) {
+    const newCoupon = {
+        ...couponData,
+        status: 'active',
+        createdAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(couponsCol, newCoupon);
+    return { id: docRef.id, ...newCoupon } as Coupon;
+}
+
+export async function deleteCoupon(couponId: string): Promise<void> {
+    const docRef = doc(db, 'coupons', couponId);
+    await deleteDoc(docRef);
+}
+
+export async function checkCoupon(code: string): Promise<{ isValid: boolean, discountPercent?: number, error?: string }> {
+  const couponsCol = collection(db, 'coupons');
+  const q = query(couponsCol, where("code", "==", code));
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) {
     return { isValid: false, error: "This coupon code does not exist." };
   }
+  
+  const couponDoc = snapshot.docs[0];
+  const couponData = couponDoc.data() as Coupon;
 
-  const couponData = couponSnap.data();
   if (couponData.status !== 'active') {
-    return { isValid: false, error: "This coupon has already been used or expired." };
+    return { isValid: false, error: "This coupon has already been used or has expired." };
   }
   
-  return { isValid: true };
+  return { isValid: true, discountPercent: couponData.discountPercent };
 }
+
 
 // --- Other Data Functions ---
 export async function getPopularDishes(): Promise<string[]> {
