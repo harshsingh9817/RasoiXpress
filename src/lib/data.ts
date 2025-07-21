@@ -21,7 +21,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, AppNotification } from './types';
 
 
 // --- Initial Data ---
@@ -523,13 +523,28 @@ export async function getAdminMessages(): Promise<AdminMessage[]> {
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
     const messagesCol = collection(db, 'adminMessages');
-    await addDoc(messagesCol, {
+    const docRef = await addDoc(messagesCol, {
         userId,
         userEmail: userEmail || null,
         title,
         message,
         timestamp: serverTimestamp(),
     });
+
+    // Also create a notification in the user's local storage for immediate feedback
+    const storageKey = `rasoiExpressUserNotifications_${userId}`;
+    const allStoredNotifications: AppNotification[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const newNotification: AppNotification = {
+        id: `notif-message-${docRef.id}`,
+        timestamp: Date.now(),
+        title: title,
+        message: message,
+        read: false,
+        type: 'admin_message',
+    };
+    const updatedList = [newNotification, ...allStoredNotifications].slice(0, 50);
+    localStorage.setItem(storageKey, JSON.stringify(updatedList));
+    window.dispatchEvent(new Event('notificationsUpdated'));
 }
 
 // --- Support Ticket Management ---
