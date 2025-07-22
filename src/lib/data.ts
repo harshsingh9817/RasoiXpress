@@ -21,7 +21,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, AppNotification } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, AppNotification, OrderStatus } from './types';
 
 
 // --- Initial Data ---
@@ -85,21 +85,32 @@ async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string
             totalTax: orderData.totalTax,
             deliveryConfirmationCode: orderData.deliveryConfirmationCode,
             date: orderData.date,
-            items: orderData.items,
+            items: orderData.items.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            })),
         };
 
-        await fetch(GOOGLE_SCRIPT_URL, {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(sheetPayload),
-            mode: 'no-cors',
         });
+
+        const responseText = await response.text();
+        if (!response.ok || !responseText.includes("✅")) {
+            throw new Error(`Sheet API Error: ${responseText}`);
+        }
+        console.log("✅ Order successfully added to Google Sheet:", responseText);
+
     } catch (err) {
-        console.error("❌ Failed to add order to Google Sheet", err);
+        console.error("❌ Failed to add order to Google Sheet:", err);
     }
 }
 
-async function sendOrderStatusToSheet(orderId: string, status: Order['status']) {
+async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
     try {
         const sheetPayload = {
             type: "updateOrder",
@@ -107,12 +118,18 @@ async function sendOrderStatusToSheet(orderId: string, status: Order['status']) 
             status: status
         };
 
-        await fetch(GOOGLE_SCRIPT_URL, {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(sheetPayload),
-            mode: 'no-cors'
         });
+
+        const responseText = await response.text();
+        if (!response.ok || !responseText.includes("✅")) {
+             throw new Error(`Sheet API Error: ${responseText}`);
+        }
+        console.log(`✅ Order status "${status}" updated in Google Sheet for order ${orderId}:`, responseText);
+
     } catch (err) {
         console.error(`❌ Failed to update order status to "${status}" in Google Sheet for order ${orderId}`, err);
     }
@@ -721,6 +738,7 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
 
 
 
