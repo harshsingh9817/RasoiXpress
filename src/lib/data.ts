@@ -722,3 +722,4 @@ export const getCurrentTrends = (): string[] => {
 
     
 
+
