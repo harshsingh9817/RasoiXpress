@@ -67,17 +67,31 @@ async function initializeCollection(collectionName: string, initialData: any[]) 
 // --- Google Sheet Integration ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec";
 
-async function sendOrderToSheet(orderData: any, newOrderId: string) {
+async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string) {
     try {
-        const sheetData = {
-            ...orderData,
-            id: newOrderId,
+        const sheetPayload = {
+            type: "newOrder",
+            orderId: newOrderId,
             createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+            customerName: orderData.customerName,
+            customerPhone: orderData.customerPhone,
+            userEmail: orderData.userEmail,
+            shippingAddress: orderData.shippingAddress,
+            shippingLat: orderData.shippingLat,
+            shippingLng: orderData.shippingLng,
+            status: orderData.status,
+            paymentMethod: orderData.paymentMethod,
+            total: orderData.total,
+            totalTax: orderData.totalTax,
+            deliveryConfirmationCode: orderData.deliveryConfirmationCode,
+            date: orderData.date,
+            items: orderData.items,
         };
-        await fetch(`${GOOGLE_SCRIPT_URL}?action=addOrder`, {
+
+        await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(sheetData),
+            body: JSON.stringify(sheetPayload),
             mode: 'no-cors',
         });
     } catch (err) {
@@ -87,14 +101,16 @@ async function sendOrderToSheet(orderData: any, newOrderId: string) {
 
 async function sendOrderStatusToSheet(orderId: string, status: Order['status']) {
     try {
+        const sheetPayload = {
+            type: "updateOrder",
+            orderId: orderId,
+            status: status
+        };
+
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                type: "updateOrder",
-                orderId: orderId,
-                status: status
-            }),
+            body: JSON.stringify(sheetPayload),
             mode: 'no-cors'
         });
     } catch (err) {
@@ -173,7 +189,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
     
-    // Send data to Google Sheet
     await sendOrderToSheet(orderData, newOrderId);
 
     return { ...orderData, id: newOrderId } as Order;
@@ -206,14 +221,14 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
-    await sendOrderStatusToSheet(orderId, status); // Sync with Google Sheet
+    await sendOrderStatusToSheet(orderId, status);
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     const newStatus = 'Cancelled';
     await updateDoc(docRef, { status: newStatus, cancellationReason: reason });
-    await sendOrderStatusToSheet(orderId, newStatus); // Sync with Google Sheet
+    await sendOrderStatusToSheet(orderId, newStatus);
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -706,3 +721,4 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
