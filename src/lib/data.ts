@@ -93,20 +93,18 @@ async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string
             })),
         };
 
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(sheetPayload));
+        
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
-            mode: "no-cors", // Use no-cors to prevent "Failed to fetch" due to Google's redirect behavior
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(sheetPayload),
+            body: formData,
         });
         
         console.log("✅ Order data sent to Google Sheet for order:", newOrderId);
 
     } catch (err) {
         console.error("❌ Failed to send order to Google Sheet:", err);
-        // We log the error but don't throw it, so the user's order placement in the app isn't blocked by a sheet error.
     }
 }
 
@@ -118,13 +116,12 @@ async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
             status: status
         };
 
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(sheetPayload));
+
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
-            mode: "no-cors", // Use no-cors for status updates as well
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(sheetPayload),
+            body: formData,
         });
 
         console.log(`✅ Order status "${status}" sent to Google Sheet for order ${orderId}`);
@@ -737,6 +734,7 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
 
 
 
