@@ -64,6 +64,45 @@ async function initializeCollection(collectionName: string, initialData: any[]) 
     }
 }
 
+// --- Google Sheet Integration ---
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec";
+
+async function sendOrderToSheet(orderData: any, newOrderId: string) {
+    try {
+        const sheetData = {
+            ...orderData,
+            id: newOrderId,
+            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        };
+        await fetch(`${GOOGLE_SCRIPT_URL}?action=addOrder`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sheetData),
+            mode: 'no-cors',
+        });
+    } catch (err) {
+        console.error("❌ Failed to add order to Google Sheet", err);
+    }
+}
+
+async function sendOrderStatusToSheet(orderId: string, status: Order['status']) {
+    try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "updateOrder",
+                orderId: orderId,
+                status: status
+            }),
+            mode: 'no-cors'
+        });
+    } catch (err) {
+        console.error(`❌ Failed to update order status to "${status}" in Google Sheet for order ${orderId}`, err);
+    }
+}
+
+
 // --- Menu Item Management ---
 export async function getMenuItems(): Promise<MenuItem[]> {
     await initializeCollection('menuItems', initialMenuItems);
@@ -135,21 +174,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     }
     
     // Send data to Google Sheet
-    try {
-        const sheetData = {
-            ...orderData,
-            id: newOrderId, // Pass the generated ID
-            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-        };
-        await fetch("https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec?action=addOrder", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sheetData),
-          mode: 'no-cors',
-        });
-    } catch (err) {
-        console.error("❌ Failed to add order to Google Sheet", err);
-    }
+    await sendOrderToSheet(orderData, newOrderId);
 
     return { ...orderData, id: newOrderId } as Order;
 }
@@ -181,12 +206,14 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
     }
     
     await updateDoc(docRef, updateData);
+    await sendOrderStatusToSheet(orderId, status); // Sync with Google Sheet
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     const newStatus = 'Cancelled';
     await updateDoc(docRef, { status: newStatus, cancellationReason: reason });
+    await sendOrderStatusToSheet(orderId, newStatus); // Sync with Google Sheet
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
