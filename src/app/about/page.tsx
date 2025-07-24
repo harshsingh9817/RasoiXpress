@@ -22,7 +22,7 @@ export default function AboutUsPage() {
             Welcome to Rasoi Xpress, your number one source for delicious, fast food delivered right to your door. We're dedicated to giving you the very best of local cuisine, with a focus on quality, speed, and customer service.
           </p>
           <p>
-            Founded in 2024 by Harsh Singh, Rasoi Xpress has come a long way from its beginnings. When we first started out, our passion for providing great food quickly drove us to start our own business.
+            Founded in 2025 by Harsh Singh And Aniket Singh, Rasoi Xpress has come a long way from its beginnings. When we first started out, our passion for providing great food quickly drove us to start our own business.
           </p>
           <p>
             We now serve customers all over Nagra, and are thrilled that we're able to turn our passion into our own website. We hope you enjoy our products as much as we enjoy offering them to you. If you have any questions or comments, please don't hesitate to contact us.
