@@ -70,9 +70,7 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKE
 async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string) {
     try {
         const sheetPayload = {
-            type: "newOrder",
             orderId: newOrderId,
-            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
             customerName: orderData.customerName,
             customerPhone: orderData.customerPhone,
             userEmail: orderData.userEmail,
@@ -93,15 +91,20 @@ async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string
             })),
         };
 
+        // This is a reliable fire-and-forget method to send data.
+        // We use a FormData object, which is well-suited for this purpose.
         const formData = new FormData();
         formData.append('data', JSON.stringify(sheetPayload));
-        
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            body: formData,
+
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams({ 
+                postData: JSON.stringify(sheetPayload) 
+            }),
         });
-        
-        console.log("✅ Order data sent to Google Sheet for order:", newOrderId);
+
+        const responseText = await response.text();
+        console.log("Google Sheet Response:", responseText);
 
     } catch (err) {
         console.error("❌ Failed to send order to Google Sheet:", err);
@@ -116,15 +119,13 @@ async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
             status: status
         };
 
-        const formData = new FormData();
-        formData.append('data', JSON.stringify(sheetPayload));
-
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
-            body: formData,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(sheetPayload)
         });
-
-        console.log(`✅ Order status "${status}" sent to Google Sheet for order ${orderId}`);
 
     } catch (err) {
         console.error(`❌ Failed to send order status to "${status}" in Google Sheet for order ${orderId}`, err);
@@ -734,6 +735,7 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
 
 
 
