@@ -70,23 +70,27 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKE
 async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string) {
     try {
         const sheetPayload = {
+            type: "newOrder", // This is critical for your Apps Script to identify the action
             ...orderData,
-            orderId: newOrderId, 
+            orderId: newOrderId,
+            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         };
 
-        // Use a fire-and-forget approach with 'no-cors' mode to prevent server-side fetch issues.
-        // This is a reliable workaround for Google Apps Script's redirect behavior.
-        await fetch(GOOGLE_SCRIPT_URL, {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // Important: Prevents CORS errors on server-side fetch
+            mode: 'no-cors', // Use no-cors to prevent CORS errors in server-side fetch
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8', // Send as text/plain to avoid preflight
             },
             body: JSON.stringify(sheetPayload),
         });
-        
+
+        // With no-cors, we can't read the response, but we can check if the request was sent.
+        // This is a "fire-and-forget" approach, which is often necessary for Google Apps Scripts.
+        console.log("Order data sent to Google Sheet for order ID:", newOrderId);
+
     } catch (err) {
-        // We log the error but don't block the user's order placement.
+        // Log the error but don't block the user's order placement.
         console.error("❌ Failed to send order to Google Sheet:", err);
     }
 }
@@ -100,7 +104,6 @@ async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
             status: status
         };
 
-        // Use a fire-and-forget approach with 'no-cors' mode
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             mode: 'no-cors',
@@ -109,7 +112,7 @@ async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
             },
             body: JSON.stringify(sheetPayload)
         });
-
+        console.log(`Order status update sent to Google Sheet for order ${orderId} with status ${status}`);
     } catch (err) {
         console.error(`❌ Failed to send order status update to Google Sheet for order ${orderId}`, err);
     }
@@ -166,14 +169,19 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
-    const docRef = doc(collection(db, 'orders'));
+    const ordersCol = collection(db, 'orders');
+    const docRef = doc(ordersCol); // Create a document reference with an auto-generated ID
     const newOrderId = docRef.id;
 
     const finalOrderData = {
-      ...orderData,
-      createdAt: serverTimestamp(),
+        ...orderData,
+        createdAt: serverTimestamp(),
     };
 
+    // First, send the data to Google Sheet. If this fails, the order still exists in Firestore.
+    await sendOrderToSheet(orderData, newOrderId);
+    
+    // Then, save the order to Firestore with the generated ID.
     await setDoc(docRef, finalOrderData);
     
     const userRef = doc(db, "users", orderData.userId);
@@ -185,8 +193,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     } catch (error) {
         console.error("Failed to update first order status for user:", orderData.userId, error);
     }
-    
-    await sendOrderToSheet(orderData, newOrderId);
 
     return { ...orderData, id: newOrderId } as Order;
 }
@@ -718,6 +724,7 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
 
 
 
