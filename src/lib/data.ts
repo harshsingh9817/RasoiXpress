@@ -70,37 +70,23 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKE
 async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string) {
     try {
         const sheetPayload = {
-            type: "newOrder",
-            orderId: newOrderId,
-            customerName: orderData.customerName,
-            customerPhone: orderData.customerPhone,
-            userEmail: orderData.userEmail,
-            shippingAddress: orderData.shippingAddress,
-            shippingLat: orderData.shippingLat,
-            shippingLng: orderData.shippingLng,
-            status: orderData.status,
-            paymentMethod: orderData.paymentMethod,
-            total: orderData.total,
-            totalTax: orderData.totalTax,
-            deliveryConfirmationCode: orderData.deliveryConfirmationCode,
-            date: orderData.date,
-            items: orderData.items.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity
-            })),
+            ...orderData,
+            orderId: newOrderId, 
         };
 
+        // Use a fire-and-forget approach with 'no-cors' mode to prevent server-side fetch issues.
+        // This is a reliable workaround for Google Apps Script's redirect behavior.
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify(sheetPayload),
+            mode: 'no-cors', // Important: Prevents CORS errors on server-side fetch
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain;charset=utf-8', // Send as text/plain to avoid preflight
             },
+            body: JSON.stringify(sheetPayload),
         });
         
     } catch (err) {
+        // We log the error but don't block the user's order placement.
         console.error("❌ Failed to send order to Google Sheet:", err);
     }
 }
@@ -114,10 +100,12 @@ async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
             status: status
         };
 
+        // Use a fire-and-forget approach with 'no-cors' mode
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
+            mode: 'no-cors',
             headers: {
-              "Content-Type": "application/json",
+              "Content-Type": "text/plain;charset=utf-8",
             },
             body: JSON.stringify(sheetPayload)
         });
@@ -730,6 +718,7 @@ export const getCurrentTrends = (): string[] => {
 };
 
     
+
 
 
 
