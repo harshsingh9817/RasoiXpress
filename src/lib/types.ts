@@ -74,6 +74,7 @@ export interface Order {
   deliveryRiderId?: string;
   deliveryRiderName?: string;
   deliveryRiderPhone?: string;
+  deliveryRiderVehicle?: string;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   isAvailableForPickup?: boolean;

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus, PaymentSettings } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings, listenToRiderAppOrders, doc, db, updateDoc } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike, TimerOff } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike, TimerOff, Car, PersonStanding } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -112,14 +112,22 @@ export default function AdminOrdersPage() {
     }
 
     setIsDataLoading(true);
-    const unsubscribe = listenToAllOrders((allOrders) => {
+    const unsubscribeOrders = listenToAllOrders((allOrders) => {
         setOrders(allOrders);
         setIsDataLoading(false);
     });
     
+    const unsubscribeRiderUpdates = listenToRiderAppOrders(async (updatedOrder) => {
+        const orderDocRef = doc(db, 'orders', updatedOrder.id);
+        await updateDoc(orderDocRef, updatedOrder);
+    });
+
     getPaymentSettings().then(setPaymentSettings);
 
-    return () => unsubscribe();
+    return () => {
+        unsubscribeOrders();
+        unsubscribeRiderUpdates();
+    };
   }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
 
   const filteredOrders = useMemo(() => {
@@ -423,19 +431,20 @@ export default function AdminOrdersPage() {
                             </div>
                         </div>
                     </div>
-                    <Separator />
                     {selectedOrder.deliveryRiderName && (
                         <>
+                           <Separator />
                             <div>
                                 <h4 className="font-semibold mb-2 text-sm">Assigned Rider</h4>
-                                <p className="text-sm flex items-center gap-2">
-                                    <Bike className="h-4 w-4 text-primary" />
-                                    {selectedOrder.deliveryRiderName}
-                                </p>
+                                <div className="space-y-1 text-sm">
+                                    <p className="flex items-center gap-2"><PersonStanding className="h-4 w-4 text-muted-foreground"/> <strong>Name:</strong> {selectedOrder.deliveryRiderName}</p>
+                                    <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/> <strong>Phone:</strong> <a href={`tel:${selectedOrder.deliveryRiderPhone}`} className="text-primary underline">{selectedOrder.deliveryRiderPhone}</a></p>
+                                    <p className="flex items-center gap-2"><Car className="h-4 w-4 text-muted-foreground"/> <strong>Vehicle:</strong> {selectedOrder.deliveryRiderVehicle}</p>
+                                </div>
                             </div>
-                            <Separator />
                         </>
                     )}
+                    <Separator />
                     <div>
                         <h4 className="font-semibold mb-2 text-sm">Shipping & Contact</h4>
                         <p className="text-sm text-muted-foreground">{selectedOrder.shippingAddress}</p>

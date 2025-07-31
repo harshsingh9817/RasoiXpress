@@ -8,20 +8,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone, TimerOff
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone, TimerOff, Car, PersonStanding
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders, updateDoc, doc, db } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
-const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered' ];
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Accepted by Rider', 'Preparing', 'Out for Delivery', 'Delivered' ];
 const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Accepted by Rider': UserCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
@@ -59,7 +59,7 @@ export default function MyOrdersPage() {
         }
         
         setIsLoading(true);
-        const unsubscribe = listenToUserOrders(firebaseUser.uid, (userOrders) => {
+        const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             setOrders(userOrders);
 
             const trackParam = searchParams.get('track');
@@ -69,8 +69,16 @@ export default function MyOrdersPage() {
             }
             setIsLoading(false);
         });
+        
+        const unsubscribeRiderUpdates = listenToRiderAppOrders(async (updatedOrder) => {
+            const orderDocRef = doc(db, 'orders', updatedOrder.id);
+            await updateDoc(orderDocRef, updatedOrder);
+        });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeUserOrders();
+            unsubscribeRiderUpdates();
+        };
     }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams]);
 
 
@@ -90,6 +98,7 @@ export default function MyOrdersPage() {
           case 'Out for Delivery': return 'text-blue-600';
           case 'Preparing': case 'Confirmed': return 'text-yellow-600';
           case 'Order Placed': return 'text-sky-600';
+          case 'Accepted by Rider': return 'text-orange-600';
           case 'Cancelled': return 'text-red-600';
           case 'Expired': return 'text-gray-500';
           default: return 'text-orange-600';
@@ -175,6 +184,21 @@ export default function MyOrdersPage() {
                         <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
+                    {trackedOrder.deliveryRiderName && (
+                        <Card className="mb-4 bg-primary/5 border-primary/20">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-3 text-primary">
+                                    <Bike className="h-6 w-6"/>
+                                    Your Rider is on the way!
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <p className="flex items-center gap-2"><PersonStanding className="h-4 w-4 text-muted-foreground"/> <strong>Name:</strong> {trackedOrder.deliveryRiderName}</p>
+                                <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/> <strong>Phone:</strong> <a href={`tel:${trackedOrder.deliveryRiderPhone}`} className="text-primary underline">{trackedOrder.deliveryRiderPhone}</a></p>
+                                <p className="flex items-center gap-2"><Car className="h-4 w-4 text-muted-foreground"/> <strong>Vehicle:</strong> {trackedOrder.deliveryRiderVehicle}</p>
+                            </CardContent>
+                        </Card>
+                    )}
                     {trackedOrder.status === 'Cancelled' || trackedOrder.status === 'Expired' ? (
                         <Card className="mt-4 border-destructive bg-destructive/10">
                             <CardHeader className="flex flex-row items-center space-x-3">

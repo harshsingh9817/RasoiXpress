@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -18,10 +19,63 @@ import {
   onSnapshot,
   deleteField,
   writeBatch,
+  type Firestore,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
 import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, OrderStatus } from './types';
+import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
+import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
+
+
+// --- Rider App Firebase Configuration ---
+const riderFirebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_RIDER_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_RIDER_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_RIDER_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_RIDER_FIREBASE_APP_ID
+};
+
+const riderConfigIsValid = riderFirebaseConfig.apiKey && !riderFirebaseConfig.apiKey.startsWith('REPLACE_WITH_');
+let riderApp: FirebaseApp | undefined;
+let riderDb: Firestore | undefined;
+let riderAuth: Auth | undefined;
+
+if (riderConfigIsValid) {
+    const RIDER_APP_NAME = 'riderApp';
+    const secondaryApps = getApps();
+    riderApp = !secondaryApps.some(app => app.name === RIDER_APP_NAME)
+      ? initializeApp(riderFirebaseConfig, RIDER_APP_NAME)
+      : getApp(RIDER_APP_NAME);
+
+    riderDb = getSecondaryFirestore(riderApp);
+    riderAuth = getAuth(riderApp);
+} else {
+    console.warn('Rider app Firebase configuration is missing or incomplete in .env. Rider integration features will be disabled.');
+}
+
+
+let riderAuthPromise: Promise<any> | null = null;
+async function ensureRiderAuth() {
+    if (!riderAuth) throw new Error("Rider Auth service is not initialized due to missing configuration.");
+    if (riderAuth.currentUser) {
+        return riderAuth.currentUser;
+    }
+    if (!riderAuthPromise) {
+        riderAuthPromise = signInAnonymously(riderAuth);
+    }
+    try {
+        const userCredential = await riderAuthPromise;
+        return userCredential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in to rider service failed:", error);
+        riderAuthPromise = null; 
+        throw error;
+    }
+}
 
 
 // --- Initial Data ---
@@ -117,7 +171,6 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management (Firebase & Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    // 1. Save order to Firebase Firestore as the primary source of truth
     const ordersCol = collection(db, 'orders');
     const docRef = await addDoc(ordersCol, {
         ...orderData,
@@ -125,11 +178,9 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     });
     const newOrder = { ...orderData, id: docRef.id } as Order;
 
-    // 2. Mirror the order data to Supabase
     if (supabase) {
         try {
             const supabaseOrderData = {
-                // No 'id' field, allowing Supabase to auto-generate the UUID
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -148,13 +199,12 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
             const { data: supabaseData, error: supabaseError } = await supabase
                 .from('orders')
                 .insert([supabaseOrderData])
-                .select('id') // Important: select the generated UUID
+                .select('id') 
                 .single();
 
             if (supabaseError) {
                 console.error("Supabase insert error:", supabaseError.message);
             } else if (supabaseData) {
-                // 3. Save the Supabase UUID back to the Firestore document for future reference.
                 await updateDoc(docRef, { supabase_order_uuid: supabaseData.id });
             }
 
@@ -180,7 +230,6 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 
     if (supabase) {
         try {
-            // First, get the Firestore document to find the Supabase UUID
             const orderSnap = await getDoc(docRef);
             if (!orderSnap.exists() || !orderSnap.data()?.supabase_order_uuid) {
                 console.error(`Cannot update order in Supabase: Firestore order ${orderId} not found or missing supabase_order_uuid.`);
@@ -191,7 +240,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('id', supabaseUUID); // Use the correct UUID to find the record
+                .eq('id', supabaseUUID); 
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -205,7 +254,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
-    await updateOrderStatus(orderId, 'Cancelled'); // Also sync status to Supabase
+    await updateOrderStatus(orderId, 'Cancelled'); 
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -294,6 +343,46 @@ export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => v
         const tickets = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as SupportTicket[];
         callback(tickets);
     });
+}
+
+export function listenToRiderAppOrders(callback: (updatedOrder: Partial<Order> & { id: string }) => void): () => void {
+    if (!riderDb || !riderAuth) {
+        console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
+        return () => {};
+    }
+
+    const riderOrdersCol = collection(riderDb, 'orders');
+    let unsubscribe = () => {};
+
+    ensureRiderAuth().then(() => {
+        unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "modified") {
+                    const riderOrderData = change.doc.data();
+                    const orderId = change.doc.id;
+                    const status = riderOrderData.status as OrderStatus;
+                    
+                    if (status === 'Accepted by Rider' || status === 'Out for Delivery' || status === 'Delivered') {
+                        const updatedFields: Partial<Order> & { id: string } = {
+                            id: orderId,
+                            status: status,
+                            deliveryRiderId: riderOrderData.rider_id,
+                            deliveryRiderName: riderOrderData.rider_name,
+                            deliveryRiderPhone: riderOrderData.rider_phone,
+                            deliveryRiderVehicle: riderOrderData.rider_vehicle
+                        };
+                        callback(updatedFields);
+                    }
+                }
+            });
+        }, (error) => {
+            console.error("Error listening to rider app orders:", error);
+        });
+    }).catch(error => {
+        console.error("Failed to authenticate with rider app service for listening:", error);
+    });
+
+    return unsubscribe;
 }
 
 // --- Address Management (Firestore) ---
