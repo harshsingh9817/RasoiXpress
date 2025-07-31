@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -49,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike, TimerOff, Car, PersonStanding } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike, TimerOff, Car, PersonStanding, UserCheck } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -70,8 +71,8 @@ const ALL_FILTER_STATUSES: (OrderStatus | 'All' | 'Expired')[] = [
   'All',
   'Order Placed',
   'Confirmed',
-  'Accepted by Rider',
   'Preparing',
+  'Accepted by Rider',
   'Out for Delivery',
   'Delivered',
   'Cancelled',
@@ -113,11 +114,13 @@ export default function AdminOrdersPage() {
     setIsDataLoading(true);
     const unsubscribeOrders = listenToAllOrders((allOrders) => {
         setOrders(allOrders);
+        if (selectedOrder) {
+          const updatedSelectedOrder = allOrders.find(o => o.id === selectedOrder.id);
+          setSelectedOrder(updatedSelectedOrder || null);
+        }
         setIsDataLoading(false);
     });
     
-    // The central listener in data.ts now handles syncing rider data.
-    // We just need to start it.
     const unsubscribeRiderUpdates = listenToRiderAppOrders(() => {});
 
     getPaymentSettings().then(setPaymentSettings);
@@ -126,7 +129,7 @@ export default function AdminOrdersPage() {
         unsubscribeOrders();
         unsubscribeRiderUpdates();
     };
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast, selectedOrder]);
 
   const filteredOrders = useMemo(() => {
     return orders
@@ -148,8 +151,10 @@ export default function AdminOrdersPage() {
   const getStatusVariant = (status: Order['status']): "default" | "secondary" | "destructive" => {
     switch (status) {
       case 'Delivered':
-      case 'Out for Delivery':
         return 'default';
+       case 'Accepted by Rider':
+       case 'Out for Delivery':
+        return 'secondary';
       case 'Cancelled':
       case 'Expired':
         return 'destructive';
@@ -161,7 +166,7 @@ export default function AdminOrdersPage() {
   const handleProgressOrder = async (order: Order) => {
     const currentIndex = ORDER_PROGRESS_STEPS.indexOf(order.status);
     if (currentIndex === -1 || currentIndex >= ORDER_PROGRESS_STEPS.length - 1) {
-      return; // Cannot progress 'Delivered' or 'Cancelled' orders
+      return;
     }
     const nextStatus = ORDER_PROGRESS_STEPS[currentIndex + 1];
     
@@ -324,7 +329,10 @@ export default function AdminOrdersPage() {
                             <TableCell>{new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    <Badge variant={getStatusVariant(order.status)} className="w-fit">{order.status}</Badge>
+                                    <Badge variant={getStatusVariant(order.status)} className="w-fit">
+                                        {order.status === 'Accepted by Rider' && <UserCheck className="mr-1.5 h-3 w-3"/>}
+                                        {order.status}
+                                    </Badge>
                                     {canProgress && (
                                         <Button size="sm" variant="outline" onClick={() => handleProgressOrder(order)}>
                                            Next: {nextStatus} <ChevronRight className="ml-1 h-4 w-4" />
