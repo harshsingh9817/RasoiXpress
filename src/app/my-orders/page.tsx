@@ -81,7 +81,7 @@ export default function MyOrdersPage() {
             unsubscribeUserOrders();
             unsubscribeRiderUpdates();
         };
-    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams, trackedOrder]);
+    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams]);
 
 
     const handleTrackOrderFromList = (order: Order) => {
