@@ -73,41 +73,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  // Effect to handle Firebase auth state changes and Supabase token
   useEffect(() => {
-    const { data: { subscription } } = supabase?.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-            // Can perform actions on sign-in
-        }
-    }) ?? { data: {} };
-
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const idTokenResult = await currentUser.getIdTokenResult();
-            if (supabase) {
-                const { error } = await supabase.auth.setSession({ access_token: idTokenResult.token, refresh_token: 'dummy-refresh-token' });
-                if (error) throw error;
-            }
             const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
             setIsAdmin(isAdminClaim);
         } catch(error) {
-            console.error("Error setting Supabase session or fetching roles:", error);
+            console.error("Error fetching user roles:", error);
             await firebaseSignOut(auth);
             setIsAdmin(false);
         }
       } else {
         setUser(null);
         setIsAdmin(false);
-        supabase?.auth.signOut();
       }
       setIsLoading(false);
     });
 
     return () => {
       unsubscribe();
-      subscription?.unsubscribe();
     };
   }, []);
 
@@ -335,6 +321,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase logout error:", error);
