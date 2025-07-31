@@ -1,64 +1,76 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
-    function isAuthenticated() {
+    
+    // Helper Functions
+    function isSignedIn() {
       return request.auth != null;
     }
-
+    
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
-
+    
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
+      // In a real app, this would check a custom claim or a separate admin collection.
+      // For this app, the admin is hardcoded by email.
+      return request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // --- User Data ---
+    // USER DATA
+    // A user can read/update their own profile data.
     match /users/{userId} {
-      allow read, update: if isOwner(userId) || isAdmin();
-      
-      // Allow users to read their own addresses, but not others'
-      match /addresses/{addressId} {
-        allow read, write: if isOwner(userId);
-      }
+      allow read, update: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn();
     }
-
-    // --- Global & Public Data ---
+    
+    // A user can manage their own addresses.
+    match /users/{userId}/addresses/{addressId} {
+        allow read, write, delete: if isSignedIn() && isOwner(userId);
+    }
+    
+    // GLOBALS (Settings visible to all signed-in users)
+    // Admins can change them, signed-in users can read them.
     match /globals/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
+    // MENU ITEMS
+    // Menu is public to any signed-in user. Only admins can create/edit/delete items.
     match /menuItems/{itemId} {
-      allow read: if isAuthenticated();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
-    // --- Coupons Collection ---
+    // COUPONS
+    // Coupon logic is handled server-side (in this case, via security rules for validation).
+    // All users can attempt to read a coupon to validate it.
+    // Only admins can create, update, or delete coupons.
     match /coupons/{couponId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
     }
 
-    // --- Orders & Messages ---
-    match /orders/{orderId} {
-      allow read, create, update: if isAuthenticated();
-      allow list, delete: if isAdmin();
+    // SUPPORT TICKETS
+    // Users can create support tickets. Admins can read all tickets and update them (e.g., to resolve).
+    match /supportTickets/{ticketId} {
+      allow create: if isSignedIn();
+      allow read, update: if isAdmin();
     }
     
+    // ADMIN MESSAGES
+    // Admins can create messages. Users can only read messages addressed to them.
     match /adminMessages/{messageId} {
-      allow read: if isAuthenticated();
       allow create: if isAdmin();
+      // A user can read a message if the document's userId field matches their own auth uid.
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // --- Support Tickets ---
-    match /supportTickets/{ticketId} {
-      allow create: if isAuthenticated();
-      allow read, update: if isAdmin();
+    // Deny access to orders collection in Firestore, as it's managed by Supabase.
+    match /orders/{orderId} {
+      allow read, write: if false;
     }
   }
 }
