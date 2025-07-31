@@ -115,6 +115,17 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management (Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
+    if (!supabase) {
+        console.warn("Supabase not configured. Skipping order placement in Supabase.");
+        // Return a mock order object to allow the UI to proceed
+        const mockOrder = {
+            ...orderData,
+            id: `mock_${new Date().getTime()}`,
+            items: typeof orderData.items === 'string' ? JSON.parse(orderData.items) : orderData.items,
+        };
+        return mockOrder;
+    }
+
     const { data, error } = await supabase
         .from('orders')
         .insert([
@@ -142,6 +153,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
+    if (!supabase) return null;
     const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -156,6 +168,7 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 }
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
+    if (!supabase) return;
     const { error } = await supabase
         .from('orders')
         .update({ status: status })
@@ -168,6 +181,7 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
+    if (!supabase) return;
     const { error } = await supabase
         .from('orders')
         .update({ status: 'Cancelled', cancellationReason: reason })
@@ -180,6 +194,7 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
+    if (!supabase) return;
     const { error } = await supabase
         .from('orders')
         .update({ review: review })
@@ -192,6 +207,7 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
+    if (!supabase) return;
     const { error } = await supabase
         .from('orders')
         .delete()
@@ -204,6 +220,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
 }
 
 export async function getAllOrders(): Promise<Order[]> {
+    if (!supabase) return [];
     const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -217,7 +234,7 @@ export async function getAllOrders(): Promise<Order[]> {
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
-    if (!userId) return [];
+    if (!supabase || !userId) return [];
     const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -245,6 +262,7 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => 
 }
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
+    if (!supabase) return () => {};
     const channel = supabase
       .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async () => {
@@ -262,7 +280,7 @@ export function listenToAllOrders(callback: (orders: Order[]) => void): () => vo
 }
 
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
-    if (!userId) return () => {};
+    if (!supabase || !userId) return () => {};
     const channel = supabase
       .channel(`public:orders:user_id=eq.${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${userId}` }, async () => {
@@ -280,6 +298,7 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
 }
 
 export function listenToOrderById(orderId: string, callback: (order: Order | null) => void): () => void {
+    if (!supabase) return () => {};
     const channel = supabase
       .channel(`public:orders:id=eq.${orderId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, async (payload) => {
@@ -423,6 +442,8 @@ export async function updatePaymentSettings(data: Partial<PaymentSettings>): Pro
 
 // --- Analytics Data (Supabase) ---
 export async function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
+    if (!supabase) return { totalRevenue: 0, totalProfit: 0, totalOrders: 0, totalLoss: 0, totalCancelledOrders: 0, chartData: [] };
+
     let queryBuilder = supabase.from('orders').select('*');
 
     if (dateRange?.from && dateRange.to) {
