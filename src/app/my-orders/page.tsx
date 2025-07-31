@@ -14,7 +14,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders, updateDoc, doc, db } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
@@ -70,10 +70,8 @@ export default function MyOrdersPage() {
             setIsLoading(false);
         });
         
-        const unsubscribeRiderUpdates = listenToRiderAppOrders(async (updatedOrder) => {
-            const orderDocRef = doc(db, 'orders', updatedOrder.id);
-            await updateDoc(orderDocRef, updatedOrder);
-        });
+        // The main listener in data.ts now handles the update, so we just need to listen for changes.
+        const unsubscribeRiderUpdates = listenToRiderAppOrders(() => {});
 
         return () => {
             unsubscribeUserOrders();
