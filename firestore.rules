@@ -1,80 +1,72 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- Helper Functions ---
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == 'harshsingh9817@gmail.com';
-    }
-
-    // Collection: users
-    // Users can read their own profile, and admins can read any.
-    // Users can create their own profile and update their own displayName and mobileNumber.
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly(['displayName', 'mobileNumber', 'hasCompletedFirstOrder']);
-    }
-
-    // Subcollection: addresses within users
-    // Users can manage their own addresses.
-    match /users/{userId}/addresses/{addressId} {
-      allow read, create, update, delete: if isOwner(userId);
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
     
-    // Collection: menuItems
-    // Any authenticated user can read the menu. Only admins can create, update, or delete items.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- Collection Rules ---
+
+    // USERS: Users can create their own document and can only read/update their own.
+    match /users/{userId} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isAuthenticated();
+      
+      // ADDRESSES: Users can manage their own addresses.
+      match /addresses/{addressId} {
+        allow read, create, update, delete: if isOwner(userId);
+      }
+    }
+
+    // MENU ITEMS: Any authenticated user can read the menu, but only admins can modify it.
     match /menuItems/{itemId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
-    // Collection: globals
-    // Any authenticated user can read global settings like hero data and payment settings.
-    // Only admins can update these settings.
+    // GLOBALS (Hero, Payment Settings): Authenticated users can read, only admins can write.
     match /globals/{docId} {
-        allow read: if isAuthenticated();
-        allow write: if isAdmin();
+       allow read: if isAuthenticated();
+       allow write: if isAdmin();
     }
     
-    // Collection: adminMessages
-    // Users can only read messages sent specifically to them.
-    // Admins can read all messages and create new ones.
+    // ADMIN MESSAGES: Only accessible by admins and the specific recipient user.
     match /adminMessages/{messageId} {
-        allow read: if isOwner(resource.data.userId) || isAdmin();
-        allow create: if isAdmin();
-        allow write: if isAdmin();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false; // Messages are immutable
     }
 
-    // Collection: supportTickets
-    // Any authenticated user can create a support ticket.
-    // Users can read their own tickets. Admins can read and update all tickets.
+    // SUPPORT TICKETS: Users can create tickets. Admins can read/update all tickets. Users can read their own.
     match /supportTickets/{ticketId} {
-        allow create: if isAuthenticated();
-        allow read: if (isOwner(resource.data.userId) && resource.data.userId != null) || isAdmin();
-        allow update: if isAdmin();
+      allow create: if isAuthenticated();
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow update: if isAdmin();
+      allow delete: if false;
     }
-
-    // Collection: coupons
-    // Any authenticated user can read coupons (to verify them).
-    // Only admins can create, update, or delete coupons.
+    
+    // COUPONS: Only admins can manage coupons. Authenticated users can read them.
     match /coupons/{couponId} {
         allow read: if isAuthenticated();
-        allow write: if isAdmin();
+        allow create, update, delete: if isAdmin();
     }
 
-    // Orders are handled by Supabase, so we explicitly deny all access to the 'orders' collection in Firestore.
+    // ORDERS: This collection is no longer used by the application, but we lock it down just in case.
+    // All order data is now handled by Supabase.
     match /orders/{orderId} {
-        allow read, write: if false;
+      allow read, write: if false;
     }
   }
 }
