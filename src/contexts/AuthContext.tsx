@@ -21,7 +21,6 @@ import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getAddresses, getUserProfile } from '@/lib/data';
-import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -321,9 +320,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase logout error:", error);
