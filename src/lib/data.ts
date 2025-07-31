@@ -130,7 +130,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         try {
             // This object now matches your SQL schema exactly.
             const supabaseOrderData = {
-                id: newOrder.id,
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -144,7 +143,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 delivery_confirmation_code: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
                 items: newOrder.items,
-                // created_at is handled by `default now()` in your SQL schema.
             };
 
             const { error: supabaseError } = await supabase
