@@ -54,7 +54,8 @@ export interface Review {
 
 export interface Order {
   id: string;
-  user_id: string; // Changed from userId for Supabase convention
+  user_id: string;
+  supabase_order_uuid?: string; // Added to store the Supabase UUID
   userEmail: string; 
   customerName: string; 
   date: string;

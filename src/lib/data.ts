@@ -128,9 +128,8 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     // 2. Mirror the order data to Supabase
     if (supabase) {
         try {
-            // This object now matches your SQL schema exactly.
             const supabaseOrderData = {
-                firestore_order_id: newOrder.id, // Storing the Firestore ID
+                // No 'id' field, allowing Supabase to auto-generate the UUID
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -146,14 +145,19 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 items: newOrder.items,
             };
 
-            const { error: supabaseError } = await supabase
+            const { data: supabaseData, error: supabaseError } = await supabase
                 .from('orders')
-                .insert([supabaseOrderData]);
+                .insert([supabaseOrderData])
+                .select('id') // Important: select the generated UUID
+                .single();
 
             if (supabaseError) {
-                // Log the error but don't fail the entire transaction, as Firestore is the primary DB
                 console.error("Supabase insert error:", supabaseError.message);
+            } else if (supabaseData) {
+                // 3. Save the Supabase UUID back to the Firestore document for future reference.
+                await updateDoc(docRef, { supabase_order_uuid: supabaseData.id });
             }
+
         } catch (error) {
             console.error("An unexpected error occurred while saving to Supabase:", error);
         }
@@ -176,10 +180,18 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 
     if (supabase) {
         try {
+            // First, get the Firestore document to find the Supabase UUID
+            const orderSnap = await getDoc(docRef);
+            if (!orderSnap.exists() || !orderSnap.data()?.supabase_order_uuid) {
+                console.error(`Cannot update order in Supabase: Firestore order ${orderId} not found or missing supabase_order_uuid.`);
+                return;
+            }
+            const supabaseUUID = orderSnap.data().supabase_order_uuid;
+
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('firestore_order_id', orderId); // Use 'firestore_order_id' to find the correct record
+                .eq('id', supabaseUUID); // Use the correct UUID to find the record
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -193,10 +205,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
-
-    if (supabase) {
-      await supabase.from('orders').update({ status: 'Cancelled' }).eq('firestore_order_id', orderId);
-    }
+    await updateOrderStatus(orderId, 'Cancelled'); // Also sync status to Supabase
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -206,11 +215,20 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 
 export async function deleteOrder(orderId: string): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
-    await deleteDoc(docRef);
-
+    
     if (supabase) {
-      await supabase.from('orders').delete().eq('firestore_order_id', orderId);
+        try {
+            const orderSnap = await getDoc(docRef);
+            if (orderSnap.exists() && orderSnap.data()?.supabase_order_uuid) {
+                const supabaseUUID = orderSnap.data().supabase_order_uuid;
+                await supabase.from('orders').delete().eq('id', supabaseUUID);
+            }
+        } catch (error) {
+            console.error(`Failed to delete order ${orderId} from Supabase:`, error);
+        }
     }
+    
+    await deleteDoc(docRef);
 }
 
 export async function getAllOrders(): Promise<Order[]> {
