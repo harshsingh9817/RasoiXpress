@@ -130,6 +130,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         try {
             // This object now matches your SQL schema exactly.
             const supabaseOrderData = {
+                firestore_order_id: newOrder.id, // Storing the Firestore ID
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -178,7 +179,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('id', orderId); // Use 'id' to match your primary key
+                .eq('firestore_order_id', orderId); // Use 'firestore_order_id' to find the correct record
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -194,7 +195,7 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
 
     if (supabase) {
-      await supabase.from('orders').update({ status: 'Cancelled' }).eq('id', orderId);
+      await supabase.from('orders').update({ status: 'Cancelled' }).eq('firestore_order_id', orderId);
     }
 }
 
@@ -208,7 +209,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
     await deleteDoc(docRef);
 
     if (supabase) {
-      await supabase.from('orders').delete().eq('id', orderId);
+      await supabase.from('orders').delete().eq('firestore_order_id', orderId);
     }
 }
 
