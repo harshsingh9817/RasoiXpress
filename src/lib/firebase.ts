@@ -17,6 +17,12 @@ export const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+// This check provides a clear error message if the environment variables are not set.
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('REPLACE_WITH_')) {
+    throw new Error('Main Firebase configuration is missing or incomplete. Please update the NEXT_PUBLIC_FIREBASE_ variables in your .env file with the credentials from your Firebase project settings.');
+}
+
+
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {

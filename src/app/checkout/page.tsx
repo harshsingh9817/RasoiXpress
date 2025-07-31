@@ -338,7 +338,7 @@ export default function CheckoutPage() {
     
     const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
     const newOrderData: Omit<Order, 'id'> = {
-        userId: user.uid,
+        user_id: user.uid,
         userEmail: user.email || 'N/A',
         customerName: selectedAddress.fullName,
         date: new Date().toISOString(),

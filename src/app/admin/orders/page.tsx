@@ -228,7 +228,7 @@ export default function AdminOrdersPage() {
         } else {
             title = `A message regarding your order #${orderToMessage.id.slice(-6)}`;
         }
-        await sendAdminMessage(orderToMessage.userId, orderToMessage.userEmail, title, messageContent);
+        await sendAdminMessage(orderToMessage.user_id, orderToMessage.userEmail, title, messageContent);
         toast({ title: "Message Sent!", description: `Your message has been sent to ${orderToMessage.customerName}.` });
         setIsMessageDialogOpen(false);
     } catch (error) {
