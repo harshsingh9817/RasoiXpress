@@ -139,16 +139,9 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         throw error;
     }
     
-    const userRef = doc(db, "users", orderData.user_id);
-    try {
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
-            await updateDoc(userRef, { hasCompletedFirstOrder: true });
-        }
-    } catch (error) {
-        console.error("Failed to update first order status for user:", orderData.user_id, error);
-    }
-
+    // This block was causing the Firestore permission error. It has been removed.
+    // The user's first order status can be derived from their order history in Supabase if needed.
+    
     return { ...data, items: JSON.parse(data.items) };
 }
 
