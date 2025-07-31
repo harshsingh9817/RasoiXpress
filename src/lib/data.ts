@@ -143,7 +143,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 deliveryConfirmationCode: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
                 items: JSON.stringify(newOrder.items),
-                createdAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
             };
 
             const { error: supabaseError } = await supabase
@@ -484,7 +483,7 @@ export async function checkCoupon(code: string): Promise<{ isValid: boolean, dis
     if (snapshot.empty) return { isValid: false, error: "This coupon code does not exist." };
     
     const couponDoc = snapshot.docs[0];
-    const couponData = { ...couponDoc.data(), id: couponDoc.id } as Coupon;
+    const couponData = couponDoc.data() as Omit<Coupon, 'id'>;
 
     if (couponData.status !== 'active') return { isValid: false, error: "This coupon is currently inactive." };
     
