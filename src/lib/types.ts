@@ -54,9 +54,9 @@ export interface Review {
 
 export interface Order {
   id: string;
-  userId: string; // Added to associate order with a user
-  userEmail: string; // Added for display on delivery dashboard
-  customerName: string; // Added for displaying customer name
+  user_id: string; // Changed from userId for Supabase convention
+  userEmail: string; 
+  customerName: string; 
   date: string;
   status: OrderStatus;
   total: number; // This is the grand total
@@ -64,12 +64,12 @@ export interface Order {
   shippingAddress: string;
   paymentMethod: 'Razorpay' | 'Cash on Delivery';
   cancellationReason?: string;
-  review?: Review; // Added for review
+  review?: Review; 
   customerPhone?: string;
   deliveryConfirmationCode?: string;
   deliveryFee: number;
-  taxRate?: number; // Kept for backward compatibility with old orders
-  totalTax: number; // New field to store the calculated total tax
+  taxRate?: number; 
+  totalTax: number; 
   deliveryRiderId?: string;
   deliveryRiderName?: string;
   deliveryRiderPhone?: string;
@@ -89,16 +89,16 @@ export interface Address {
   street: string;
   village?: string;
   city: string;
-  pinCode: string; // Changed from postalCode
-  phone: string; // Added
-  alternatePhone?: string; // Added
+  pinCode: string; 
+  phone: string; 
+  alternatePhone?: string; 
   isDefault: boolean;
   lat: number;
   lng: number;
 }
 
 export interface AppNotification {
-  id: string; // Unique key e.g., 'notif-ORD123-Delivered' or 'notif-rec-dishname'
+  id: string;
   timestamp: number;
   title: string;
   message: string;
@@ -181,7 +181,7 @@ export interface Coupon {
     code: string;
     discountPercent: number;
     status: 'active' | 'inactive';
-    createdAt: any; // Firestore timestamp
-    validFrom: any; // Firestore timestamp
-    validUntil: any; // Firestore timestamp
+    createdAt: any; 
+    validFrom: any; 
+    validUntil: any; 
 }

@@ -21,7 +21,8 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, AppNotification, OrderStatus } from './types';
+import { supabase } from './supabase';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, OrderStatus } from './types';
 
 
 // --- Initial Data ---
@@ -63,61 +64,6 @@ async function initializeCollection(collectionName: string, initialData: any[]) 
         console.log(`Collection '${collectionName}' populated.`);
     }
 }
-
-// --- Google Sheet Integration ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygaIv-ftQFKEpa6UUz4k5VPEKxtMejGqa0hX7j4QBT5Y5FHPtBpODZr5ma4ImhNWGBkQ/exec";
-
-async function sendOrderToSheet(orderData: Omit<Order, 'id'>, newOrderId: string) {
-    try {
-        const sheetPayload = {
-            type: "newOrder", // This is critical for your Apps Script to identify the action
-            ...orderData,
-            orderId: newOrderId,
-            createdAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-        };
-
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Use no-cors to prevent CORS errors in server-side fetch
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8', // Send as text/plain to avoid preflight
-            },
-            body: JSON.stringify(sheetPayload),
-        });
-
-        // With no-cors, we can't read the response, but we can check if the request was sent.
-        // This is a "fire-and-forget" approach, which is often necessary for Google Apps Scripts.
-        console.log("Order data sent to Google Sheet for order ID:", newOrderId);
-
-    } catch (err) {
-        // Log the error but don't block the user's order placement.
-        console.error("❌ Failed to send order to Google Sheet:", err);
-    }
-}
-
-
-async function sendOrderStatusToSheet(orderId: string, status: OrderStatus) {
-    try {
-        const sheetPayload = {
-            type: "updateOrder",
-            orderId: orderId,
-            status: status
-        };
-
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            mode: 'no-cors',
-            headers: {
-              "Content-Type": "text/plain;charset=utf-8",
-            },
-            body: JSON.stringify(sheetPayload)
-        });
-        console.log(`Order status update sent to Google Sheet for order ${orderId} with status ${status}`);
-    } catch (err) {
-        console.error(`❌ Failed to send order status update to Google Sheet for order ${orderId}`, err);
-    }
-}
-
 
 // --- Menu Item Management ---
 export async function getMenuItems(): Promise<MenuItem[]> {
@@ -167,104 +113,122 @@ export async function deleteMenuItem(itemId: string): Promise<void> {
 export async function getRestaurants(): Promise<Restaurant[]> { return []; }
 export async function getRestaurantById(id: string): Promise<Restaurant | undefined> { return undefined; }
 
-// --- Order Management ---
+// --- Order Management (Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
-    const ordersCol = collection(db, 'orders');
-    const docRef = doc(ordersCol); // Create a document reference with an auto-generated ID
-    const newOrderId = docRef.id;
+    const { data, error } = await supabase
+        .from('orders')
+        .insert([
+            { ...orderData, items: JSON.stringify(orderData.items) }
+        ])
+        .select()
+        .single();
 
-    const finalOrderData = {
-        ...orderData,
-        createdAt: serverTimestamp(),
-    };
-
-    // First, send the data to Google Sheet. If this fails, the order still exists in Firestore.
-    await sendOrderToSheet(orderData, newOrderId);
+    if (error) {
+        console.error('Supabase placeOrder error:', error);
+        throw error;
+    }
     
-    // Then, save the order to Firestore with the generated ID.
-    await setDoc(docRef, finalOrderData);
-    
-    const userRef = doc(db, "users", orderData.userId);
+    const userRef = doc(db, "users", orderData.user_id);
     try {
         const userDoc = await getDoc(userRef);
         if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
             await updateDoc(userRef, { hasCompletedFirstOrder: true });
         }
     } catch (error) {
-        console.error("Failed to update first order status for user:", orderData.userId, error);
+        console.error("Failed to update first order status for user:", orderData.user_id, error);
     }
 
-    return { ...orderData, id: newOrderId } as Order;
+    return { ...data, items: JSON.parse(data.items) };
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
-    const docRef = doc(db, 'orders', orderId);
-    const docSnap = await getDoc(docRef);
+    const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Order;
+    if (error) {
+        console.error('Supabase getOrderById error:', error);
+        return null;
     }
-
-    return null;
+    return data as Order;
 }
 
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    
-    const updateData: { [key: string]: any } = { status };
-    if (status === 'Preparing') {
-        updateData.isAvailableForPickup = true;
-    } else if (status === 'Out for Delivery' || status === 'Cancelled' || status === 'Expired') {
-        updateData.isAvailableForPickup = false;
+    const { error } = await supabase
+        .from('orders')
+        .update({ status: status })
+        .eq('id', orderId);
+
+    if (error) {
+        console.error('Supabase updateOrderStatus error:', error);
+        throw error;
     }
-    
-    if (status === 'Delivered') {
-        updateData.isAvailableForPickup = false;
-        updateData.deliveryConfirmationCode = deleteField();
-    }
-    
-    await updateDoc(docRef, updateData);
-    await sendOrderStatusToSheet(orderId, status);
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    const newStatus = 'Cancelled';
-    await updateDoc(docRef, { status: newStatus, cancellationReason: reason });
-    await sendOrderStatusToSheet(orderId, newStatus);
+    const { error } = await supabase
+        .from('orders')
+        .update({ status: 'Cancelled', cancellationReason: reason })
+        .eq('id', orderId);
+
+    if (error) {
+        console.error('Supabase cancelOrder error:', error);
+        throw error;
+    }
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    const cleanReview: { [key: string]: any } = {
-        rating: review.rating,
-        date: review.date,
-    };
-    if (review.comment && review.comment.trim()) {
-        cleanReview.comment = review.comment.trim();
+    const { error } = await supabase
+        .from('orders')
+        .update({ review: review })
+        .eq('id', orderId);
+
+    if (error) {
+        console.error('Supabase submitOrderReview error:', error);
+        throw error;
     }
-    await updateDoc(docRef, { review: cleanReview });
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await deleteDoc(docRef);
+    const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+
+    if (error) {
+        console.error('Supabase deleteOrder error:', error);
+        throw error;
+    }
 }
 
 export async function getAllOrders(): Promise<Order[]> {
-    const ordersCol = collection(db, 'orders');
-    const snapshot = await getDocs(query(ordersCol));
-    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
-    return allOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error('Supabase getAllOrders error:', error);
+        return [];
+    }
+    return data as Order[];
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
     if (!userId) return [];
-    const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
-    return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error('Supabase getUserOrders error:', error);
+        return [];
+    }
+    return data as Order[];
 }
 
 // --- REAL-TIME LISTENERS ---
@@ -281,42 +245,58 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => 
 }
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
-    const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    const channel = supabase
+      .channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async () => {
+        const allOrders = await getAllOrders();
         callback(allOrders);
-    }, (error) => {
-        console.error("Error listening to all orders:", error);
-    });
-    return unsubscribe;
+      })
+      .subscribe();
+      
+    // Fetch initial data
+    getAllOrders().then(callback);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
 }
 
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
     if (!userId) return () => {};
-    const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    const channel = supabase
+      .channel(`public:orders:user_id=eq.${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${userId}` }, async () => {
+        const userOrders = await getUserOrders(userId);
         callback(userOrders);
-    }, (error) => {
-        console.error("Error listening to user orders:", error);
-    });
-    return unsubscribe;
+      })
+      .subscribe();
+
+    // Fetch initial data
+    getUserOrders(userId).then(callback);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
 }
 
 export function listenToOrderById(orderId: string, callback: (order: Order | null) => void): () => void {
-    const docRef = doc(db, 'orders', orderId);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            callback({ id: docSnap.id, ...docSnap.data() } as Order);
-        } else {
+    const channel = supabase
+      .channel(`public:orders:id=eq.${orderId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, async (payload) => {
+        if(payload.eventType === 'DELETE') {
             callback(null);
+        } else {
+            const order = await getOrderById(orderId);
+            callback(order);
         }
-    }, (error) => {
-        console.error("Error listening to order by ID:", error);
-    });
-    return unsubscribe;
+      })
+      .subscribe();
+      
+    getOrderById(orderId).then(callback);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
 }
 
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
@@ -363,7 +343,7 @@ export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => v
 }
 
 
-// --- Address Management ---
+// --- Address Management (Firestore) ---
 export async function getAddresses(userId: string): Promise<Address[]> {
     if (!userId) return [];
     const addressesCol = collection(db, 'users', userId, 'addresses');
@@ -408,7 +388,7 @@ export async function setDefaultAddress(userId: string, addressIdToSetDefault: s
     }
 }
 
-// --- Hero Section Management ---
+// --- Hero Section Management (Firestore) ---
 export async function getHeroData(): Promise<HeroData> {
     const docRef = doc(db, 'globals', 'hero');
     const docSnap = await getDoc(docRef);
@@ -424,7 +404,7 @@ export async function updateHeroData(data: HeroData): Promise<void> {
     await setDoc(docRef, data, { merge: true });
 }
 
-// --- Payment Settings Management ---
+// --- Payment Settings Management (Firestore) ---
 export async function getPaymentSettings(): Promise<PaymentSettings> {
     const docRef = doc(db, 'globals', 'paymentSettings');
     const docSnap = await getDoc(docRef);
@@ -441,21 +421,25 @@ export async function updatePaymentSettings(data: Partial<PaymentSettings>): Pro
     await setDoc(docRef, data, { merge: true });
 }
 
-// --- Analytics Data ---
-export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): AnalyticsData {
-    const filteredOrders = dateRange?.from && dateRange.to
-        ? allOrders.filter(order => {
-            const orderDate = new Date(order.date);
-            const from = new Date(dateRange.from);
-            from.setHours(0, 0, 0, 0);
-            const to = new Date(dateRange.to);
-            to.setHours(23, 59, 59, 999);
-            return orderDate >= from && orderDate <= to;
-        })
-        : allOrders;
+// --- Analytics Data (Supabase) ---
+export async function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
+    let queryBuilder = supabase.from('orders').select('*');
 
-    const deliveredOrders = filteredOrders.filter(o => o.status === 'Delivered');
-    const cancelledOrders = filteredOrders.filter(o => o.status === 'Cancelled');
+    if (dateRange?.from && dateRange.to) {
+        queryBuilder = queryBuilder
+            .gte('date', dateRange.from.toISOString())
+            .lte('date', dateRange.to.toISOString());
+    }
+
+    const { data: filteredOrders, error } = await queryBuilder;
+
+    if (error) {
+        console.error('Supabase processAnalyticsData error:', error);
+        return { totalRevenue: 0, totalProfit: 0, totalOrders: 0, totalLoss: 0, totalCancelledOrders: 0, chartData: [] };
+    }
+
+    const deliveredOrders = (filteredOrders || []).filter(o => o.status === 'Delivered');
+    const cancelledOrders = (filteredOrders || []).filter(o => o.status === 'Cancelled');
 
     const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
     const totalOrders = deliveredOrders.length;
@@ -470,7 +454,9 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
         const date = new Date(order.date).toISOString().split('T')[0];
         const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
         
-        const itemsCost = order.items.reduce((sum, item) => {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        
+        const itemsCost = items.reduce((sum: number, item: any) => {
             const cost = item.costPrice ?? (item.price * 0.70);
             return sum + (cost * item.quantity);
         }, 0);
@@ -517,13 +503,12 @@ export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Dat
     };
 }
 
-
 export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
     const allOrders = await getAllOrders();
     return processAnalyticsData(allOrders, dateRange);
 }
 
-// --- Admin Messaging & User Profile ---
+// --- Admin Messaging & User Profile (Firestore) ---
 export async function getAllUsers(): Promise<UserRef[]> {
     const usersCol = collection(db, 'users');
     const snapshot = await getDocs(usersCol);
@@ -578,7 +563,7 @@ export async function sendAdminMessage(userId: string, userEmail: string, title:
     });
 }
 
-// --- Support Ticket Management ---
+// --- Support Ticket Management (Firestore) ---
 export async function sendSupportMessage(
     messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>
 ): Promise<void> {
@@ -630,7 +615,7 @@ export async function resolveSupportTicket(ticketId: string): Promise<void> {
     await updateDoc(docRef, { status: 'Resolved' });
 }
 
-// --- Coupon Management ---
+// --- Coupon Management (Firestore) ---
 export async function getCoupons(): Promise<Coupon[]> {
     const couponsCol = collection(db, 'coupons');
     const q = query(couponsCol, orderBy('createdAt', 'desc'));
@@ -658,7 +643,6 @@ export async function updateCoupon(couponData: Partial<Coupon> & { id: string })
     const { id, ...dataToUpdate } = couponData;
     const docRef = doc(db, 'coupons', id);
 
-    // If code is being changed, check for uniqueness
     if (dataToUpdate.code) {
         const couponsCol = collection(db, 'coupons');
         const q = query(couponsCol, where("code", "==", dataToUpdate.code));
@@ -702,7 +686,6 @@ export async function checkCoupon(code: string): Promise<{ isValid: boolean, dis
   }
 
   if (validUntil) {
-    // Set to end of day
     validUntil.setHours(23, 59, 59, 999);
     if (now > validUntil) {
       return { isValid: false, error: "This coupon has expired." };
@@ -722,15 +705,3 @@ export async function getPopularDishes(): Promise<string[]> {
 export const getCurrentTrends = (): string[] => {
   return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
 };
-
-    
-
-
-
-
-
-
-
-
-
-
