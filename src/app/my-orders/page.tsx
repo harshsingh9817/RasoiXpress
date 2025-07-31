@@ -21,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
-const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Accepted by Rider', 'Preparing', 'Out for Delivery', 'Delivered' ];
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered' ];
 const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Accepted by Rider': UserCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
@@ -60,12 +60,11 @@ export default function MyOrdersPage() {
         
         setIsLoading(true);
         const unsubscribe = listenToUserOrders(firebaseUser.uid, (userOrders) => {
-            const sortedOrders = userOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setOrders(sortedOrders);
+            setOrders(userOrders);
 
             const trackParam = searchParams.get('track');
             if (trackParam) {
-                const orderToTrack = sortedOrders.find(o => o.id === trackParam);
+                const orderToTrack = userOrders.find(o => o.id === trackParam);
                 setTrackedOrder(orderToTrack || null);
             }
             setIsLoading(false);
@@ -129,8 +128,7 @@ export default function MyOrdersPage() {
     };
 
     const calculateSubtotal = (items: OrderItem[]): number => {
-      const parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
-      return parsedItems.reduce((sum: number, item: OrderItem) => sum + item.price * item.quantity, 0)
+      return (Array.isArray(items) ? items : []).reduce((sum: number, item: OrderItem) => sum + item.price * item.quantity, 0);
     };
 
     const handleOpenReviewDialog = (order: Order) => {
@@ -196,7 +194,6 @@ export default function MyOrdersPage() {
                                 const currentIndex = orderProgressSteps.indexOf(trackedOrder.status);
                                 const isCompleted = index < currentIndex;
                                 const isActive = index === currentIndex;
-                                const isAcceptedByRider = step === 'Accepted by Rider' && (isActive || isCompleted);
                                 
                                 return (
                                 <div key={step} className="flex items-start mb-6 last:mb-0">
@@ -206,40 +203,12 @@ export default function MyOrdersPage() {
                                     <div className="ml-4 pt-1.5">
                                         <p className={cn( "font-medium", isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground" )}>
                                             {step}
-                                            {isAcceptedByRider && trackedOrder.deliveryRiderName && (
-                                                <span className="text-sm font-normal text-muted-foreground block">
-                                                    by {trackedOrder.deliveryRiderName}
-                                                </span>
-                                            )}
                                         </p>
                                     </div>
                                 </div>
                                 );
                             })}
                         </div>
-                    )}
-
-                    {trackedOrder.deliveryRiderName && trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Delivered' && trackedOrder.status !== 'Expired' && (
-                        <>
-                            <Separator className="my-4" />
-                            <div className="space-y-2">
-                                <h4 className="font-semibold text-base">Your Delivery Partner</h4>
-                                <div className="flex items-center justify-between rounded-md border p-3">
-                                    <p className="flex items-center gap-2">
-                                        <Bike className="h-5 w-5 text-primary" />
-                                        {trackedOrder.deliveryRiderName}
-                                    </p>
-                                    {trackedOrder.deliveryRiderPhone && (
-                                        <Button asChild size="sm">
-                                            <a href={`tel:${trackedOrder.deliveryRiderPhone}`}>
-                                                <Phone className="mr-2 h-4 w-4" />
-                                                Call Rider
-                                            </a>
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        </>
                     )}
 
                     {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Expired' && trackedOrder.deliveryConfirmationCode && (
@@ -281,7 +250,7 @@ export default function MyOrdersPage() {
                                   <div className="space-y-2">
                                       <p className="text-sm font-medium">Items:</p>
                                       <div className="pl-2 space-y-1">
-                                          {(typeof order.items === 'string' ? JSON.parse(order.items) : order.items).map((item: OrderItem) => (
+                                          {(Array.isArray(order.items) ? order.items : []).map((item: OrderItem) => (
                                               <div key={item.id} className="flex justify-between text-sm text-muted-foreground">
                                                   <p>{item.name} &times; {item.quantity}</p>
                                                   <p>Rs.{(item.price * item.quantity).toFixed(2)}</p>
@@ -372,7 +341,7 @@ export default function MyOrdersPage() {
                             <div>
                                 <h4 className="font-semibold mb-2 text-sm">Items Ordered</h4>
                                 <div className="space-y-2">
-                                    {(typeof orderForBillView.items === 'string' ? JSON.parse(orderForBillView.items) : orderForBillView.items).map((item: OrderItem) => (
+                                    {(Array.isArray(orderForBillView.items) ? orderForBillView.items : []).map((item: OrderItem) => (
                                         <div key={item.id} className="flex items-center justify-between text-sm">
                                             <div className="flex items-center gap-3">
                                                 <Image 

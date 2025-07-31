@@ -53,385 +53,332 @@ const defaultPaymentSettings: PaymentSettings = {
     orderExpirationMinutes: 5,
 };
 
-async function initializeSupabaseTable(tableName: string, initialData: any[]) {
-    if (!supabase) return;
-    const { data, error } = await supabase.from(tableName).select('*').limit(1);
-    if (error) {
-        console.error(`Error checking Supabase table '${tableName}':`, error);
-        return;
-    }
-    if (data.length === 0 && initialData.length > 0) {
-        console.log(`Supabase table '${tableName}' is empty. Populating with initial data...`);
-        const { error: insertError } = await supabase.from(tableName).insert(initialData);
-        if (insertError) {
-            console.error(`Error populating Supabase table '${tableName}':`, insertError);
-        } else {
-            console.log(`Supabase table '${tableName}' populated.`);
-        }
+async function initializeCollection(collectionName: string, initialData: any[]) {
+    const collectionRef = collection(db, collectionName);
+    const snapshot = await getDocs(collectionRef);
+    if (snapshot.empty && initialData.length > 0) {
+        console.log(`Collection '${collectionName}' is empty. Populating with initial data...`);
+        const batch = writeBatch(db);
+        initialData.forEach(item => {
+            const docRef = doc(collectionRef);
+            batch.set(docRef, item);
+        });
+        await batch.commit();
+        console.log(`Collection '${collectionName}' populated.`);
     }
 }
 
-// --- Menu Item Management (Supabase) ---
+
+// --- Menu Item Management (Firestore) ---
 export async function getMenuItems(): Promise<MenuItem[]> {
-    if (!supabase) return [];
-    await initializeSupabaseTable('menuItems', initialMenuItems);
-    const { data, error } = await supabase.from('menuItems').select('*').order('name');
-    if (error) {
-        console.error('Supabase getMenuItems error:', error);
-        return [];
-    }
-    return data as MenuItem[];
+    await initializeCollection('menuItems', initialMenuItems);
+    const menuItemsCol = collection(db, 'menuItems');
+    const q = query(menuItemsCol, orderBy("name"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
 }
 
 export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { data, error } = await supabase.from('menuItems').insert([newItemData]).select().single();
-    if (error) throw error;
-    return data as MenuItem;
+    const menuItemsCol = collection(db, 'menuItems');
+    const cleanData: { [key: string]: any } = {};
+    Object.entries(newItemData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        cleanData[key] = value;
+      }
+    });
+
+    const docRef = await addDoc(menuItemsCol, cleanData);
+    const docSnap = await getDoc(docRef);
+    return { id: docSnap.id, ...docSnap.data() } as MenuItem;
 }
 
 export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...itemData } = updatedItem;
-    const { error } = await supabase.from('menuItems').update(itemData).eq('id', id);
-    if (error) throw error;
+    const docRef = doc(db, 'menuItems', id);
+    const cleanData: { [key: string]: any } = JSON.parse(JSON.stringify(itemData));
+    
+    Object.keys(cleanData).forEach(key => {
+        if (cleanData[key] === undefined || cleanData[key] === null || cleanData[key] === '') {
+            delete cleanData[key];
+        }
+    });
+
+    await updateDoc(docRef, cleanData);
 }
 
 export async function deleteMenuItem(itemId: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('menuItems').delete().eq('id', itemId);
-    if (error) throw error;
+    const docRef = doc(db, 'menuItems', itemId);
+    await deleteDoc(docRef);
 }
 
 // --- Restaurant Stubs ---
 export async function getRestaurants(): Promise<Restaurant[]> { return []; }
 export async function getRestaurantById(id: string): Promise<Restaurant | undefined> { return undefined; }
 
-// --- Order Management (Supabase) ---
-export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
-    if (!supabase) {
-        throw new Error("Supabase not configured. Cannot place order.");
+// --- Order Management (Firebase & Supabase) ---
+export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
+    // 1. Save order to Firebase Firestore as the primary source of truth
+    const ordersCol = collection(db, 'orders');
+    const docRef = await addDoc(ordersCol, {
+        ...orderData,
+        createdAt: serverTimestamp(),
+    });
+    const newOrder = { ...orderData, id: docRef.id } as Order;
+
+    // 2. Mirror the order data to Supabase
+    if (supabase) {
+        try {
+            const supabaseOrderData = {
+                orderId: newOrder.id,
+                customerName: newOrder.customerName,
+                customerPhone: newOrder.customerPhone,
+                userEmail: newOrder.userEmail,
+                shippingAddress: newOrder.shippingAddress,
+                shippingLat: newOrder.shippingLat,
+                shippingLng: newOrder.shippingLng,
+                status: newOrder.status,
+                paymentMethod: newOrder.paymentMethod,
+                total: newOrder.total,
+                totalTax: newOrder.totalTax,
+                deliveryConfirmationCode: newOrder.deliveryConfirmationCode,
+                date: newOrder.date,
+                items: JSON.stringify(newOrder.items),
+                createdAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            };
+
+            const { error: supabaseError } = await supabase
+                .from('orders')
+                .insert([supabaseOrderData]);
+
+            if (supabaseError) {
+                // Log the error but don't fail the entire transaction, as Firestore is the primary DB
+                console.error("Supabase insert error:", supabaseError.message);
+            }
+        } catch (error) {
+            console.error("An unexpected error occurred while saving to Supabase:", error);
+        }
+    } else {
+        console.warn("Supabase client not initialized. Order was not saved to Supabase.");
     }
 
-    const { data, error } = await supabase
-        .from('orders')
-        .insert([
-            { ...orderData, items: JSON.stringify(orderData.items) }
-        ])
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Supabase placeOrder error:', error);
-        throw error;
-    }
-    
-    return { ...data, items: JSON.parse(data.items) };
+    return newOrder;
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
-    if (!supabase) return null;
-    const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single();
-
-    if (error) {
-        console.error('Supabase getOrderById error:', error);
-        return null;
-    }
-    return data as Order;
+    const docRef = doc(db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
 }
 
-export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase
-        .from('orders')
-        .update({ status: status })
-        .eq('id', orderId);
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { status: status });
 
-    if (error) {
-        console.error('Supabase updateOrderStatus error:', error);
-        throw error;
+    if (supabase) {
+        try {
+            const { error: supabaseError } = await supabase
+                .from('orders')
+                .update({ status: status })
+                .eq('orderId', orderId);
+
+            if (supabaseError) {
+                console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
+            }
+        } catch (error) {
+            console.error(`Unexpected error updating order ${orderId} status in Supabase:`, error);
+        }
     }
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase
-        .from('orders')
-        .update({ status: 'Cancelled', cancellationReason: reason })
-        .eq('id', orderId);
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
 
-    if (error) {
-        console.error('Supabase cancelOrder error:', error);
-        throw error;
+    if (supabase) {
+      await supabase.from('orders').update({ status: 'Cancelled' }).eq('orderId', orderId);
     }
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase
-        .from('orders')
-        .update({ review: review })
-        .eq('id', orderId);
-
-    if (error) {
-        console.error('Supabase submitOrderReview error:', error);
-        throw error;
-    }
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { review });
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId);
+    const docRef = doc(db, 'orders', orderId);
+    await deleteDoc(docRef);
 
-    if (error) {
-        console.error('Supabase deleteOrder error:', error);
-        throw error;
+    if (supabase) {
+      await supabase.from('orders').delete().eq('orderId', orderId);
     }
 }
 
 export async function getAllOrders(): Promise<Order[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('date', { ascending: false });
-
-    if (error) {
-        console.error('Supabase getAllOrders error:', error);
-        return [];
-    }
-    return data as Order[];
+    const ordersCol = collection(db, 'orders');
+    const snapshot = await getDocs(query(ordersCol));
+    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    return allOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
-    if (!supabase || !userId) return [];
-    const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false });
-
-    if (error) {
-        console.error('Supabase getUserOrders error:', error);
-        return [];
-    }
-    return data as Order[];
+    if (!userId) return [];
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, where('user_id', '==', userId));
+    const snapshot = await getDocs(q);
+    const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-// --- REAL-TIME LISTENERS (Supabase) ---
+// --- REAL-TIME LISTENERS (Firestore) ---
 export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => void {
-    if (!supabase) return () => {};
-    const channel = supabase
-      .channel('public:menuItems')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'menuItems' }, async () => {
-        const allItems = await getMenuItems();
-        callback(allItems);
-      })
-      .subscribe();
-      
-    getMenuItems().then(callback);
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const menuItemsCol = collection(db, 'menuItems');
+    const q = query(menuItemsCol, orderBy("name"));
+    return onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
+        callback(items);
+    });
 }
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
-    if (!supabase) return () => {};
-    const channel = supabase
-      .channel('public:orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async () => {
-        const allOrders = await getAllOrders();
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(allOrders);
-      })
-      .subscribe();
-      
-    getAllOrders().then(callback);
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    });
 }
 
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
-    if (!supabase || !userId) return () => {};
-    const channel = supabase
-      .channel(`public:orders:user_id=eq.${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${userId}` }, async () => {
-        const userOrders = await getUserOrders(userId);
+    if (!userId) return () => {};
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, where('user_id', '==', userId), orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(userOrders);
-      })
-      .subscribe();
-
-    getUserOrders(userId).then(callback);
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    });
 }
 
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
-    if (!supabase || !userId) return () => {};
-    const channel = supabase
-        .channel(`public:adminMessages:userId=eq.${userId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'adminMessages', filter: `userId=eq.${userId}` }, async (payload) => {
-            callback([payload.new as AdminMessage]);
-        })
-        .subscribe();
-    
-    return () => {
-        supabase.removeChannel(channel);
-    };
+    if (!userId) return () => {};
+    const messagesCol = collection(db, 'adminMessages');
+    const q = query(messagesCol, where('userId', '==', userId));
+    return onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
+        messages.sort((a, b) => b.timestamp - a.timestamp);
+        callback(messages);
+    });
 }
 
 export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
-    if (!supabase) return () => {};
-    const channel = supabase
-      .channel('public:supportTickets')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'supportTickets' }, async () => {
-        const allTickets = await getSupportTickets();
-        callback(allTickets);
-      })
-      .subscribe();
-      
-    getSupportTickets().then(callback);
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const ticketsCol = collection(db, 'supportTickets');
+    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const tickets = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as SupportTicket[];
+        callback(tickets);
+    });
 }
 
-
-// --- Address Management (Supabase) ---
+// --- Address Management (Firestore) ---
 export async function getAddresses(userId: string): Promise<Address[]> {
-    if (!supabase || !userId) return [];
-    const { data, error } = await supabase.from('addresses').select('*').eq('user_id', userId);
-    if (error) {
-        console.error('Supabase getAddresses error:', error);
-        return [];
-    }
-    return data as Address[];
+    if (!userId) return [];
+    const addressesCol = collection(db, 'users', userId, 'addresses');
+    const snapshot = await getDocs(addressesCol);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Address[];
 }
 
 export async function addAddress(userId: string, addressData: Omit<Address, 'id'>): Promise<Address> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { data, error } = await supabase.from('addresses').insert([{ ...addressData, user_id: userId }]).select().single();
-    if (error) throw error;
-    return data as Address;
+    const addressesCol = collection(db, 'users', userId, 'addresses');
+    const docRef = await addDoc(addressesCol, addressData);
+    return { ...addressData, id: docRef.id } as Address;
 }
 
 export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...addressData } = updatedAddress;
-    const { error } = await supabase.from('addresses').update(addressData).eq('id', id).eq('user_id', userId);
-    if (error) throw error;
+    const docRef = doc(db, 'users', userId, 'addresses', id);
+    await updateDoc(docRef, addressData);
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('addresses').delete().eq('id', addressId).eq('user_id', userId);
-    if (error) throw error;
+    const docRef = doc(db, 'users', userId, 'addresses', addressId);
+    await deleteDoc(docRef);
 }
 
 export async function setDefaultAddress(userId: string, addressIdToSetDefault: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error: unsetError } = await supabase.from('addresses').update({ isDefault: false }).eq('user_id', userId).eq('isDefault', true);
-    if (unsetError) throw unsetError;
-    const { error: setError } = await supabase.from('addresses').update({ isDefault: true }).eq('id', addressIdToSetDefault).eq('user_id', userId);
-    if (setError) throw setError;
+    const batch = writeBatch(db);
+    const addressesCol = collection(db, 'users', userId, 'addresses');
+    const q = query(addressesCol, where('isDefault', '==', true));
+    const currentDefaultSnapshot = await getDocs(q);
+    currentDefaultSnapshot.forEach(docSnap => {
+        batch.update(docSnap.ref, { isDefault: false });
+    });
+    const newDefaultRef = doc(db, 'users', userId, 'addresses', addressIdToSetDefault);
+    batch.update(newDefaultRef, { isDefault: true });
+    await batch.commit();
 }
 
-// --- Hero Section Management (Supabase) ---
+// --- Hero Section Management (Firestore) ---
 export async function getHeroData(): Promise<HeroData> {
-    if (!supabase) return defaultHeroData;
-    const { data, error } = await supabase.from('globals').select('content').eq('id', 'hero').single();
-    if (error || !data) {
-        console.warn('Supabase getHeroData warning (falling back to default):', error?.message);
-        return defaultHeroData;
-    }
-    return { ...defaultHeroData, ...data.content } as HeroData;
+    const docRef = doc(db, 'globals', 'hero');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return defaultHeroData;
+    return { ...defaultHeroData, ...docSnap.data() } as HeroData;
 }
 
 export async function updateHeroData(data: HeroData): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('globals').upsert({ id: 'hero', content: data });
-    if (error) throw error;
+    const docRef = doc(db, 'globals', 'hero');
+    await setDoc(docRef, data, { merge: true });
 }
 
-// --- Payment Settings Management (Supabase) ---
+// --- Payment Settings Management (Firestore) ---
 export async function getPaymentSettings(): Promise<PaymentSettings> {
-    if (!supabase) return defaultPaymentSettings;
-    const { data, error } = await supabase.from('globals').select('content').eq('id', 'paymentSettings').single();
-    if (error || !data) {
-        console.warn('Supabase getPaymentSettings warning (falling back to default):', error?.message);
-        const { error: insertError } = await supabase.from('globals').insert([{ id: 'paymentSettings', content: defaultPaymentSettings }]);
-        if(insertError) console.error("Could not insert default payment settings:", insertError);
+    const docRef = doc(db, 'globals', 'paymentSettings');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+        await setDoc(docRef, defaultPaymentSettings);
         return defaultPaymentSettings;
     }
-    return { ...defaultPaymentSettings, ...data.content };
+    return { ...defaultPaymentSettings, ...docSnap.data() };
 }
 
 export async function updatePaymentSettings(data: Partial<PaymentSettings>): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const currentSettings = await getPaymentSettings();
-    const newSettings = { ...currentSettings, ...data };
-    const { error } = await supabase.from('globals').upsert({ id: 'paymentSettings', content: newSettings });
-    if (error) throw error;
+    const docRef = doc(db, 'globals', 'paymentSettings');
+    await setDoc(docRef, data, { merge: true });
 }
 
-// --- Analytics Data (Supabase) ---
-export async function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
-    if (!supabase) return { totalRevenue: 0, totalProfit: 0, totalOrders: 0, totalLoss: 0, totalCancelledOrders: 0, chartData: [] };
+// --- Analytics Data (Firestore) ---
+export function processAnalyticsData(allOrders: Order[], dateRange?: { from: Date; to: Date }): AnalyticsData {
+    const filteredOrders = dateRange?.from && dateRange.to
+        ? allOrders.filter(order => {
+            const orderDate = new Date(order.date);
+            const from = new Date(dateRange.from);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(dateRange.to);
+            to.setHours(23, 59, 59, 999);
+            return orderDate >= from && orderDate <= to;
+        })
+        : allOrders;
 
-    let queryBuilder = supabase.from('orders').select('*');
-
-    if (dateRange?.from && dateRange.to) {
-        queryBuilder = queryBuilder
-            .gte('date', dateRange.from.toISOString())
-            .lte('date', dateRange.to.toISOString());
-    }
-
-    const { data: filteredOrders, error } = await queryBuilder;
-
-    if (error) {
-        console.error('Supabase processAnalyticsData error:', error);
-        return { totalRevenue: 0, totalProfit: 0, totalOrders: 0, totalLoss: 0, totalCancelledOrders: 0, chartData: [] };
-    }
-
-    const deliveredOrders = (filteredOrders || []).filter(o => o.status === 'Delivered');
-    const cancelledOrders = (filteredOrders || []).filter(o => o.status === 'Cancelled');
+    const deliveredOrders = filteredOrders.filter(o => o.status === 'Delivered');
+    const cancelledOrders = filteredOrders.filter(o => o.status === 'Cancelled');
 
     const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
     const totalOrders = deliveredOrders.length;
-    
     const totalLoss = cancelledOrders.reduce((sum, order) => sum + order.total, 0);
     const totalCancelledOrders = cancelledOrders.length;
     
     const dailyData: Map<string, { revenue: number; profit: number; loss: number }> = new Map();
-
     let totalProfit = 0;
+
     deliveredOrders.forEach(order => {
         const date = new Date(order.date).toISOString().split('T')[0];
         const dayData = dailyData.get(date) || { revenue: 0, profit: 0, loss: 0 };
-        
-        const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-        
-        const itemsCost = items.reduce((sum: number, item: any) => {
+        const itemsCost = (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => {
             const cost = item.costPrice ?? (item.price * 0.70);
             return sum + (cost * item.quantity);
         }, 0);
         
         const orderProfit = order.total - (order.totalTax || 0) - (order.deliveryFee || 0) - (order.discountAmount || 0) - itemsCost;
-
         totalProfit += orderProfit;
-        
         dayData.revenue += order.total;
         dayData.profit += orderProfit;
         dailyData.set(date, dayData);
@@ -460,146 +407,97 @@ export async function processAnalyticsData(allOrders: Order[], dateRange?: { fro
       .map(([date, data]) => ({ date, ...data }))
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    return {
-        totalRevenue,
-        totalProfit,
-        totalOrders,
-        totalLoss,
-        totalCancelledOrders,
-        chartData,
-    };
+    return { totalRevenue, totalProfit, totalOrders, totalLoss, totalCancelledOrders, chartData };
 }
 
-export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Promise<AnalyticsData> {
-    const allOrders = await getAllOrders();
-    return processAnalyticsData(allOrders, dateRange);
-}
-
-// --- Admin Messaging & User Profile (Supabase) ---
+// --- Admin Messaging & User Profile (Firestore) ---
 export async function getAllUsers(): Promise<UserRef[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase.from('users').select('id, email');
-    if (error) {
-        console.error('Supabase getAllUsers error:', error);
-        return [];
-    }
-    return data as UserRef[];
+    const usersCol = collection(db, 'users');
+    const snapshot = await getDocs(usersCol);
+    return snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email })) as UserRef[];
 }
 
 export async function getUserProfile(userId: string): Promise<DocumentData | null> {
-    if (!supabase || !userId) return null;
-    const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
-    if (error) {
-        console.error('Supabase getUserProfile error:', error);
-        return null;
-    }
-    return data;
+    if (!userId) return null;
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    return userDoc.exists() ? userDoc.data() : null;
 }
 
 export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        throw new Error("Unauthorized. User is not logged in or mismatch.");
-    }
-    const { error } = await supabase.from('users').update(data).eq('id', userId);
-    if (error) throw error;
+    if (!auth.currentUser || auth.currentUser.uid !== userId) throw new Error("Unauthorized.");
+    await setDoc(doc(db, 'users', userId), data, { merge: true });
 }
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('adminMessages').insert([{ userId, userEmail, title, message }]);
-    if (error) throw error;
+    const messagesCol = collection(db, 'adminMessages');
+    await addDoc(messagesCol, { userId, userEmail, title, message, timestamp: serverTimestamp() });
 }
 
-// --- Support Ticket Management (Supabase) ---
+// --- Support Ticket Management (Firestore) ---
 export async function sendSupportMessage(messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('supportTickets').insert([{ ...messageData, status: 'Open' }]);
-    if (error) throw error;
+    const supportCol = collection(db, 'supportTickets');
+    await addDoc(supportCol, { ...messageData, status: 'Open', timestamp: serverTimestamp() });
 }
 
 export async function getSupportTickets(): Promise<SupportTicket[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase.from('supportTickets').select('*').order('timestamp', { ascending: false });
-    if (error) {
-        console.error('Supabase getSupportTickets error:', error);
-        return [];
-    }
-    return data as SupportTicket[];
+    const ticketsCol = collection(db, 'supportTickets');
+    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as SupportTicket[];
 }
 
 export async function replyToSupportTicket(ticketId: string, userId: string, userEmail: string, replyText: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('supportTickets').update({ status: 'Replied', reply: replyText, repliedAt: new Date().toISOString() }).eq('id', ticketId);
-    if (error) throw error;
+    const ticketRef = doc(db, 'supportTickets', ticketId);
+    await updateDoc(ticketRef, { status: 'Replied', reply: replyText, repliedAt: serverTimestamp() });
     await sendAdminMessage(userId, userEmail, `Re: Your Support Ticket #${ticketId.slice(-6)}`, replyText);
 }
 
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('supportTickets').update({ status: 'Resolved' }).eq('id', ticketId);
-    if (error) throw error;
+    const docRef = doc(db, 'supportTickets', ticketId);
+    await updateDoc(docRef, { status: 'Resolved' });
 }
 
-// --- Coupon Management (Supabase) ---
+// --- Coupon Management (Firestore) ---
 export async function getCoupons(): Promise<Coupon[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase.from('coupons').select('*').order('createdAt', { ascending: false });
-    if (error) {
-        console.error('Supabase getCoupons error:', error);
-        return [];
-    }
-    return data as Coupon[];
+    const couponsCol = collection(db, 'coupons');
+    const snapshot = await getDocs(query(couponsCol, orderBy('createdAt', 'desc')));
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, createdAt: doc.data().createdAt.toDate(), validFrom: doc.data().validFrom.toDate(), validUntil: doc.data().validUntil.toDate() })) as Coupon[];
 }
 
 export async function addCoupon(couponData: Omit<Coupon, 'id' | 'createdAt'>): Promise<Coupon> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { data, error } = await supabase.from('coupons').insert([couponData]).select().single();
-    if (error) throw error;
-    return data as Coupon;
+    const docRef = await addDoc(collection(db, 'coupons'), { ...couponData, createdAt: serverTimestamp() });
+    return { ...couponData, id: docRef.id, createdAt: new Date() } as Coupon;
 }
 
 export async function updateCoupon(couponData: Partial<Coupon> & { id: string }): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...dataToUpdate } = couponData;
-    const { error } = await supabase.from('coupons').update(dataToUpdate).eq('id', id);
-    if (error) throw error;
+    await updateDoc(doc(db, 'coupons', id), dataToUpdate);
 }
 
 export async function deleteCoupon(couponId: string): Promise<void> {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { error } = await supabase.from('coupons').delete().eq('id', couponId);
-    if (error) throw error;
+    await deleteDoc(doc(db, 'coupons', couponId));
 }
 
 export async function checkCoupon(code: string): Promise<{ isValid: boolean, discountPercent?: number, error?: string }> {
-    if (!supabase) return { isValid: false, error: "Database not configured." };
-    const { data, error } = await supabase.from('coupons').select('*').eq('code', code).single();
+    const q = query(collection(db, 'coupons'), where('code', '==', code));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return { isValid: false, error: "This coupon code does not exist." };
     
-    if (error || !data) {
-        return { isValid: false, error: "This coupon code does not exist." };
-    }
+    const couponDoc = snapshot.docs[0];
+    const couponData = { ...couponDoc.data(), id: couponDoc.id } as Coupon;
+
+    if (couponData.status !== 'active') return { isValid: false, error: "This coupon is currently inactive." };
     
-    const couponData = data as Coupon;
-
-    if (couponData.status !== 'active') {
-        return { isValid: false, error: "This coupon is currently inactive." };
-    }
-
     const now = new Date();
-    const validFrom = new Date(couponData.validFrom);
-    const validUntil = new Date(couponData.validUntil);
-
-    if (validFrom && now < validFrom) {
-        return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
-    }
-
+    const validFrom = couponData.validFrom.toDate();
+    const validUntil = couponData.validUntil.toDate();
+    
+    if (validFrom && now < validFrom) return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
+    
     if (validUntil) {
         validUntil.setHours(23, 59, 59, 999);
-        if (now > validUntil) {
-            return { isValid: false, error: "This coupon has expired." };
-        }
+        if (now > validUntil) return { isValid: false, error: "This coupon has expired." };
     }
-  
+    
     return { isValid: true, discountPercent: couponData.discountPercent };
 }
