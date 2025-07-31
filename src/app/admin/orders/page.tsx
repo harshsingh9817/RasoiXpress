@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import type { Order, OrderItem, OrderStatus, PaymentSettings } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings, listenToRiderAppOrders, doc, db, updateDoc } from "@/lib/data";
+import { updateOrderStatus, listenToAllOrders, sendAdminMessage, deleteOrder, getPaymentSettings, listenToRiderAppOrders } from "@/lib/data";
 import {
   Card,
   CardContent,
@@ -117,10 +116,9 @@ export default function AdminOrdersPage() {
         setIsDataLoading(false);
     });
     
-    const unsubscribeRiderUpdates = listenToRiderAppOrders(async (updatedOrder) => {
-        const orderDocRef = doc(db, 'orders', updatedOrder.id);
-        await updateDoc(orderDocRef, updatedOrder);
-    });
+    // The central listener in data.ts now handles syncing rider data.
+    // We just need to start it.
+    const unsubscribeRiderUpdates = listenToRiderAppOrders(() => {});
 
     getPaymentSettings().then(setPaymentSettings);
 
@@ -438,7 +436,7 @@ export default function AdminOrdersPage() {
                                 <h4 className="font-semibold mb-2 text-sm">Assigned Rider</h4>
                                 <div className="space-y-1 text-sm">
                                     <p className="flex items-center gap-2"><PersonStanding className="h-4 w-4 text-muted-foreground"/> <strong>Name:</strong> {selectedOrder.deliveryRiderName}</p>
-                                    <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/> <strong>Phone:</strong> <a href={`tel:${selectedOrder.deliveryRiderPhone}`} className="text-primary underline">{selectedOrder.deliveryRiderPhone}</a></p>
+                                    <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4 text-muted-foreground"/> <strong>Phone:</strong> <a href={`tel:${selectedOrder.deliveryRiderPhone}`} className="text-primary underline">{selectedOrder.deliveryRiderPhone}</a></p>
                                     <p className="flex items-center gap-2"><Car className="h-4 w-4 text-muted-foreground"/> <strong>Vehicle:</strong> {selectedOrder.deliveryRiderVehicle}</p>
                                 </div>
                             </div>
