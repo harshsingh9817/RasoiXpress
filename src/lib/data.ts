@@ -128,21 +128,23 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     // 2. Mirror the order data to Supabase
     if (supabase) {
         try {
+            // This object now matches your SQL schema exactly.
             const supabaseOrderData = {
-                orderId: newOrder.id,
-                customerName: newOrder.customerName,
-                customerPhone: newOrder.customerPhone,
-                userEmail: newOrder.userEmail,
-                shippingAddress: newOrder.shippingAddress,
-                shippingLat: newOrder.shippingLat,
-                shippingLng: newOrder.shippingLng,
+                id: newOrder.id,
+                customer_name: newOrder.customerName,
+                customer_phone: newOrder.customerPhone,
+                user_email: newOrder.userEmail,
+                shipping_address: newOrder.shippingAddress,
+                shipping_lat: newOrder.shippingLat,
+                shipping_lng: newOrder.shippingLng,
                 status: newOrder.status,
-                paymentMethod: newOrder.paymentMethod,
+                payment_method: newOrder.paymentMethod,
                 total: newOrder.total,
-                totalTax: newOrder.totalTax,
-                deliveryConfirmationCode: newOrder.deliveryConfirmationCode,
+                total_tax: newOrder.totalTax,
+                delivery_confirmation_code: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
-                items: JSON.stringify(newOrder.items),
+                items: newOrder.items,
+                // created_at is handled by `default now()` in your SQL schema.
             };
 
             const { error: supabaseError } = await supabase
@@ -178,7 +180,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('orderId', orderId);
+                .eq('id', orderId); // Use 'id' to match your primary key
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -194,7 +196,7 @@ export async function cancelOrder(orderId: string, reason: string): Promise<void
     await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
 
     if (supabase) {
-      await supabase.from('orders').update({ status: 'Cancelled' }).eq('orderId', orderId);
+      await supabase.from('orders').update({ status: 'Cancelled' }).eq('id', orderId);
     }
 }
 
@@ -208,7 +210,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
     await deleteDoc(docRef);
 
     if (supabase) {
-      await supabase.from('orders').delete().eq('orderId', orderId);
+      await supabase.from('orders').delete().eq('id', orderId);
     }
 }
 
