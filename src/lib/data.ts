@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -54,59 +53,54 @@ const defaultPaymentSettings: PaymentSettings = {
     orderExpirationMinutes: 5,
 };
 
-async function initializeCollection(collectionName: string, initialData: any[]) {
-    const collectionRef = collection(db, collectionName);
-    const snapshot = await getDocs(collectionRef);
-    if (snapshot.empty && initialData.length > 0) {
-        console.log(`Collection '${collectionName}' is empty. Populating with initial data...`);
-        const promises = initialData.map(item => addDoc(collectionRef, item));
-        await Promise.all(promises);
-        console.log(`Collection '${collectionName}' populated.`);
+async function initializeSupabaseTable(tableName: string, initialData: any[]) {
+    if (!supabase) return;
+    const { data, error } = await supabase.from(tableName).select('*').limit(1);
+    if (error) {
+        console.error(`Error checking Supabase table '${tableName}':`, error);
+        return;
+    }
+    if (data.length === 0 && initialData.length > 0) {
+        console.log(`Supabase table '${tableName}' is empty. Populating with initial data...`);
+        const { error: insertError } = await supabase.from(tableName).insert(initialData);
+        if (insertError) {
+            console.error(`Error populating Supabase table '${tableName}':`, insertError);
+        } else {
+            console.log(`Supabase table '${tableName}' populated.`);
+        }
     }
 }
 
-// --- Menu Item Management ---
+// --- Menu Item Management (Supabase) ---
 export async function getMenuItems(): Promise<MenuItem[]> {
-    await initializeCollection('menuItems', initialMenuItems);
-    const menuItemsCol = collection(db, 'menuItems');
-    const q = query(menuItemsCol, orderBy("name"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
+    if (!supabase) return [];
+    await initializeSupabaseTable('menuItems', initialMenuItems);
+    const { data, error } = await supabase.from('menuItems').select('*').order('name');
+    if (error) {
+        console.error('Supabase getMenuItems error:', error);
+        return [];
+    }
+    return data as MenuItem[];
 }
 
 export async function addMenuItem(newItemData: Omit<MenuItem, 'id'>): Promise<MenuItem> {
-    const menuItemsCol = collection(db, 'menuItems');
-    
-    const cleanData: { [key: string]: any } = {};
-    Object.entries(newItemData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        cleanData[key] = value;
-      }
-    });
-
-    const docRef = await addDoc(menuItemsCol, cleanData);
-    const docSnap = await getDoc(docRef);
-    return { id: docSnap.id, ...docSnap.data() } as MenuItem;
+    if (!supabase) throw new Error("Supabase not configured");
+    const { data, error } = await supabase.from('menuItems').insert([newItemData]).select().single();
+    if (error) throw error;
+    return data as MenuItem;
 }
 
 export async function updateMenuItem(updatedItem: MenuItem): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...itemData } = updatedItem;
-    
-    const docRef = doc(db, 'menuItems', id);
-    const cleanData: { [key: string]: any } = JSON.parse(JSON.stringify(itemData));
-    
-    Object.keys(cleanData).forEach(key => {
-        if (cleanData[key] === undefined || cleanData[key] === null || cleanData[key] === '') {
-            delete cleanData[key];
-        }
-    });
-
-    await updateDoc(docRef, cleanData);
+    const { error } = await supabase.from('menuItems').update(itemData).eq('id', id);
+    if (error) throw error;
 }
 
 export async function deleteMenuItem(itemId: string): Promise<void> {
-    const docRef = doc(db, 'menuItems', itemId);
-    await deleteDoc(docRef);
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('menuItems').delete().eq('id', itemId);
+    if (error) throw error;
 }
 
 // --- Restaurant Stubs ---
@@ -116,14 +110,7 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 // --- Order Management (Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
     if (!supabase) {
-        console.warn("Supabase not configured. Skipping order placement in Supabase.");
-        // Return a mock order object to allow the UI to proceed
-        const mockOrder = {
-            ...orderData,
-            id: `mock_${new Date().getTime()}`,
-            items: typeof orderData.items === 'string' ? JSON.parse(orderData.items) : orderData.items,
-        };
-        return mockOrder;
+        throw new Error("Supabase not configured. Cannot place order.");
     }
 
     const { data, error } = await supabase
@@ -138,9 +125,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<any> {
         console.error('Supabase placeOrder error:', error);
         throw error;
     }
-    
-    // This block was causing the Firestore permission error. It has been removed.
-    // The user's first order status can be derived from their order history in Supabase if needed.
     
     return { ...data, items: JSON.parse(data.items) };
 }
@@ -241,17 +225,22 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     return data as Order[];
 }
 
-// --- REAL-TIME LISTENERS ---
+// --- REAL-TIME LISTENERS (Supabase) ---
 export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => void {
-    const menuItemsCol = collection(db, 'menuItems');
-    const q = query(menuItemsCol, orderBy("name"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
-        callback(items);
-    }, (error) => {
-        console.error("Error listening to menu items:", error);
-    });
-    return unsubscribe;
+    if (!supabase) return () => {};
+    const channel = supabase
+      .channel('public:menuItems')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menuItems' }, async () => {
+        const allItems = await getMenuItems();
+        callback(allItems);
+      })
+      .subscribe();
+      
+    getMenuItems().then(callback);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
 }
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
@@ -264,7 +253,6 @@ export function listenToAllOrders(callback: (orders: Order[]) => void): () => vo
       })
       .subscribe();
       
-    // Fetch initial data
     getAllOrders().then(callback);
 
     return () => {
@@ -282,7 +270,6 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
       })
       .subscribe();
 
-    // Fetch initial data
     getUserOrders(userId).then(callback);
 
     return () => {
@@ -290,147 +277,113 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
     };
 }
 
-export function listenToOrderById(orderId: string, callback: (order: Order | null) => void): () => void {
+export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
+    if (!supabase || !userId) return () => {};
+    const channel = supabase
+        .channel(`public:adminMessages:userId=eq.${userId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'adminMessages', filter: `userId=eq.${userId}` }, async (payload) => {
+            callback([payload.new as AdminMessage]);
+        })
+        .subscribe();
+    
+    return () => {
+        supabase.removeChannel(channel);
+    };
+}
+
+export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
     if (!supabase) return () => {};
     const channel = supabase
-      .channel(`public:orders:id=eq.${orderId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, async (payload) => {
-        if(payload.eventType === 'DELETE') {
-            callback(null);
-        } else {
-            const order = await getOrderById(orderId);
-            callback(order);
-        }
+      .channel('public:supportTickets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supportTickets' }, async () => {
+        const allTickets = await getSupportTickets();
+        callback(allTickets);
       })
       .subscribe();
       
-    getOrderById(orderId).then(callback);
+    getSupportTickets().then(callback);
 
     return () => {
       supabase.removeChannel(channel);
     };
 }
 
-export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
-    if (!userId) return () => {};
-    const messagesCol = collection(db, 'adminMessages');
-    const q = query(messagesCol, where('userId', '==', userId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messages = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                timestamp: data.timestamp?.toMillis() || Date.now(),
-            }
-        }) as AdminMessage[];
 
-        messages.sort((a, b) => b.timestamp - a.timestamp);
-        
-        callback(messages);
-    }, (error) => {
-        console.error("Error listening to user admin messages:", error);
-    });
-    return unsubscribe;
-}
-
-
-export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
-    const ticketsCol = collection(db, 'supportTickets');
-    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tickets = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                timestamp: data.timestamp?.toMillis() || Date.now(),
-            }
-        }) as SupportTicket[];
-        callback(tickets);
-    }, (error) => {
-        console.error("Error listening to support tickets:", error);
-    });
-    return unsubscribe;
-}
-
-
-// --- Address Management (Firestore) ---
+// --- Address Management (Supabase) ---
 export async function getAddresses(userId: string): Promise<Address[]> {
-    if (!userId) return [];
-    const addressesCol = collection(db, 'users', userId, 'addresses');
-    const snapshot = await getDocs(addressesCol);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Address[];
+    if (!supabase || !userId) return [];
+    const { data, error } = await supabase.from('addresses').select('*').eq('user_id', userId);
+    if (error) {
+        console.error('Supabase getAddresses error:', error);
+        return [];
+    }
+    return data as Address[];
 }
 
 export async function addAddress(userId: string, addressData: Omit<Address, 'id'>): Promise<Address> {
-    const addressesCol = collection(db, 'users', userId, 'addresses');
-    const docRef = await addDoc(addressesCol, addressData);
-    const newAddress = { ...addressData, id: docRef.id } as Address;
-    return newAddress;
+    if (!supabase) throw new Error("Supabase not configured");
+    const { data, error } = await supabase.from('addresses').insert([{ ...addressData, user_id: userId }]).select().single();
+    if (error) throw error;
+    return data as Address;
 }
 
 export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...addressData } = updatedAddress;
-    const docRef = doc(db, 'users', userId, 'addresses', id);
-    await updateDoc(docRef, addressData);
+    const { error } = await supabase.from('addresses').update(addressData).eq('id', id).eq('user_id', userId);
+    if (error) throw error;
 }
 
 export async function deleteAddress(userId: string, addressId: string): Promise<void> {
-    const docRef = doc(db, 'users', userId, 'addresses', addressId);
-    await deleteDoc(docRef);
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('addresses').delete().eq('id', addressId).eq('user_id', userId);
+    if (error) throw error;
 }
 
 export async function setDefaultAddress(userId: string, addressIdToSetDefault: string): Promise<void> {
-    try {
-        await runTransaction(db, async (transaction) => {
-            const addressesCol = collection(db, 'users', userId, 'addresses');
-            const q = query(addressesCol, where('isDefault', '==', true));
-            const currentDefaultSnapshot = await getDocs(q);
-
-            currentDefaultSnapshot.forEach(docSnap => {
-                transaction.update(docSnap.ref, { isDefault: false });
-            });
-
-            const newDefaultRef = doc(db, 'users', userId, 'addresses', addressIdToSetDefault);
-            transaction.update(newDefaultRef, { isDefault: true });
-        });
-    } catch (e) {
-        console.error("Set default address transaction failed: ", e);
-    }
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error: unsetError } = await supabase.from('addresses').update({ isDefault: false }).eq('user_id', userId).eq('isDefault', true);
+    if (unsetError) throw unsetError;
+    const { error: setError } = await supabase.from('addresses').update({ isDefault: true }).eq('id', addressIdToSetDefault).eq('user_id', userId);
+    if (setError) throw setError;
 }
 
-// --- Hero Section Management (Firestore) ---
+// --- Hero Section Management (Supabase) ---
 export async function getHeroData(): Promise<HeroData> {
-    const docRef = doc(db, 'globals', 'hero');
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
+    if (!supabase) return defaultHeroData;
+    const { data, error } = await supabase.from('globals').select('content').eq('id', 'hero').single();
+    if (error || !data) {
+        console.warn('Supabase getHeroData warning (falling back to default):', error?.message);
         return defaultHeroData;
     }
-    const data = docSnap.data();
-    return { ...defaultHeroData, ...data } as HeroData;
+    return { ...defaultHeroData, ...data.content } as HeroData;
 }
 
 export async function updateHeroData(data: HeroData): Promise<void> {
-    const docRef = doc(db, 'globals', 'hero');
-    await setDoc(docRef, data, { merge: true });
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('globals').upsert({ id: 'hero', content: data });
+    if (error) throw error;
 }
 
-// --- Payment Settings Management (Firestore) ---
+// --- Payment Settings Management (Supabase) ---
 export async function getPaymentSettings(): Promise<PaymentSettings> {
-    const docRef = doc(db, 'globals', 'paymentSettings');
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
-        await setDoc(docRef, defaultPaymentSettings);
+    if (!supabase) return defaultPaymentSettings;
+    const { data, error } = await supabase.from('globals').select('content').eq('id', 'paymentSettings').single();
+    if (error || !data) {
+        console.warn('Supabase getPaymentSettings warning (falling back to default):', error?.message);
+        const { error: insertError } = await supabase.from('globals').insert([{ id: 'paymentSettings', content: defaultPaymentSettings }]);
+        if(insertError) console.error("Could not insert default payment settings:", insertError);
         return defaultPaymentSettings;
     }
-    const data = docSnap.data();
-    return { ...defaultPaymentSettings, ...data };
+    return { ...defaultPaymentSettings, ...data.content };
 }
 
 export async function updatePaymentSettings(data: Partial<PaymentSettings>): Promise<void> {
-    const docRef = doc(db, 'globals', 'paymentSettings');
-    await setDoc(docRef, data, { merge: true });
+    if (!supabase) throw new Error("Supabase not configured");
+    const currentSettings = await getPaymentSettings();
+    const newSettings = { ...currentSettings, ...data };
+    const { error } = await supabase.from('globals').upsert({ id: 'paymentSettings', content: newSettings });
+    if (error) throw error;
 }
 
 // --- Analytics Data (Supabase) ---
@@ -522,200 +475,131 @@ export async function getAnalyticsData(dateRange?: { from: Date; to: Date }): Pr
     return processAnalyticsData(allOrders, dateRange);
 }
 
-// --- Admin Messaging & User Profile (Firestore) ---
+// --- Admin Messaging & User Profile (Supabase) ---
 export async function getAllUsers(): Promise<UserRef[]> {
-    const usersCol = collection(db, 'users');
-    const snapshot = await getDocs(usersCol);
-    return snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email })) as UserRef[];
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('users').select('id, email');
+    if (error) {
+        console.error('Supabase getAllUsers error:', error);
+        return [];
+    }
+    return data as UserRef[];
 }
 
 export async function getUserProfile(userId: string): Promise<DocumentData | null> {
-    if (!userId) return null;
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    return userDoc.exists() ? userDoc.data() : null;
+    if (!supabase || !userId) return null;
+    const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
+    if (error) {
+        console.error('Supabase getUserProfile error:', error);
+        return null;
+    }
+    return data;
 }
 
 export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
     if (!auth.currentUser || auth.currentUser.uid !== userId) {
         throw new Error("Unauthorized. User is not logged in or mismatch.");
     }
-
-    const dataToUpdate: { [key: string]: any } = {};
-    if (data.displayName) {
-        dataToUpdate.displayName = data.displayName;
-    }
-    if (data.mobileNumber) {
-        dataToUpdate.mobileNumber = data.mobileNumber;
-    }
-
-    if (data.displayName && auth.currentUser.displayName !== data.displayName) {
-        await auth.currentUser.updateProfile({ displayName: data.displayName });
-    }
-
-    if (Object.keys(dataToUpdate).length > 0) {
-        const userRef = doc(db, 'users', userId);
-        await setDoc(userRef, dataToUpdate, { merge: true });
-    }
-}
-
-export async function getAdminMessages(): Promise<AdminMessage[]> {
-    const messagesCol = collection(db, 'adminMessages');
-    const q = query(messagesCol, orderBy('timestamp', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AdminMessage[];
+    const { error } = await supabase.from('users').update(data).eq('id', userId);
+    if (error) throw error;
 }
 
 export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
-    const messagesCol = collection(db, 'adminMessages');
-    await addDoc(messagesCol, {
-        userId,
-        userEmail: userEmail || null,
-        title,
-        message,
-        timestamp: serverTimestamp(),
-    });
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('adminMessages').insert([{ userId, userEmail, title, message }]);
+    if (error) throw error;
 }
 
-// --- Support Ticket Management (Firestore) ---
-export async function sendSupportMessage(
-    messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>
-): Promise<void> {
-  const supportCol = collection(db, 'supportTickets');
-  await addDoc(supportCol, {
-    ...messageData,
-    timestamp: serverTimestamp(),
-    status: 'Open',
-  });
+// --- Support Ticket Management (Supabase) ---
+export async function sendSupportMessage(messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('supportTickets').insert([{ ...messageData, status: 'Open' }]);
+    if (error) throw error;
 }
 
 export async function getSupportTickets(): Promise<SupportTicket[]> {
-    const ticketsCol = collection(db, 'supportTickets');
-    const q = query(ticketsCol, orderBy('timestamp', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            timestamp: data.timestamp?.toMillis() || Date.now(),
-        }
-    }) as SupportTicket[];
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('supportTickets').select('*').order('timestamp', { ascending: false });
+    if (error) {
+        console.error('Supabase getSupportTickets error:', error);
+        return [];
+    }
+    return data as SupportTicket[];
 }
 
-export async function replyToSupportTicket(
-    ticketId: string,
-    userId: string,
-    userEmail: string,
-    replyText: string
-): Promise<void> {
-    const ticketRef = doc(db, 'supportTickets', ticketId);
-    await updateDoc(ticketRef, {
-        status: 'Replied',
-        reply: replyText,
-        repliedAt: serverTimestamp(),
-    });
-
-    await sendAdminMessage(
-        userId,
-        userEmail,
-        `Re: Your Support Ticket #${ticketId.slice(-6)}`,
-        replyText
-    );
+export async function replyToSupportTicket(ticketId: string, userId: string, userEmail: string, replyText: string): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('supportTickets').update({ status: 'Replied', reply: replyText, repliedAt: new Date().toISOString() }).eq('id', ticketId);
+    if (error) throw error;
+    await sendAdminMessage(userId, userEmail, `Re: Your Support Ticket #${ticketId.slice(-6)}`, replyText);
 }
 
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
-    const docRef = doc(db, 'supportTickets', ticketId);
-    await updateDoc(docRef, { status: 'Resolved' });
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('supportTickets').update({ status: 'Resolved' }).eq('id', ticketId);
+    if (error) throw error;
 }
 
-// --- Coupon Management (Firestore) ---
+// --- Coupon Management (Supabase) ---
 export async function getCoupons(): Promise<Coupon[]> {
-    const couponsCol = collection(db, 'coupons');
-    const q = query(couponsCol, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coupon[];
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('coupons').select('*').order('createdAt', { ascending: false });
+    if (error) {
+        console.error('Supabase getCoupons error:', error);
+        return [];
+    }
+    return data as Coupon[];
 }
 
 export async function addCoupon(couponData: Omit<Coupon, 'id' | 'createdAt'>): Promise<Coupon> {
-    const couponsCol = collection(db, 'coupons');
-    const q = query(couponsCol, where("code", "==", couponData.code));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        throw new Error(`Coupon code "${couponData.code}" already exists.`);
-    }
-
-    const newCoupon = {
-        ...couponData,
-        createdAt: serverTimestamp(),
-    };
-    const docRef = await addDoc(couponsCol, newCoupon);
-    return { id: docRef.id, ...newCoupon } as Coupon;
+    if (!supabase) throw new Error("Supabase not configured");
+    const { data, error } = await supabase.from('coupons').insert([couponData]).select().single();
+    if (error) throw error;
+    return data as Coupon;
 }
 
 export async function updateCoupon(couponData: Partial<Coupon> & { id: string }): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
     const { id, ...dataToUpdate } = couponData;
-    const docRef = doc(db, 'coupons', id);
-
-    if (dataToUpdate.code) {
-        const couponsCol = collection(db, 'coupons');
-        const q = query(couponsCol, where("code", "==", dataToUpdate.code));
-        const querySnapshot = await getDocs(q);
-        const conflictingDoc = querySnapshot.docs.find(d => d.id !== id);
-        if (conflictingDoc) {
-            throw new Error(`Coupon code "${dataToUpdate.code}" already exists.`);
-        }
-    }
-
-    await updateDoc(docRef, dataToUpdate);
+    const { error } = await supabase.from('coupons').update(dataToUpdate).eq('id', id);
+    if (error) throw error;
 }
 
 export async function deleteCoupon(couponId: string): Promise<void> {
-    const docRef = doc(db, 'coupons', couponId);
-    await deleteDoc(docRef);
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from('coupons').delete().eq('id', couponId);
+    if (error) throw error;
 }
 
 export async function checkCoupon(code: string): Promise<{ isValid: boolean, discountPercent?: number, error?: string }> {
-  const couponsCol = collection(db, 'coupons');
-  const q = query(couponsCol, where("code", "==", code));
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) {
-    return { isValid: false, error: "This coupon code does not exist." };
-  }
-  
-  const couponDoc = snapshot.docs[0];
-  const couponData = couponDoc.data() as Coupon;
-
-  if (couponData.status !== 'active') {
-    return { isValid: false, error: "This coupon is currently inactive." };
-  }
-
-  const now = new Date();
-  const validFrom = couponData.validFrom?.toDate();
-  const validUntil = couponData.validUntil?.toDate();
-
-  if (validFrom && now < validFrom) {
-    return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
-  }
-
-  if (validUntil) {
-    validUntil.setHours(23, 59, 59, 999);
-    if (now > validUntil) {
-      return { isValid: false, error: "This coupon has expired." };
+    if (!supabase) return { isValid: false, error: "Database not configured." };
+    const { data, error } = await supabase.from('coupons').select('*').eq('code', code).single();
+    
+    if (error || !data) {
+        return { isValid: false, error: "This coupon code does not exist." };
     }
-  }
+    
+    const couponData = data as Coupon;
+
+    if (couponData.status !== 'active') {
+        return { isValid: false, error: "This coupon is currently inactive." };
+    }
+
+    const now = new Date();
+    const validFrom = new Date(couponData.validFrom);
+    const validUntil = new Date(couponData.validUntil);
+
+    if (validFrom && now < validFrom) {
+        return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
+    }
+
+    if (validUntil) {
+        validUntil.setHours(23, 59, 59, 999);
+        if (now > validUntil) {
+            return { isValid: false, error: "This coupon has expired." };
+        }
+    }
   
-  return { isValid: true, discountPercent: couponData.discountPercent };
+    return { isValid: true, discountPercent: couponData.discountPercent };
 }
-
-
-// --- Other Data Functions ---
-export async function getPopularDishes(): Promise<string[]> {
-    const allItems = await getMenuItems();
-    return allItems.filter(item => item.isPopular).map(item => item.name);
-};
-
-export const getCurrentTrends = (): string[] => {
-  return ["Plant-based options", "Spicy food challenges", "Artisanal pizzas"];
-};

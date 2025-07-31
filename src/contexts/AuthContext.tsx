@@ -1,10 +1,10 @@
 
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import {
   type User,
   onAuthStateChanged,
@@ -17,7 +17,6 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getAddresses, getUserProfile } from '@/lib/data';
@@ -36,31 +35,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const manageUserInFirestore = async (user: User, extraData: { mobileNumber?: string } = {}) => {
-    const userRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(userRef);
-    
-    if (!docSnap.exists()) {
-        await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            createdAt: serverTimestamp(),
-            mobileNumber: extraData.mobileNumber || null,
-            hasCompletedFirstOrder: false,
-        });
-    } else {
-        const dataToUpdate: any = {
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-        };
-        if (extraData.mobileNumber && !docSnap.data()?.mobileNumber) {
-            dataToUpdate.mobileNumber = extraData.mobileNumber;
-        }
-        if (Object.keys(dataToUpdate).length > 0) {
-            await setDoc(userRef, dataToUpdate, { merge: true });
-        }
+const manageUserInSupabase = async (user: User, extraData: { mobileNumber?: string } = {}) => {
+    if (!supabase) return;
+    const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.uid)
+        .single();
+
+    const userData = {
+        id: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        mobileNumber: extraData.mobileNumber || null,
+    };
+
+    if (!data) { // User does not exist, insert
+        const { error: insertError } = await supabase.from('users').insert([
+           { ...userData, hasCompletedFirstOrder: false }
+        ]);
+        if (insertError) console.error("Error creating user in Supabase:", insertError);
+    } else { // User exists, update
+        const { error: updateError } = await supabase.from('users').update(userData).eq('id', user.uid);
+        if (updateError) console.error("Error updating user in Supabase:", updateError);
     }
 }
 
@@ -235,7 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential = await signInWithPopup(auth, provider);
-      await manageUserInFirestore(userCredential.user);
+      await manageUserInSupabase(userCredential.user);
 
       const userProfile = await getUserProfile(userCredential.user.uid);
       if (!userProfile?.mobileNumber) {
@@ -285,7 +283,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: fullName });
         await sendEmailVerification(userCredential.user);
-        await manageUserInFirestore(userCredential.user, { mobileNumber });
+        await manageUserInSupabase(userCredential.user, { mobileNumber });
       }
       
       await firebaseSignOut(auth);
@@ -320,6 +318,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.', variant: 'default' });
     } catch (error: any) {
       console.error("Firebase logout error:", error);
