@@ -128,7 +128,10 @@ export default function MyOrdersPage() {
         setIsBillDialogOpen(true);
     };
 
-    const calculateSubtotal = (items: OrderItem[]): number => items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const calculateSubtotal = (items: OrderItem[]): number => {
+      const parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
+      return parsedItems.reduce((sum: number, item: OrderItem) => sum + item.price * item.quantity, 0)
+    };
 
     const handleOpenReviewDialog = (order: Order) => {
         setOrderToReview(order);
@@ -170,7 +173,7 @@ export default function MyOrdersPage() {
                 // --- TRACKING VIEW ---
                 <Card className="shadow-lg">
                     <CardHeader>
-                        <CardTitle className="text-xl md:text-2xl font-headline">Track Order: #{trackedOrder.id.slice(-6)}</CardTitle>
+                        <CardTitle className="text-xl md:text-2xl font-headline">Track Order: #{trackedOrder.id.toString().slice(-6)}</CardTitle>
                         <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -268,7 +271,7 @@ export default function MyOrdersPage() {
                                <CardHeader>
                                  <div className="flex justify-between items-start">
                                    <div>
-                                     <CardTitle className="text-lg">Order ID: #{order.id.slice(-6)}</CardTitle>
+                                     <CardTitle className="text-lg">Order ID: #{order.id.toString().slice(-6)}</CardTitle>
                                      <CardDescription>Date: {new Date(order.date).toLocaleString()} | Status: <span className={`font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></CardDescription>
                                    </div>
                                    <p className="text-lg font-semibold text-primary">Rs.{order.total.toFixed(2)}</p>
@@ -278,7 +281,7 @@ export default function MyOrdersPage() {
                                   <div className="space-y-2">
                                       <p className="text-sm font-medium">Items:</p>
                                       <div className="pl-2 space-y-1">
-                                          {order.items.map((item: OrderItem) => (
+                                          {(typeof order.items === 'string' ? JSON.parse(order.items) : order.items).map((item: OrderItem) => (
                                               <div key={item.id} className="flex justify-between text-sm text-muted-foreground">
                                                   <p>{item.name} &times; {item.quantity}</p>
                                                   <p>Rs.{(item.price * item.quantity).toFixed(2)}</p>
@@ -334,7 +337,7 @@ export default function MyOrdersPage() {
                 <DialogHeader>
                     <DialogTitle>Confirm Cancellation</DialogTitle>
                     <DialogDescription>
-                        Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.slice(-6)}</span>.
+                        Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.toString().slice(-6)}</span>.
                         {orderToCancel?.paymentMethod === 'Razorpay' && (
                             <p className="mt-2 text-sm text-primary">
                                 As this was a prepaid order, your refund will be processed within 24-48 hours upon cancellation.
@@ -360,7 +363,7 @@ export default function MyOrdersPage() {
                     {orderForBillView && (
                         <>
                         <DialogHeader>
-                            <DialogTitle>Bill for Order #{orderForBillView.id.slice(-6)}</DialogTitle>
+                            <DialogTitle>Bill for Order #{orderForBillView.id.toString().slice(-6)}</DialogTitle>
                             <DialogDescription>
                                 Placed on {new Date(orderForBillView.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                             </DialogDescription>
@@ -369,7 +372,7 @@ export default function MyOrdersPage() {
                             <div>
                                 <h4 className="font-semibold mb-2 text-sm">Items Ordered</h4>
                                 <div className="space-y-2">
-                                    {orderForBillView.items.map((item: OrderItem) => (
+                                    {(typeof orderForBillView.items === 'string' ? JSON.parse(orderForBillView.items) : orderForBillView.items).map((item: OrderItem) => (
                                         <div key={item.id} className="flex items-center justify-between text-sm">
                                             <div className="flex items-center gap-3">
                                                 <Image 
@@ -437,7 +440,7 @@ export default function MyOrdersPage() {
             )}
             {orderToReview && (
               <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Review Order #{orderToReview.id.slice(-6)}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="flex space-x-1">{[1,2,3,4,5].map(v=><Star key={v} className={cn("h-8 w-8 cursor-pointer", v <= currentRating ? "fill-accent text-accent" : "text-muted-foreground")} onClick={() => setCurrentRating(v)} />)}</div><Textarea value={currentReviewComment} onChange={e=>setCurrentReviewComment(e.target.value)} placeholder="Comments..." /></div><DialogFooter><Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button><Button onClick={handleReviewSubmit} disabled={currentRating === 0}>Submit</Button></DialogFooter></DialogContent>
+                <DialogContent><DialogHeader><DialogTitle>Review Order #{orderToReview.id.toString().slice(-6)}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="flex space-x-1">{[1,2,3,4,5].map(v=><Star key={v} className={cn("h-8 w-8 cursor-pointer", v <= currentRating ? "fill-accent text-accent" : "text-muted-foreground")} onClick={() => setCurrentRating(v)} />)}</div><Textarea value={currentReviewComment} onChange={e=>setCurrentReviewComment(e.target.value)} placeholder="Comments..." /></div><DialogFooter><Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button><Button onClick={handleReviewSubmit} disabled={currentRating === 0}>Submit</Button></DialogFooter></DialogContent>
               </Dialog>
             )}
         </div>

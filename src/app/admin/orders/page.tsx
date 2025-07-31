@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike } from "lucide-react";
+import { ClipboardList, PackageSearch, Eye, PhoneCall, MessageSquare, Send, Search, Trash2, CreditCard, QrCode, Ban, ChevronRight, Bike, TimerOff } from "lucide-react";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -67,7 +67,7 @@ const ORDER_PROGRESS_STEPS: OrderStatus[] = [
   'Out for Delivery',
 ];
 
-const ALL_FILTER_STATUSES: (OrderStatus | 'All')[] = [
+const ALL_FILTER_STATUSES: (OrderStatus | 'All' | 'Expired')[] = [
   'All',
   'Order Placed',
   'Confirmed',
@@ -76,6 +76,7 @@ const ALL_FILTER_STATUSES: (OrderStatus | 'All')[] = [
   'Out for Delivery',
   'Delivered',
   'Cancelled',
+  'Expired',
 ];
 
 export default function AdminOrdersPage() {
@@ -99,7 +100,7 @@ export default function AdminOrdersPage() {
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All'>('All');
+  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'All' | 'Expired'>('All');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   
 
@@ -131,7 +132,7 @@ export default function AdminOrdersPage() {
         const term = searchTerm.toLowerCase();
         if (!term) return true;
         return (
-          order.id.slice(-6).toLowerCase().includes(term) ||
+          order.id.toString().slice(-6).toLowerCase().includes(term) ||
           order.customerName.toLowerCase().includes(term) ||
           order.userEmail.toLowerCase().includes(term)
         );
@@ -144,6 +145,7 @@ export default function AdminOrdersPage() {
       case 'Out for Delivery':
         return 'default';
       case 'Cancelled':
+      case 'Expired':
         return 'destructive';
       default:
         return 'secondary';
@@ -161,7 +163,7 @@ export default function AdminOrdersPage() {
       await updateOrderStatus(order.id, nextStatus);
       toast({
         title: 'Order Status Updated',
-        description: `Order #${order.id.slice(-6)} is now marked as ${nextStatus}.`,
+        description: `Order #${order.id.toString().slice(-6)} is now marked as ${nextStatus}.`,
       });
     } catch (error) {
       console.error("Failed to update order status", error);
@@ -184,7 +186,7 @@ export default function AdminOrdersPage() {
     if (orderToCancel) {
       try {
         await updateOrderStatus(orderToCancel.id, 'Cancelled');
-        toast({ title: "Order Cancelled", description: `Order #${orderToCancel.id.slice(-6)} has been cancelled.`});
+        toast({ title: "Order Cancelled", description: `Order #${orderToCancel.id.toString().slice(-6)} has been cancelled.`});
       } catch (error) {
         console.error("Failed to cancel order", error);
         toast({ title: "Cancellation Failed", description: "Could not cancel the order.", variant: "destructive" });
@@ -203,7 +205,7 @@ export default function AdminOrdersPage() {
     if (orderToDelete) {
         try {
             await deleteOrder(orderToDelete.id);
-            toast({ title: "Order Deleted", description: `Order #${orderToDelete.id.slice(-6)} has been removed.`});
+            toast({ title: "Order Deleted", description: `Order #${orderToDelete.id.toString().slice(-6)} has been removed.`});
         } catch (error) {
             console.error("Failed to delete order", error);
             toast({ title: "Delete Failed", description: "Could not delete the order.", variant: "destructive" });
@@ -218,15 +220,17 @@ export default function AdminOrdersPage() {
         toast({ title: "Message is empty", variant: "destructive" });
         return;
     }
+    const orderItems = typeof orderToMessage.items === 'string' ? JSON.parse(orderToMessage.items) : orderToMessage.items;
+    
     setIsSendingMessage(true);
     try {
         let title;
-        if (orderToMessage.items && orderToMessage.items.length > 0) {
-            const mainItemName = orderToMessage.items[0].name;
-            const moreItemsText = orderToMessage.items.length > 1 ? ' and more' : '';
-            title = `Re: Your order for ${mainItemName}${moreItemsText} (#${orderToMessage.id.slice(-6)})`;
+        if (orderItems && orderItems.length > 0) {
+            const mainItemName = orderItems[0].name;
+            const moreItemsText = orderItems.length > 1 ? ' and more' : '';
+            title = `Re: Your order for ${mainItemName}${moreItemsText} (#${orderToMessage.id.toString().slice(-6)})`;
         } else {
-            title = `A message regarding your order #${orderToMessage.id.slice(-6)}`;
+            title = `A message regarding your order #${orderToMessage.id.toString().slice(-6)}`;
         }
         await sendAdminMessage(orderToMessage.user_id, orderToMessage.userEmail, title, messageContent);
         toast({ title: "Message Sent!", description: `Your message has been sent to ${orderToMessage.customerName}.` });
@@ -275,7 +279,7 @@ export default function AdminOrdersPage() {
               </div>
               <Select
                 value={filterStatus}
-                onValueChange={(value) => setFilterStatus(value as OrderStatus | 'All')}
+                onValueChange={(value) => setFilterStatus(value as OrderStatus | 'All' | 'Expired')}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
@@ -309,7 +313,7 @@ export default function AdminOrdersPage() {
 
                     return (
                         <TableRow key={order.id}>
-                            <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
+                            <TableCell className="font-medium">#{order.id.toString().slice(-6)}</TableCell>
                             <TableCell>{order.customerName}</TableCell>
                             <TableCell>{new Date(order.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
                             <TableCell>
@@ -360,7 +364,7 @@ export default function AdminOrdersPage() {
             {selectedOrder && (
                 <>
                 <DialogHeader>
-                    <DialogTitle>Order Details: #{selectedOrder.id.slice(-6)}</DialogTitle>
+                    <DialogTitle>Order Details: #{selectedOrder.id.toString().slice(-6)}</DialogTitle>
                     <DialogDescription>
                         Placed by {selectedOrder.customerName} ({selectedOrder.userEmail}) on {new Date(selectedOrder.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                     </DialogDescription>
@@ -369,7 +373,7 @@ export default function AdminOrdersPage() {
                         <div>
                         <h4 className="font-semibold mb-2 text-sm">Items Ordered</h4>
                         <div className="space-y-2">
-                            {selectedOrder.items.map((item: OrderItem) => (
+                            {(typeof selectedOrder.items === 'string' ? JSON.parse(selectedOrder.items) : selectedOrder.items).map((item: OrderItem) => (
                                 <div key={item.id} className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-3">
                                         <Image 
@@ -398,9 +402,12 @@ export default function AdminOrdersPage() {
                         <div>
                         <h4 className="font-semibold mb-2 text-sm">Order Summary</h4>
                         <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
+                             <div className="flex justify-between">
                                 <span>Status:</span>
-                                <Badge variant={getStatusVariant(selectedOrder.status)}>{selectedOrder.status}</Badge>
+                                <Badge variant={getStatusVariant(selectedOrder.status)}>
+                                    {selectedOrder.status === 'Expired' && <TimerOff className="w-3 h-3 mr-1.5"/>}
+                                    {selectedOrder.status}
+                                </Badge>
                             </div>
                             <div className="flex justify-between">
                                 <span>Payment Method:</span>
@@ -486,7 +493,7 @@ export default function AdminOrdersPage() {
             <DialogHeader>
                 <DialogTitle>Send Message to {orderToMessage?.customerName}</DialogTitle>
                 <DialogDescription>
-                    Regarding Order #{orderToMessage?.id.slice(-6)}. The user will receive this as a notification.
+                    Regarding Order #{orderToMessage?.id.toString().slice(-6)}. The user will receive this as a notification.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -513,7 +520,7 @@ export default function AdminOrdersPage() {
             <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
             <AlertDialogDescriptionElement>
                 This action will mark order
-                <span className="font-semibold"> #{orderToCancel?.id.slice(-6)} </span>
+                <span className="font-semibold"> #{orderToCancel?.id.toString().slice(-6)} </span>
                 as 'Cancelled'. This cannot be undone.
             </AlertDialogDescriptionElement>
             </AlertDialogHeader>
@@ -532,7 +539,7 @@ export default function AdminOrdersPage() {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescriptionElement>
                 This action cannot be undone. This will permanently delete the order
-                <span className="font-semibold"> #{orderToDelete?.id.slice(-6)} </span>
+                <span className="font-semibold"> #{orderToDelete?.id.toString().slice(-6)} </span>
                 from the database.
             </AlertDialogDescriptionElement>
             </AlertDialogHeader>

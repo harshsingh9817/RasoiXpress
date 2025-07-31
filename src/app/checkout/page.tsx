@@ -195,25 +195,6 @@ export default function CheckoutPage() {
         setOrderDetails(placedOrder);
         clearCart();
         setCurrentStep('success');
-
-        const expirationMinutes = paymentSettings?.orderExpirationMinutes || 5;
-
-        // Start expiration timer
-        setTimeout(async () => {
-            const currentOrder = await getOrderById(placedOrder.id);
-            if (currentOrder && currentOrder.status === 'Order Placed') {
-                await updateOrderStatus(placedOrder.id, 'Expired');
-                if (user) {
-                    await sendAdminMessage(
-                        user.uid,
-                        user.email || 'N/A',
-                        `Order #${placedOrder.id.slice(-6)} Expired`,
-                        'Sorry, the restaurant did not confirm your order in time, and it has expired. If you paid online, your refund will be processed shortly.'
-                    );
-                }
-            }
-        }, expirationMinutes * 60 * 1000);
-
         setTimeout(() => { router.push('/my-orders'); }, 8000);
     } catch (error) {
         console.error("Failed to place order:", error);
@@ -245,7 +226,7 @@ export default function CheckoutPage() {
     if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
       toast({
         title: "Configuration Error",
-        description: "Razorpay client key (NEXT_PUBLIC_RAZORPAY_KEY_ID) is not set in the .env.local file. Please contact support.",
+        description: "Razorpay client key (NEXT_PUBLIC_RAZORPAY_KEY_ID) is not set in the .env file. Please contact support.",
         variant: "destructive",
       });
       setIsProcessingPayment(false);

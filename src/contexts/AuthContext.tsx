@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
@@ -20,6 +21,7 @@ import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getAddresses, getUserProfile } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -71,27 +73,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  // Effect to handle Firebase auth state changes
+  // Effect to handle Firebase auth state changes and Supabase token
   useEffect(() => {
+    const { data: { subscription } } = supabase?.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            // Can perform actions on sign-in
+        }
+    }) ?? { data: {} };
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         try {
+            const idTokenResult = await currentUser.getIdTokenResult();
+            if (supabase) {
+                const { error } = await supabase.auth.setSession({ access_token: idTokenResult.token, refresh_token: 'dummy-refresh-token' });
+                if (error) throw error;
+            }
             const isAdminClaim = currentUser.email === 'harshsingh9817@gmail.com';
             setIsAdmin(isAdminClaim);
         } catch(error) {
-            console.error("Error fetching user roles:", error);
+            console.error("Error setting Supabase session or fetching roles:", error);
             await firebaseSignOut(auth);
             setIsAdmin(false);
         }
       } else {
         setUser(null);
         setIsAdmin(false);
+        supabase?.auth.signOut();
       }
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Effect to handle routing based on auth state
