@@ -41,6 +41,7 @@ const menuItemSchema = z.object({
   imageUrl: z.string().url("Must be a valid URL."),
   isVegetarian: z.boolean().default(false),
   isPopular: z.boolean().default(false),
+  isVisible: z.boolean().default(true).optional(),
   weight: z.string().optional(),
   ingredients: z.string().optional(),
   taxRate: z.coerce.number().min(0, "Tax rate must be zero or more.").max(1, "Tax rate should be a decimal (e.g., 0.05 for 5%).").optional(),
@@ -68,6 +69,7 @@ export default function MenuItemFormDialog({
     defaultValues: {
       isVegetarian: false,
       isPopular: false,
+      isVisible: true,
     },
   });
 
@@ -81,6 +83,7 @@ export default function MenuItemFormDialog({
             ...menuItem,
             costPrice: menuItem.costPrice || undefined,
             taxRate: menuItem.taxRate || undefined,
+            isVisible: menuItem.isVisible !== false, // Default to true if undefined
         });
         } else {
           reset({
@@ -92,6 +95,7 @@ export default function MenuItemFormDialog({
             imageUrl: "https://placehold.co/300x200.png",
             isVegetarian: false,
             isPopular: false,
+            isVisible: true,
             weight: "",
             ingredients: "",
             taxRate: undefined,
@@ -284,12 +288,12 @@ export default function MenuItemFormDialog({
                 </FormItem>
               )}
             />
-            <div className="flex items-center space-x-8 pt-2">
+            <div className="grid grid-cols-2 lg:grid-cols-3 items-center gap-4 pt-2">
               <FormField
                 control={form.control}
                 name="isVegetarian"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm flex-1">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Vegetarian</FormLabel>
                     </div>
@@ -306,9 +310,26 @@ export default function MenuItemFormDialog({
                 control={form.control}
                 name="isPopular"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm flex-1">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Popular</FormLabel>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isVisible"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Visible</FormLabel>
                     </div>
                     <FormControl>
                       <Switch

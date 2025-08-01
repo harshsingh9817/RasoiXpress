@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getMenuItems, deleteMenuItem } from "@/lib/data";
+import { getMenuItems, deleteMenuItem, updateMenuItem } from "@/lib/data";
 import type { MenuItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 
 export default function MenuManagementPage() {
@@ -79,7 +80,7 @@ export default function MenuManagementPage() {
   const loadItems = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const items = await getMenuItems();
+        const items = await getMenuItems(true); // Admin gets all items, including hidden ones
         setMenuItems(items);
     } catch (error) {
         console.error("Failed to load menu items", error);
@@ -159,6 +160,24 @@ export default function MenuManagementPage() {
     setIsDeleteDialogOpen(false);
     setItemToDelete(null);
   }
+
+  const handleVisibilityToggle = async (item: MenuItem, isVisible: boolean) => {
+    try {
+      await updateMenuItem({ ...item, isVisible });
+      setMenuItems(prevItems =>
+        prevItems.map(prevItem =>
+          prevItem.id === item.id ? { ...prevItem, isVisible } : prevItem
+        )
+      );
+      toast({
+        title: `Item ${isVisible ? 'Visible' : 'Hidden'}`,
+        description: `${item.name} is now ${isVisible ? 'shown to' : 'hidden from'} users.`,
+      });
+    } catch (error) {
+      console.error("Failed to update visibility", error);
+      toast({ title: "Update Failed", description: "Could not update item visibility.", variant: "destructive" });
+    }
+  };
 
   if (isLoading || (!isAuthenticated && !isLoading) || (isDataLoading && menuItems.length === 0)) {
     return (
@@ -246,8 +265,8 @@ export default function MenuManagementPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-center">Vegetarian</TableHead>
                 <TableHead className="text-center">Popular</TableHead>
+                <TableHead className="text-center">Visible</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -271,10 +290,14 @@ export default function MenuManagementPage() {
                     </TableCell>
                     <TableCell className="text-right">Rs.{item.price.toFixed(2)}</TableCell>
                     <TableCell className="text-center">
-                      {item.isVegetarian ? <CheckCircle className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />}
+                      {item.isPopular ? <CheckCircle className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />}
                     </TableCell>
                     <TableCell className="text-center">
-                      {item.isPopular ? <CheckCircle className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />}
+                      <Switch
+                        checked={item.isVisible !== false}
+                        onCheckedChange={(checked) => handleVisibilityToggle(item, checked)}
+                        aria-label={`Toggle visibility for ${item.name}`}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

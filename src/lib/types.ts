@@ -23,6 +23,7 @@ export interface MenuItem {
   category: string;
   isVegetarian?: boolean;
   isPopular?: boolean;
+  isVisible?: boolean; // Added for visibility control
   weight?: string; // e.g., "250g", "Approx. 300g"
   ingredients?: string; // e.g., "Flour, Tomato, Cheese, Basil" or comma-separated
   taxRate?: number; // e.g., 0.05 for 5% tax
@@ -35,8 +36,8 @@ export interface CartItem extends MenuItem {
 export type OrderStatus =
   | 'Order Placed'
   | 'Confirmed'
-  | 'Accepted by Rider'
   | 'Preparing'
+  | 'Accepted by Rider'
   | 'Out for Delivery'
   | 'Delivered'
   | 'Cancelled'
