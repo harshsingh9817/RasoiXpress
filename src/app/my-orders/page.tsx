@@ -21,8 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
-const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Accepted by Rider', 'Out for Delivery', 'Delivered' ];
-const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Accepted by Rider': UserCheck, 'Out for Delivery': Bike, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
+const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Accepted by Rider', 'Delivered' ];
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Accepted by Rider': UserCheck, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 
@@ -441,3 +441,4 @@ export default function MyOrdersPage() {
         </div>
     );
 }
+
