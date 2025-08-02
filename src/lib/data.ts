@@ -135,7 +135,7 @@ export async function getMenuItems(includeHidden: boolean = false): Promise<Menu
       q = query(menuItemsCol, orderBy("name"));
     } else {
       // Users only get visible items
-      q = query(menuItemsCol, where("isVisible", "!=", false), orderBy("name"));
+      q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
@@ -315,7 +315,7 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
 // --- REAL-TIME LISTENERS (Firestore) ---
 export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => void {
     const menuItemsCol = collection(db, 'menuItems');
-    const q = query(menuItemsCol, where("isVisible", "!=", false), orderBy("name"));
+    const q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     return onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
         callback(items);
