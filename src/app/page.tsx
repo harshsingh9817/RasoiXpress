@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated, isAuthLoading, isAdmin } = useAuth();
   const router = useRouter();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,7 +72,7 @@ export default function HomePage() {
       setMenuItems(items);
       menuItemsLoaded = true;
       checkLoadingDone();
-    });
+    }, isAdmin);
 
     getHeroData().then(hero => {
         // Sort banner images by the new 'order' property
@@ -85,7 +85,7 @@ export default function HomePage() {
     });
 
     return () => unsubscribe();
-  }, [isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, router, isAdmin]);
 
   const uniqueCategories = useMemo(() => {
     const allCategories = new Set(menuItems.map(item => item.category));

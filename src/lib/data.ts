@@ -125,9 +125,6 @@ async function initializeCollection(collectionName: string, initialData: any[]) 
 
 // --- Menu Item Management (Firestore) ---
 export async function getMenuItems(includeHidden: boolean = false): Promise<MenuItem[]> {
-    if (!includeHidden) {
-      await initializeCollection('menuItems', initialMenuItems);
-    }
     const menuItemsCol = collection(db, 'menuItems');
     let q;
     if (includeHidden) {
@@ -135,6 +132,7 @@ export async function getMenuItems(includeHidden: boolean = false): Promise<Menu
       q = query(menuItemsCol, orderBy("name"));
     } else {
       // Users only get visible items
+      await initializeCollection('menuItems', initialMenuItems);
       q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     }
     const snapshot = await getDocs(q);
@@ -195,6 +193,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     if (supabase) {
         try {
             const supabaseOrderData = {
+                firestore_order_id: newOrder.id, // Storing the link
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -246,17 +245,10 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 
     if (supabase) {
         try {
-            const orderSnap = await getDoc(docRef);
-            if (!orderSnap.exists() || !orderSnap.data()?.supabase_order_uuid) {
-                console.error(`Cannot update order in Supabase: Firestore order ${orderId} not found or missing supabase_order_uuid.`);
-                return;
-            }
-            const supabaseUUID = orderSnap.data().supabase_order_uuid;
-
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('id', supabaseUUID); 
+                .eq('firestore_order_id', orderId); 
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -268,9 +260,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 }
 
 export async function cancelOrder(orderId: string, reason: string): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, { status: 'Cancelled', cancellationReason: reason });
     await updateOrderStatus(orderId, 'Cancelled'); 
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { cancellationReason: reason });
 }
 
 export async function submitOrderReview(orderId: string, review: Review): Promise<void> {
@@ -279,20 +271,14 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    
     if (supabase) {
         try {
-            const orderSnap = await getDoc(docRef);
-            if (orderSnap.exists() && orderSnap.data()?.supabase_order_uuid) {
-                const supabaseUUID = orderSnap.data().supabase_order_uuid;
-                await supabase.from('orders').delete().eq('id', supabaseUUID);
-            }
+            await supabase.from('orders').delete().eq('firestore_order_id', orderId);
         } catch (error) {
             console.error(`Failed to delete order ${orderId} from Supabase:`, error);
         }
     }
-    
+    const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
 }
 
@@ -313,12 +299,22 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
 }
 
 // --- REAL-TIME LISTENERS (Firestore) ---
-export function listenToMenuItems(callback: (items: MenuItem[]) => void): () => void {
+export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin: boolean = false): () => void {
     const menuItemsCol = collection(db, 'menuItems');
-    const q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
+    let q;
+    if (isAdmin) {
+      // Admins see all items, sorted by name. This query does not require a composite index.
+      q = query(menuItemsCol, orderBy("name"));
+    } else {
+      // Users only get visible items. This query requires a composite index.
+      q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
+    }
     return onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
         callback(items);
+    }, (error) => {
+        // Log the error but don't crash the app. The UI will show a loading state.
+        console.error("Error listening to menu items:", error);
     });
 }
 
@@ -378,14 +374,16 @@ export function listenToRiderAppOrders(): () => void {
                     const orderId = change.doc.id;
                     const status = riderOrderData.status as OrderStatus;
                     
-                    const updatedFields: Partial<Order> & { id: string } = {
-                        id: orderId,
+                    const updatedFields: Partial<Order> = {
                         status: status,
-                        deliveryRiderId: riderOrderData.rider_id,
-                        deliveryRiderName: riderOrderData.rider_name,
-                        deliveryRiderPhone: riderOrderData.rider_phone,
-                        deliveryRiderVehicle: riderOrderData.rider_vehicle
                     };
+                    
+                    if (status === 'Accepted by Rider') {
+                        updatedFields.deliveryRiderId = riderOrderData.rider_id;
+                        updatedFields.deliveryRiderName = riderOrderData.rider_name;
+                        updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
+                        updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
+                    }
                     
                     const mainOrderRef = doc(db, 'orders', orderId);
                     updateDoc(mainOrderRef, updatedFields as { [x: string]: any; })
