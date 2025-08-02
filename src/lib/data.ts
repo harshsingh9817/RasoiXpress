@@ -193,7 +193,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     if (supabase) {
         try {
             const supabaseOrderData = {
-                firestore_order_id: newOrder.id, // Storing the link
+                // Do not send an `id` field, let Supabase generate the UUID
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -245,10 +245,17 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 
     if (supabase) {
         try {
+            const orderSnap = await getDoc(docRef);
+            if (!orderSnap.exists() || !orderSnap.data()?.supabase_order_uuid) {
+                console.warn(`Cannot update order ${orderId} in Supabase: supabase_order_uuid not found.`);
+                return;
+            }
+            const supabaseUUID = orderSnap.data()?.supabase_order_uuid;
+
             const { error: supabaseError } = await supabase
                 .from('orders')
                 .update({ status: status })
-                .eq('firestore_order_id', orderId); 
+                .eq('id', supabaseUUID); 
 
             if (supabaseError) {
                 console.error(`Supabase status update error for order ${orderId}:`, supabaseError.message);
@@ -271,14 +278,18 @@ export async function submitOrderReview(orderId: string, review: Review): Promis
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
     if (supabase) {
         try {
-            await supabase.from('orders').delete().eq('firestore_order_id', orderId);
+            const orderSnap = await getDoc(docRef);
+            if (orderSnap.exists() && orderSnap.data()?.supabase_order_uuid) {
+                const supabaseUUID = orderSnap.data()?.supabase_order_uuid;
+                await supabase.from('orders').delete().eq('id', supabaseUUID);
+            }
         } catch (error) {
             console.error(`Failed to delete order ${orderId} from Supabase:`, error);
         }
     }
-    const docRef = doc(db, 'orders', orderId);
     await deleteDoc(docRef);
 }
 
@@ -303,17 +314,14 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin
     const menuItemsCol = collection(db, 'menuItems');
     let q;
     if (isAdmin) {
-      // Admins see all items, sorted by name. This query does not require a composite index.
       q = query(menuItemsCol, orderBy("name"));
     } else {
-      // Users only get visible items. This query requires a composite index.
       q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     }
     return onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MenuItem[];
         callback(items);
     }, (error) => {
-        // Log the error but don't crash the app. The UI will show a loading state.
         console.error("Error listening to menu items:", error);
     });
 }
@@ -606,7 +614,7 @@ export async function checkCoupon(code: string): Promise<{ isValid: boolean, dis
     if (snapshot.empty) return { isValid: false, error: "This coupon code does not exist." };
     
     const couponDoc = snapshot.docs[0];
-    const couponData = couponDoc.data() as Omit<Coupon, 'id'>;
+    const couponData = couponDoc.data() as Omit<Coupon, 'id'|'createdAt'|'validFrom'|'validUntil'> & {createdAt: any, validFrom: any, validUntil: any};
 
     if (couponData.status !== 'active') return { isValid: false, error: "This coupon is currently inactive." };
     
