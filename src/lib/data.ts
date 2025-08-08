@@ -193,7 +193,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     if (supabase) {
         try {
             const supabaseOrderData = {
-                // Do not send an `id` field, let Supabase generate the UUID
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
                 user_email: newOrder.userEmail,
@@ -391,16 +390,16 @@ export function listenToRiderAppOrders(): () => void {
               const mainOrderRef = mainOrderDoc.ref;
               const status = riderOrderData.status as OrderStatus;
   
-              const updatedFields: Partial<Order> = { status };
+              const updatedFields: { [key: string]: any } = { status };
   
               if (status === 'Accepted by Rider' || riderOrderData.rider_name) {
-                updatedFields.deliveryRiderId = riderOrderData.rider_id;
-                updatedFields.deliveryRiderName = riderOrderData.rider_name;
-                updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
-                updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
+                if (riderOrderData.rider_id) updatedFields.deliveryRiderId = riderOrderData.rider_id;
+                if (riderOrderData.rider_name) updatedFields.deliveryRiderName = riderOrderData.rider_name;
+                if (riderOrderData.rider_phone) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
+                if (riderOrderData.rider_vehicle) updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
               }
   
-              await updateDoc(mainOrderRef, updatedFields as { [x: string]: any; });
+              await updateDoc(mainOrderRef, updatedFields);
             } else {
               console.warn(`Could not find matching Firebase order for Supabase UUID: ${supabaseUUID}`);
             }
