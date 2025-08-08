@@ -284,6 +284,23 @@ export default function MyOrdersPage() {
                                           ))}
                                       </div>
                                   </div>
+
+                                  {order.deliveryRiderName && (
+                                    <>
+                                        <Separator />
+                                        <div className="p-3 rounded-lg bg-primary/5">
+                                            <h3 className="font-semibold text-sm text-primary flex items-center mb-2">
+                                                <Bike className="mr-2 h-4 w-4"/>
+                                                Your Rider is on the way!
+                                            </h3>
+                                            <div className="text-xs text-muted-foreground space-y-1 pl-6">
+                                                <p><strong className="font-medium">Name:</strong> {order.deliveryRiderName}</p>
+                                                <p><strong className="font-medium">Phone:</strong> <a href={`tel:${order.deliveryRiderPhone}`} className="text-primary underline">{order.deliveryRiderPhone}</a></p>
+                                                <p><strong className="font-medium">Vehicle:</strong> {order.deliveryRiderVehicle}</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                  )}
                                   
                                   {order.status !== 'Cancelled' && order.status !== 'Expired' && order.deliveryConfirmationCode && (
                                     <div className="p-3 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
