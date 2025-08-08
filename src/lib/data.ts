@@ -366,47 +366,55 @@ export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => v
 }
 
 export function listenToRiderAppOrders(): () => void {
-    if (!riderDb || !riderAuth) {
-        console.warn("Cannot listen to rider app orders: Rider DB not initialized.");
-        return () => {};
+    if (!supabase) {
+      console.warn("Supabase client not initialized. Cannot listen to rider app orders.");
+      return () => {};
     }
-
-    const riderOrdersCol = collection(riderDb, 'orders');
-    let unsubscribe = () => {};
-
-    ensureRiderAuth().then(() => {
-        unsubscribe = onSnapshot(riderOrdersCol, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === "modified") {
-                    const riderOrderData = change.doc.data();
-                    const orderId = change.doc.id;
-                    const status = riderOrderData.status as OrderStatus;
-                    
-                    const updatedFields: Partial<Order> = {
-                        status: status,
-                    };
-                    
-                    if (status === 'Accepted by Rider') {
-                        updatedFields.deliveryRiderId = riderOrderData.rider_id;
-                        updatedFields.deliveryRiderName = riderOrderData.rider_name;
-                        updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
-                        updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
-                    }
-                    
-                    const mainOrderRef = doc(db, 'orders', orderId);
-                    updateDoc(mainOrderRef, updatedFields as { [x: string]: any; })
-                        .catch(err => console.error("Failed to sync rider update to main DB:", err));
-                }
-            });
-        }, (error) => {
-            console.error("Error listening to rider app orders:", error);
-        });
-    }).catch(error => {
-        console.error("Failed to authenticate with rider app service for listening:", error);
-    });
-
-    return unsubscribe;
-}
+  
+    const channel = supabase
+      .channel('public:orders')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        async (payload) => {
+          const riderOrderData = payload.new as any;
+          const supabaseUUID = riderOrderData.id;
+          if (!supabaseUUID) return;
+  
+          try {
+            const ordersRef = collection(db, "orders");
+            const q = query(ordersRef, where("supabase_order_uuid", "==", supabaseUUID));
+            const querySnapshot = await getDocs(q);
+  
+            if (!querySnapshot.empty) {
+              const mainOrderDoc = querySnapshot.docs[0];
+              const mainOrderRef = mainOrderDoc.ref;
+              const status = riderOrderData.status as OrderStatus;
+  
+              const updatedFields: Partial<Order> = { status };
+  
+              if (status === 'Accepted by Rider' || riderOrderData.rider_name) {
+                updatedFields.deliveryRiderId = riderOrderData.rider_id;
+                updatedFields.deliveryRiderName = riderOrderData.rider_name;
+                updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
+                updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
+              }
+  
+              await updateDoc(mainOrderRef, updatedFields as { [x: string]: any; });
+            } else {
+              console.warn(`Could not find matching Firebase order for Supabase UUID: ${supabaseUUID}`);
+            }
+          } catch (error) {
+            console.error("Failed to sync rider update to main DB:", error);
+          }
+        }
+      )
+      .subscribe();
+  
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
 
 // --- Address Management (Firestore) ---
 export async function getAddresses(userId: string): Promise<Address[]> {
