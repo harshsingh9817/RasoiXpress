@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -14,7 +15,6 @@ const containerStyle = {
 };
 
 const RESTAURANT_COORDS = { lat: 25.970963, lng: 83.873754 };
-const RESTAURANT_LOCATION_STRING = `${RESTAURANT_COORDS.lat},${RESTAURANT_COORDS.lng}`;
 const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
 interface DirectionsMapProps {
@@ -52,40 +52,18 @@ const loadScript = (src: string, id: string): Promise<void> => {
     });
 };
 
-// Polyline decoder from the user's example
-function decodePolyline(encoded: string): { lat: number; lng: number }[] {
-    if (!encoded) {
-      return [];
-    }
-    let points: { lat: number; lng: number }[] = [];
-    let index = 0, len = encoded.length;
-    let lat = 0, lng = 0;
-  
-    while (index < len) {
-      let b, shift = 0, result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-  
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-  
-      points.push({ lat: lat / 1e5, lng: lng / 1e5 });
-    }
-  
-    return points;
-}
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+};
 
 
 export default function DirectionsMap({ destinationAddress, destinationCoords, apiUrl, useLiveLocationForOrigin = false }: DirectionsMapProps) {
@@ -96,7 +74,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
     const { toast } = useToast();
 
     const initMap = useCallback(async () => {
-        if (!mapRef.current || !window.google?.maps || !apiUrl) return;
+        if (!mapRef.current || !window.google?.maps) return;
 
         setIsLoading(true);
         setError(null);
@@ -110,98 +88,52 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
             fullscreenControl: false,
         });
 
-        const getOrigin = (): Promise<string> => {
-            return new Promise((resolve, reject) => {
-                if (useLiveLocationForOrigin) {
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                resolve(`${position.coords.latitude},${position.coords.longitude}`);
-                            },
-                            () => {
-                                toast({ title: "Location Error", description: "Could not get your location. Defaulting to restaurant.", variant: "destructive"});
-                                resolve(RESTAURANT_LOCATION_STRING);
-                            }
-                        );
-                    } else {
-                        reject("Your browser doesn't support geolocation.");
-                    }
-                } else {
-                    resolve(RESTAURANT_LOCATION_STRING);
-                }
-            });
-        };
-
         try {
-            const origin = await getOrigin();
-            const destination = destinationCoords 
-                ? `${destinationCoords.lat},${destinationCoords.lng}` 
-                : destinationAddress;
-
-            const urlParams = new URL(apiUrl).searchParams;
-            const apiKey = urlParams.get('key');
+            const destinationLatLng = destinationCoords 
+                ? new window.google.maps.LatLng(destinationCoords.lat, destinationCoords.lng)
+                : null;
             
-            if (!apiKey) {
-                throw new Error("API key not found in the provided map URL.");
+            if (!destinationLatLng) {
+                // If we don't have coords, we'd need a geocoding call, which we want to avoid.
+                // For now, we'll just show the restaurant marker.
+                new window.google.maps.Marker({
+                    position: RESTAURANT_COORDS,
+                    map: map,
+                    title: 'Restaurant Location'
+                });
+                setIsLoading(false);
+                return;
             }
 
-            const directionsUrl = `https://maps.gomaps.pro/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
+            const bounds = new window.google.maps.LatLngBounds();
 
-            const response = await fetch(directionsUrl);
-            const data = await response.json();
+            new window.google.maps.Marker({
+                position: RESTAURANT_COORDS,
+                map: map,
+                title: 'Origin (Restaurant)'
+            });
+            bounds.extend(RESTAURANT_COORDS);
 
-            if (data.status === 'OK' && data.routes && data.routes.length > 0) {
-                const route = data.routes[0];
-                const leg = route.legs[0];
+            new window.google.maps.Marker({
+                position: destinationLatLng,
+                map: map,
+                title: 'Destination'
+            });
+            bounds.extend(destinationLatLng);
 
-                if (leg.distance?.text) {
-                    setDistance(leg.distance.text);
-                }
+            map.fitBounds(bounds);
 
-                const decodedPath = decodePolyline(route.overview_polyline.points);
+            // Calculate distance locally
+            const distKm = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, destinationLatLng.lat(), destinationLatLng.lng());
+            setDistance(`${distKm.toFixed(2)} km`);
 
-                if (decodedPath.length > 0) {
-                    const bounds = new window.google.maps.LatLngBounds();
-
-                    new window.google.maps.Marker({
-                        position: decodedPath[0],
-                        map: map,
-                        title: 'Origin'
-                    });
-                    bounds.extend(decodedPath[0]);
-
-                    new window.google.maps.Marker({
-                        position: decodedPath[decodedPath.length - 1],
-                        map: map,
-                        title: 'Destination'
-                    });
-                    bounds.extend(decodedPath[decodedPath.length - 1]);
-                    
-                    const routePolyline = new window.google.maps.Polyline({
-                        path: decodedPath,
-                        geodesic: true,
-                        strokeColor: '#E64A19',
-                        strokeOpacity: 0.8,
-                        strokeWeight: 5,
-                    });
-
-                    routePolyline.setMap(map);
-                    map.fitBounds(bounds);
-                } else {
-                     throw new Error("Could not decode the route polyline.");
-                }
-
-            } else {
-                console.error("Error fetching directions:", data.error_message || data.status);
-                throw new Error(data.error_message || `Could not get directions: ${data.status}`);
-            }
         } catch (err: any) {
-            setError(err.message || 'An unknown error occurred while fetching directions.');
+            setError(err.message || 'An unknown error occurred while setting up the map.');
         } finally {
             setIsLoading(false);
         }
 
-    }, [destinationAddress, destinationCoords, useLiveLocationForOrigin, toast, apiUrl]);
+    }, [destinationCoords, destinationAddress]);
     
     useEffect(() => {
         let isMounted = true;
@@ -250,7 +182,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, a
             {isLoading && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
                     <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-                    <p className="text-muted-foreground mt-4">Loading Map & Directions...</p>
+                    <p className="text-muted-foreground mt-4">Loading Map...</p>
                 </div>
             )}
             {error && !isLoading && (

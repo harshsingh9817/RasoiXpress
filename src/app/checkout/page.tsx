@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag, XCircle } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserOrders, getUserProfile } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
@@ -80,7 +80,7 @@ export default function CheckoutPage() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [distance, setDistance] = useState<number | null>(null);
   const [isServiceable, setIsServiceable] = useState(true);
-  const [userOrderCount, setUserOrderCount] = useState(0);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
 
 
   const subTotal = getCartSubtotal();
@@ -102,12 +102,12 @@ export default function CheckoutPage() {
         const settings = await getPaymentSettings();
         setPaymentSettings(settings);
 
-        const [userAddresses, userOrders] = await Promise.all([
+        const [userAddresses, profile] = await Promise.all([
             getAddresses(user.uid),
-            getUserOrders(user.uid),
+            getUserProfile(user.uid)
         ]);
         
-        setUserOrderCount(userOrders.length);
+        setUserProfile(profile);
 
         const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
         setAddresses(sortedAddresses);
@@ -168,7 +168,7 @@ export default function CheckoutPage() {
             return;
         }
 
-        const isFirstOrder = userOrderCount === 0;
+        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
         if (isFirstOrder) {
             setDeliveryFee(0);
             return;
@@ -186,7 +186,7 @@ export default function CheckoutPage() {
         setDeliveryFee(0);
         setIsServiceable(false);
     }
-  }, [selectedAddressId, addresses, subTotal, userOrderCount, paymentSettings]);
+  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -420,7 +420,7 @@ export default function CheckoutPage() {
   }
 
   const isProcessing = isLoading || isProcessingPayment;
-  const isFirstOrder = userOrderCount === 0;
+  const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
     <>
