@@ -37,6 +37,7 @@ interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSaveSuccess: (newAddressId: string) => void;
+    apiUrl?: string | null;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -66,7 +67,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -75,6 +76,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
 
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -106,27 +108,27 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
     useEffect(() => {
         if (!isOpen) {
             setIsLoading(true);
+            setError(null);
             setStreet('');
             setPhone('');
             return;
         }
         let isMounted = true;
-        const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
-
-        if (!apiKey || apiKey.startsWith('REPLACE_WITH_')) {
+        
+        if (!apiUrl) {
+            setError("Map API URL is not configured in settings.");
             setIsLoading(false);
             return;
         }
-        
-        const scriptSrc = `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
 
-        loadScript(scriptSrc, MAP_SCRIPT_ID)
+        loadScript(apiUrl, MAP_SCRIPT_ID)
             .then(() => {
                 if (isMounted) initMap();
             })
             .catch(err => {
                 console.error(err);
                 if (isMounted) {
+                    setError("Could not load map script. Check the URL in admin settings.");
                     toast({ title: "Error", description: "Could not load map script.", variant: "destructive" });
                     setIsLoading(false);
                 }
@@ -134,7 +136,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
         
         return () => { isMounted = false; }
         
-    }, [isOpen, initMap, toast]);
+    }, [isOpen, initMap, toast, apiUrl]);
 
     const handleSaveAddress = async () => {
         if (!user) {
@@ -200,8 +202,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
         }
     };
 
-    const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl">
@@ -219,9 +219,9 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
                                 <p className="text-muted-foreground mt-4">Loading Map...</p>
                             </div>
                         )}
-                        {(!apiKey || apiKey.startsWith('REPLACE_WITH_')) && !isLoading && (
-                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                                <p className="text-destructive font-semibold">Map is not configured.</p>
+                        {error && !isLoading && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                                <p className="text-destructive font-semibold">{error}</p>
                             </div>
                         )}
                         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
@@ -249,7 +249,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSaveAddress} disabled={isLoading || isProcessing || !apiKey || apiKey.startsWith('REPLACE_WITH_')}>
+                    <Button onClick={handleSaveAddress} disabled={isLoading || isProcessing || !!error}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
                         {isProcessing ? 'Saving...' : 'Save Address'}
                     </Button>

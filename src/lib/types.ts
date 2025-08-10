@@ -134,6 +134,7 @@ export interface PaymentSettings {
   isDeliveryFeeEnabled: boolean;
   deliveryRadiusKm?: number;
   orderExpirationMinutes?: number;
+  mapApiUrl?: string;
 }
 
 export interface DailyChartData {

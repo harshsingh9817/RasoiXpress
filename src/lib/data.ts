@@ -104,6 +104,7 @@ const defaultPaymentSettings: PaymentSettings = {
     isDeliveryFeeEnabled: true,
     deliveryRadiusKm: 5,
     orderExpirationMinutes: 5,
+    mapApiUrl: ""
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {

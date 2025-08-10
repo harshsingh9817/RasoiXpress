@@ -34,12 +34,14 @@ import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const paymentSettingsSchema = z.object({
   isRazorpayEnabled: z.boolean().optional(),
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
+  mapApiUrl: z.string().url("Please enter a valid URL.").optional(),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -57,6 +59,7 @@ export default function PaymentSettingsPage() {
       isDeliveryFeeEnabled: true,
       deliveryRadiusKm: 5,
       orderExpirationMinutes: 5,
+      mapApiUrl: "",
     },
   });
 
@@ -73,6 +76,7 @@ export default function PaymentSettingsPage() {
           isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           deliveryRadiusKm: data.deliveryRadiusKm || 5,
           orderExpirationMinutes: data.orderExpirationMinutes || 5,
+          mapApiUrl: data.mapApiUrl || "",
         });
       }
       loadSettings();
@@ -87,6 +91,7 @@ export default function PaymentSettingsPage() {
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         deliveryRadiusKm: data.deliveryRadiusKm,
         orderExpirationMinutes: data.orderExpirationMinutes,
+        mapApiUrl: data.mapApiUrl,
       });
       toast({
         title: "Settings Updated",
@@ -210,12 +215,22 @@ export default function PaymentSettingsPage() {
               
               <Separator />
 
-              <div className="space-y-2">
-                <h3 className="font-medium flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro API Key</h3>
-                 <p className="text-sm text-muted-foreground">
-                    This key is used for the location picker and rider direction maps. It must be configured in your <code className="bg-muted px-1 py-0.5 rounded">.env</code> file under the variable <code className="bg-muted px-1 py-0.5 rounded">NEXT_PUBLIC_GOMAPS_API_KEY</code>.
-                 </p>
-              </div>
+              <FormField
+                control={form.control}
+                name="mapApiUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro Script URL</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="https://maps.gomaps.pro/maps/api/js?key=YOUR_API_KEY..." {...field} value={field.value ?? ''} rows={3} />
+                    </FormControl>
+                      <FormDescription>
+                          This URL is used for the location picker and rider direction maps. Get it from your GoMaps Pro dashboard.
+                      </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
             </CardContent>
              <CardFooter>

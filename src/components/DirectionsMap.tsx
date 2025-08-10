@@ -21,6 +21,7 @@ interface DirectionsMapProps {
     destinationCoords?: { lat: number; lng: number };
     riderCoords?: { lat: number; lng: number } | null;
     view?: 'default' | 'satellite';
+    apiUrl?: string | null;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -65,7 +66,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 
-export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default' }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default', apiUrl }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<google.maps.Map | null>(null);
     const riderMarker = useRef<google.maps.Marker | null>(null);
@@ -132,14 +133,12 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     
     useEffect(() => {
       let isMounted = true;
-      const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
-
-      if (!apiKey || apiKey.startsWith('REPLACE_WITH_')) {
-        setError("Map API key is not configured.");
+      
+      if (!apiUrl) {
+        setError("Map API URL is not configured in settings.");
         setIsLoading(false);
         return;
       }
-      const apiUrl = `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
   
       setIsLoading(true);
   
@@ -152,7 +151,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
         .catch((err) => {
           console.error(err);
           if (isMounted) {
-            setError("Could not load map script.");
+            setError("Could not load map script. Check the URL in admin settings.");
             toast({
               title: "Error",
               description: "Could not load the map.",
@@ -163,7 +162,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
         });
   
       return () => { isMounted = false; };
-    }, [initMap, toast]);
+    }, [initMap, toast, apiUrl]);
 
     useEffect(() => {
         if (!mapInstance.current || !window.google?.maps) return;
