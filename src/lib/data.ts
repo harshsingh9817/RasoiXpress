@@ -208,16 +208,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
 
     if (supabase) {
         try {
-            let distanceInKm = null;
-            if (newOrder.shippingLat && newOrder.shippingLng) {
-                distanceInKm = getDistance(
-                    RESTAURANT_COORDS.lat,
-                    RESTAURANT_COORDS.lng,
-                    newOrder.shippingLat,
-                    newOrder.shippingLng
-                );
-            }
-
             const supabaseOrderData = {
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
@@ -232,7 +222,8 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 delivery_confirmation_code: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
                 items: newOrder.items,
-                distance_km: distanceInKm ? parseFloat(distanceInKm.toFixed(2)) : null,
+                // distance_km is temporarily removed to prevent crash.
+                // Add it back after creating the column in Supabase.
             };
 
             const { data: supabaseData, error: supabaseError } = await supabase
@@ -413,18 +404,25 @@ export function listenToRiderAppOrders(): () => void {
             const querySnapshot = await getDocs(q);
   
             if (!querySnapshot.empty) {
-              const mainOrderDoc = querySnapshot.docs[0];
-              const mainOrderRef = mainOrderDoc.ref;
-              const status = riderOrderData.status as OrderStatus;
-  
-              const updatedFields: { [key: string]: any } = { status };
-  
-              if (riderOrderData.rider_id) updatedFields.deliveryRiderId = riderOrderData.rider_id;
-              if (riderOrderData.rider_name) updatedFields.deliveryRiderName = riderOrderData.rider_name;
-              if (riderOrderData.rider_phone) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
-              if (riderOrderData.rider_vehicle) updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
-              
-              await updateDoc(mainOrderRef, updatedFields);
+                const mainOrderDoc = querySnapshot.docs[0];
+                const mainOrderRef = mainOrderDoc.ref;
+                const status = riderOrderData.status as OrderStatus;
+    
+                const updatedFields: { [key: string]: any } = {};
+    
+                if (status) {
+                    updatedFields.status = status;
+                }
+    
+                if (riderOrderData.rider_id) updatedFields.deliveryRiderId = riderOrderData.rider_id;
+                if (riderOrderData.rider_name) updatedFields.deliveryRiderName = riderOrderData.rider_name;
+                if (riderOrderData.rider_phone) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
+                if (riderOrderData.rider_vehicle) updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
+                
+                if (Object.keys(updatedFields).length > 0) {
+                    await updateDoc(mainOrderRef, updatedFields);
+                }
+
             } else {
               console.warn(`Could not find matching Firebase order for Supabase UUID: ${supabaseUUID}`);
             }
