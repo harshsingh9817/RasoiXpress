@@ -16,22 +16,47 @@ export const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+let app: FirebaseApp;
+let auth: any;
+let db: any;
+let storage: any;
+
 // This check provides a clear error message if the environment variables are not set.
 if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('REPLACE_WITH_')) {
-    throw new Error('Main Firebase configuration is missing or incomplete. Please update the NEXT_PUBLIC_FIREBASE_ variables in your .env file with the credentials from your Firebase project settings.');
-}
-
-
-// Initialize Firebase
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+    console.warn(`
+      ********************************************************************************
+      *                                                                              *
+      *          Firebase configuration is missing or incomplete!                    *
+      *                                                                              *
+      *   Please update the NEXT_PUBLIC_FIREBASE_ variables in your .env file        *
+      *   with the credentials from your Firebase project settings to enable         *
+      *   database and authentication features.                                      *
+      *                                                                              *
+      ********************************************************************************
+    `);
+    // Initialize with dummy values to prevent app crash
+    const dummyConfig = { apiKey: "dummy", authDomain: "dummy.firebaseapp.com", projectId: "dummy" };
+    app = getApps().length ? getApps()[0] : initializeApp(dummyConfig);
 } else {
-  app = getApps()[0];
+  // Initialize Firebase
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
 }
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+try {
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+} catch (e) {
+  console.error("Error initializing Firebase services. This may be due to missing configuration.");
+  // Assign null or mock objects if initialization fails
+  auth = null;
+  db = null;
+  storage = null;
+}
+
 
 export { app, auth, db, storage };
