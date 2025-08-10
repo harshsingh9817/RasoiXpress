@@ -132,7 +132,6 @@ export interface PaymentSettings {
   qrCodeImageUrl: string;
   isRazorpayEnabled: boolean;
   isDeliveryFeeEnabled: boolean;
-  mapApiUrl: string;
   deliveryRadiusKm?: number;
   orderExpirationMinutes?: number;
 }

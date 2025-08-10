@@ -20,7 +20,6 @@ interface DirectionsMapProps {
     destinationAddress: string;
     destinationCoords?: { lat: number; lng: number };
     riderCoords?: { lat: number; lng: number } | null;
-    apiUrl: string | undefined;
     view?: 'default' | 'satellite';
 }
 
@@ -66,7 +65,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 
-export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, apiUrl, view = 'default' }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default' }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<google.maps.Map | null>(null);
     const riderMarker = useRef<google.maps.Marker | null>(null);
@@ -133,12 +132,14 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     
     useEffect(() => {
       let isMounted = true;
-  
-      if (!apiUrl) {
-        setError("Map API URL is not configured.");
+      const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
+
+      if (!apiKey || apiKey.startsWith('REPLACE_WITH_')) {
+        setError("Map API key is not configured.");
         setIsLoading(false);
         return;
       }
+      const apiUrl = `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
   
       setIsLoading(true);
   
@@ -162,7 +163,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
         });
   
       return () => { isMounted = false; };
-    }, [apiUrl, initMap, toast]);
+    }, [initMap, toast]);
 
     useEffect(() => {
         if (!mapInstance.current || !window.google?.maps) return;

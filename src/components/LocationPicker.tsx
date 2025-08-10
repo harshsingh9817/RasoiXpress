@@ -37,7 +37,6 @@ interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSaveSuccess: (newAddressId: string) => void;
-    apiUrl: string | undefined;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -67,7 +66,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -112,15 +111,14 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
             return;
         }
         let isMounted = true;
+        const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
 
-        if (!apiUrl) {
+        if (!apiKey || apiKey.startsWith('REPLACE_WITH_')) {
             setIsLoading(false);
             return;
         }
         
-        const url = new URL(apiUrl);
-        url.searchParams.delete('callback');
-        const scriptSrc = url.toString();
+        const scriptSrc = `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
 
         loadScript(scriptSrc, MAP_SCRIPT_ID)
             .then(() => {
@@ -136,7 +134,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
         
         return () => { isMounted = false; }
         
-    }, [isOpen, apiUrl, initMap, toast]);
+    }, [isOpen, initMap, toast]);
 
     const handleSaveAddress = async () => {
         if (!user) {
@@ -202,6 +200,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
         }
     };
 
+    const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl">
@@ -219,7 +219,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                                 <p className="text-muted-foreground mt-4">Loading Map...</p>
                             </div>
                         )}
-                        {!apiUrl && !isLoading && (
+                        {(!apiKey || apiKey.startsWith('REPLACE_WITH_')) && !isLoading && (
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
                                 <p className="text-destructive font-semibold">Map is not configured.</p>
                             </div>
@@ -249,7 +249,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSaveAddress} disabled={isLoading || isProcessing || !apiUrl}>
+                    <Button onClick={handleSaveAddress} disabled={isLoading || isProcessing || !apiKey || apiKey.startsWith('REPLACE_WITH_')}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
                         {isProcessing ? 'Saving...' : 'Save Address'}
                     </Button>
