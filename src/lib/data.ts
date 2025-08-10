@@ -208,6 +208,11 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
 
     if (supabase) {
         try {
+            let distance = 0;
+            if (newOrder.shippingLat && newOrder.shippingLng) {
+                distance = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, newOrder.shippingLat, newOrder.shippingLng);
+            }
+
             const supabaseOrderData = {
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
@@ -222,8 +227,7 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 delivery_confirmation_code: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
                 items: newOrder.items,
-                // distance_km is temporarily removed to prevent crash.
-                // Add it back after creating the column in Supabase.
+                distance_km: distance,
             };
 
             const { data: supabaseData, error: supabaseError } = await supabase
@@ -331,8 +335,11 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin
     const menuItemsCol = collection(db, 'menuItems');
     let q;
     if (isAdmin) {
+      // Admin gets all items, and we avoid the composite index by just ordering by name.
+      // Filtering can be done on the client if needed.
       q = query(menuItemsCol, orderBy("name"));
     } else {
+      // Users only get visible items, this query requires a composite index.
       q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     }
     return onSnapshot(q, (snapshot) => {
@@ -414,10 +421,11 @@ export function listenToRiderAppOrders(): () => void {
                     updatedFields.status = status;
                 }
     
-                if (riderOrderData.rider_id) updatedFields.deliveryRiderId = riderOrderData.rider_id;
-                if (riderOrderData.rider_name) updatedFields.deliveryRiderName = riderOrderData.rider_name;
-                if (riderOrderData.rider_phone) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
-                if (riderOrderData.rider_vehicle) updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
+                // Only add fields if they are not null or undefined
+                if (riderOrderData.rider_id != null) updatedFields.deliveryRiderId = riderOrderData.rider_id;
+                if (riderOrderData.rider_name != null) updatedFields.deliveryRiderName = riderOrderData.rider_name;
+                if (riderOrderData.rider_phone != null) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
+                if (riderOrderData.rider_vehicle != null) updatedFields.deliveryRiderVehicle = riderOrderData.rider_vehicle;
                 
                 if (Object.keys(updatedFields).length > 0) {
                     await updateDoc(mainOrderRef, updatedFields);
