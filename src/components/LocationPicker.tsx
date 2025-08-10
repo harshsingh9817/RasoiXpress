@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { addAddress, getAddresses } from '@/lib/data';
+import { addAddress, getAddresses, getPaymentSettings } from '@/lib/data';
 import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 import { Loader2, MapPin, User, Home, Phone } from 'lucide-react';
@@ -42,8 +42,12 @@ interface LocationPickerProps {
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
+        if (!src) {
+            reject(new Error("Map script URL is empty."));
+            return;
+        }
         let script = document.getElementById(id) as HTMLScriptElement;
-        if (script && script.src === src) { // Check if the existing script is the same
+        if (script && script.src === src) {
             const checkGoogle = () => {
                 if (window.google && window.google.maps) {
                     resolve();
@@ -55,7 +59,6 @@ const loadScript = (src: string, id: string): Promise<void> => {
             return;
         }
 
-        // If script exists but with a different URL, remove it first
         if (script) {
             script.remove();
         }
@@ -72,7 +75,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl: propApiUrl }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -82,6 +85,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [apiUrl, setApiUrl] = useState<string | null>(propApiUrl || null);
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -120,28 +124,31 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
         }
         let isMounted = true;
         
-        if (!apiUrl) {
-            setError("Map API URL is not configured in settings.");
-            setIsLoading(false);
-            return;
-        }
-
-        loadScript(apiUrl, MAP_SCRIPT_ID)
-            .then(() => {
+        const fetchAndLoadMap = async () => {
+            try {
+                const settings = await getPaymentSettings();
+                const url = settings.mapApiUrl;
+                if (!url) {
+                    throw new Error("Map API URL is not configured in admin settings.");
+                }
+                setApiUrl(url);
+                await loadScript(url, MAP_SCRIPT_ID);
                 if (isMounted) initMap();
-            })
-            .catch(err => {
+            } catch (err: any) {
                 console.error(err);
                 if (isMounted) {
-                    setError("Could not load map script. Check the URL in admin settings.");
-                    toast({ title: "Error", description: "Could not load map script.", variant: "destructive" });
+                    setError(err.message || "Could not load map script.");
+                    toast({ title: "Error", description: err.message, variant: "destructive" });
                     setIsLoading(false);
                 }
-            });
+            }
+        };
+
+        fetchAndLoadMap();
         
         return () => { isMounted = false; }
         
-    }, [isOpen, initMap, toast, apiUrl]);
+    }, [isOpen, initMap, toast]);
 
     const handleSaveAddress = async () => {
         if (!user) {

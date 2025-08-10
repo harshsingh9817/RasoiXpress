@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getPaymentSettings } from '@/lib/data';
 
 export async function POST(request: Request) {
   try {
@@ -7,10 +8,21 @@ export async function POST(request: Request) {
     if (!lat || !lng) {
       return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
     }
+    
+    // Fetch the dynamic GoMaps URL from Firestore settings
+    const settings = await getPaymentSettings();
+    const apiUrl = settings.mapApiUrl;
 
-    const apiKey = process.env.NEXT_PUBLIC_GOMAPS_API_KEY;
+    if (!apiUrl) {
+        return NextResponse.json({ error: 'GoMaps API URL is not configured in admin settings.' }, { status: 500 });
+    }
+
+    // Extract the API key from the full script URL
+    const urlParams = new URLSearchParams(apiUrl.split('?')[1]);
+    const apiKey = urlParams.get('key');
+    
     if (!apiKey) {
-      return NextResponse.json({ error: 'GoMaps API key is not configured.' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not extract a valid API key from the GoMaps URL in settings.' }, { status: 500 });
     }
 
     const response = await fetch(

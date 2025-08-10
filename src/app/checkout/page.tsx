@@ -548,7 +548,6 @@ export default function CheckoutPage() {
         isOpen={isMapOpen} 
         onOpenChange={setIsMapOpen} 
         onSaveSuccess={handleNewAddressAdded}
-        apiUrl={paymentSettings?.mapApiUrl}
      />
      
     <Dialog open={isEditAddressDialogOpen} onOpenChange={setIsEditAddressDialogOpen}>
