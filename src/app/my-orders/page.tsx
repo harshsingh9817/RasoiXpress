@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, type FormEvent, useCallback } from 'react';
@@ -14,12 +13,16 @@ import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders, getPaymentSettings, getUserProfile } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import DirectionsMap from '@/components/DirectionsMap';
+import { supabase } from '@/lib/supabase';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Accepted by Rider', 'Delivered' ];
 const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Accepted by Rider': UserCheck, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
@@ -35,6 +38,9 @@ export default function MyOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
+    const [paymentSettings, setPaymentSettings] = useState<any>(null);
+    const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [userProfile, setUserProfile] = useState<any | null>(null);
 
     // Dialog states
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -59,6 +65,9 @@ export default function MyOrdersPage() {
         }
         
         setIsLoading(true);
+        getPaymentSettings().then(setPaymentSettings);
+        getUserProfile(firebaseUser.uid).then(setUserProfile);
+
         const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             setOrders(userOrders);
 
@@ -82,6 +91,43 @@ export default function MyOrdersPage() {
             unsubscribeRiderUpdates();
         };
     }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams]);
+
+    useEffect(() => {
+      if (!trackedOrder || !trackedOrder.supabase_order_uuid || !supabase) {
+        setRiderLocation(null);
+        return;
+      }
+    
+      const isTrackableStatus = trackedOrder.status === 'Accepted by Rider' || trackedOrder.status === 'Out for Delivery';
+    
+      if (!isTrackableStatus) {
+        setRiderLocation(null);
+        return;
+      }
+    
+      const channel = supabase
+        .channel(`rider-location-${trackedOrder.supabase_order_uuid}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'rider_locations',
+            filter: `order_id=eq.${trackedOrder.supabase_order_uuid}`,
+          },
+          (payload) => {
+            if (payload.new && 'lat' in payload.new && 'lng' in payload.new) {
+              const { lat, lng } = payload.new;
+              setRiderLocation({ lat, lng });
+            }
+          }
+        )
+        .subscribe();
+    
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [trackedOrder]);
 
 
     const handleTrackOrderFromList = (order: Order) => {
@@ -186,6 +232,21 @@ export default function MyOrdersPage() {
                         <CardDescription>Current Status: <span className={cn("font-bold", getStatusColor(trackedOrder.status))}>{trackedOrder.status}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
+                    {(trackedOrder.status === 'Accepted by Rider' || trackedOrder.status === 'Out for Delivery') && paymentSettings && (
+                        <div className="mb-4">
+                            <DirectionsMap
+                                destinationAddress={trackedOrder.shippingAddress}
+                                destinationCoords={
+                                    trackedOrder.shippingLat && trackedOrder.shippingLng
+                                    ? { lat: trackedOrder.shippingLat, lng: trackedOrder.shippingLng }
+                                    : undefined
+                                }
+                                riderCoords={riderLocation}
+                                apiUrl={paymentSettings.mapApiUrl}
+                                view="default"
+                            />
+                        </div>
+                    )}
                     {trackedOrder.deliveryRiderName && (
                         <Card className="mb-4 bg-primary/5 border-primary/20">
                             <CardHeader>
@@ -261,7 +322,18 @@ export default function MyOrdersPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {orders.length > 0 ? (
-                           orders.map(order => (
+                           orders.map(order => {
+                             const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+                             const showTrackingGuide = isFirstOrder && order.status === 'Accepted by Rider';
+                            
+                             const trackButton = (
+                                 <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)} className={cn(showTrackingGuide && 'relative animate-pulse border-primary ring-2 ring-primary')}>
+                                    {showTrackingGuide && <span className="absolute -left-1 -top-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span></span>}
+                                     <PackageSearch className="mr-2 h-4 w-4" />Track
+                                 </Button>
+                             );
+
+                             return (
                              <Card key={order.id} className="bg-muted/30">
                                <CardHeader>
                                  <div className="flex justify-between items-start">
@@ -325,14 +397,26 @@ export default function MyOrdersPage() {
                                   <Separator />
 
                                   <div className="flex flex-wrap gap-2">
-                                     <Button variant="outline" size="sm" onClick={() => handleTrackOrderFromList(order)}><PackageSearch className="mr-2 h-4 w-4" />Track</Button>
+                                     {showTrackingGuide ? (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>{trackButton}</TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Click here to see the rider on the map!</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                     ) : (
+                                        trackButton
+                                     )}
                                      <Button variant="outline" size="sm" onClick={() => handleOpenBillDialog(order)}><FileText className="mr-2 h-4 w-4" />View Bill</Button>
                                      {order.status === 'Order Placed' && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}
                                      {order.status === 'Delivered' && !order.review && <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => handleOpenReviewDialog(order)}><Star className="mr-2 h-4 w-4" />Leave Review</Button>}
                                   </div>
                                 </CardContent>
                              </Card>
-                           ))
+                           );
+                           })
                         ) : (
                            <div className="text-center py-10">
                              <PackageSearch className="mx-auto h-16 w-16 text-muted-foreground/50" />
@@ -458,4 +542,3 @@ export default function MyOrdersPage() {
         </div>
     );
 }
-

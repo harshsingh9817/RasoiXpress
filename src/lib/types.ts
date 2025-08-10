@@ -37,8 +37,8 @@ export type OrderStatus =
   | 'Order Placed'
   | 'Confirmed'
   | 'Preparing'
-  | 'Accepted by Rider'
   | 'Out for Delivery'
+  | 'Accepted by Rider'
   | 'Delivered'
   | 'Cancelled'
   | 'Expired';
