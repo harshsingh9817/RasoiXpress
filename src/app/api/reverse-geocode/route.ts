@@ -11,22 +11,32 @@ export async function POST(request: Request) {
     
     // Fetch the dynamic GoMaps URL from Firestore settings
     const settings = await getPaymentSettings();
-    const apiUrl = settings.mapApiUrl;
+    const mapScriptUrl = settings.mapApiUrl;
 
-    if (!apiUrl) {
-        return NextResponse.json({ error: 'GoMaps API URL is not configured in admin settings.' }, { status: 500 });
+    if (!mapScriptUrl) {
+        return NextResponse.json({ error: 'Map API URL is not configured in admin settings.' }, { status: 500 });
     }
 
-    // Extract the API key from the full script URL
-    const urlParams = new URLSearchParams(apiUrl.split('?')[1]);
-    const apiKey = urlParams.get('key');
+    // Robustly extract the API key from the full script URL
+    let apiKey: string | null = null;
+    try {
+        const url = new URL(mapScriptUrl);
+        apiKey = url.searchParams.get('key');
+    } catch (e) {
+        return NextResponse.json({ error: 'The provided Map API URL is not a valid URL.' }, { status: 500 });
+    }
     
     if (!apiKey) {
-      return NextResponse.json({ error: 'Could not extract a valid API key from the GoMaps URL in settings.' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not extract a valid API key from the Map API URL in settings.' }, { status: 500 });
     }
 
+    // Determine the correct geocoding endpoint based on the URL's domain
+    const geocodeApiHost = mapScriptUrl.includes('gomaps.pro') 
+        ? 'https://maps.gomaps.pro' 
+        : 'https://maps.googleapis.com';
+
     const response = await fetch(
-      `https://maps.gomaps.pro/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
+      `${geocodeApiHost}/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
     );
 
     const data = await response.json();
