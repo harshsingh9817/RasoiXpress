@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { PT_Sans } from 'next/font/google'; // Import PT Sans
 import './globals.css';
 import { CartProvider } from '@/contexts/CartContext';
@@ -12,6 +12,7 @@ import BottomNav from '@/components/BottomNav';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 import LayoutClientManager from '@/components/LayoutClientManager';
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ZoomLock from '@/components/ZoomLock';
 
 // Configure the font
 const ptSans = PT_Sans({
@@ -23,6 +24,14 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: 'Rasoi Xpress - Fast Food Delivery',
   description: 'Order your favorite food online with Rasoi Xpress from the best restaurants near you.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: false,
+  shrinkToFit: 'no',
 };
 
 export default function RootLayout({
@@ -43,6 +52,7 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               <LayoutClientManager>
+                <ZoomLock />
                 <ServiceWorkerRegistrar />
                 <Header />
                 <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8 flex-grow">
