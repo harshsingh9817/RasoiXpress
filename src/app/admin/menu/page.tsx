@@ -204,7 +204,7 @@ export default function MenuManagementPage() {
                 <CardDescription>
                   Add, edit, or remove food items available across all restaurants.
                   <p className="mt-1">
-                    Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a> or <a href="https://www.yummytummyaarthi.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Yummy Tummy Aarthi</a>.
+                    Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH</a>, <a href="https://www.yummytummyaarthi.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Yummy Tummy Aarthi</a>, or use <a href="https://google.com/drive" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google Drive</a>.
                   </p>
                 </CardDescription>
               </div>
