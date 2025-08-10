@@ -43,7 +43,7 @@ interface LocationPickerProps {
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         let script = document.getElementById(id) as HTMLScriptElement;
-        if (script) {
+        if (script && script.src === src) { // Check if the existing script is the same
             const checkGoogle = () => {
                 if (window.google && window.google.maps) {
                     resolve();
@@ -53,6 +53,11 @@ const loadScript = (src: string, id: string): Promise<void> => {
             };
             checkGoogle();
             return;
+        }
+
+        // If script exists but with a different URL, remove it first
+        if (script) {
+            script.remove();
         }
 
         script = document.createElement('script');
