@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { getPaymentSettings } from '@/lib/data';
 
@@ -9,28 +10,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
     }
     
-    // Fetch the dynamic GoMaps URL from Firestore settings
     const settings = await getPaymentSettings();
-    const mapScriptUrl = settings.mapApiUrl;
+    let mapScriptUrl = settings.mapApiUrl;
 
     if (!mapScriptUrl) {
         return NextResponse.json({ error: 'Map API URL is not configured in admin settings.' }, { status: 500 });
     }
+    
+    // Ensure the URL has a protocol, which is required by the URL constructor.
+    if (!mapScriptUrl.startsWith('http://') && !mapScriptUrl.startsWith('https://')) {
+        mapScriptUrl = 'https://' + mapScriptUrl;
+    }
 
-    // Robustly extract the API key from the full script URL
     let apiKey: string | null = null;
     try {
         const url = new URL(mapScriptUrl);
         apiKey = url.searchParams.get('key');
     } catch (e) {
-        return NextResponse.json({ error: 'The provided Map API URL is not a valid URL.' }, { status: 500 });
+        console.error("Failed to parse map script URL:", e);
+        return NextResponse.json({ error: 'The provided Map API URL is not a valid URL format.' }, { status: 500 });
     }
     
     if (!apiKey) {
       return NextResponse.json({ error: 'Could not extract a valid API key from the Map API URL in settings.' }, { status: 500 });
     }
 
-    // Determine the correct geocoding endpoint based on the URL's domain
     const geocodeApiHost = mapScriptUrl.includes('gomaps.pro') 
         ? 'https://maps.gomaps.pro' 
         : 'https://maps.googleapis.com';
