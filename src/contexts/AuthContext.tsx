@@ -16,10 +16,12 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where } from 'firebase/firestore';
 import { getAddresses } from '@/lib/data';
 
 interface AuthContextType {
@@ -64,18 +66,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setIsAdmin(currentUser.email === 'harshsingh9817@gmail.com');
-      } else {
-        setUser(null);
-        setIsAdmin(false);
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    const initializeAuth = async () => {
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+        } catch (error) {
+            console.error("Failed to set auth persistence:", error);
+        }
+
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                setIsAdmin(currentUser.email === 'harshsingh9817@gmail.com');
+            } else {
+                setUser(null);
+                setIsAdmin(false);
+            }
+            setIsLoading(false);
+        });
+        return unsubscribe;
+    };
+
+    const unsubscribePromise = initializeAuth();
+
+    return () => {
+        unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+    };
+}, []);
 
   const sendPasswordReset = async (email: string) => {
     if (!email) {
