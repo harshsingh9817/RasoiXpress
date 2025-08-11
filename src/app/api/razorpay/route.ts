@@ -7,9 +7,10 @@ export async function POST(request: Request) {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (!keyId || !keySecret) {
-    console.error("Razorpay API keys are not configured on the server. Please check the .env file.");
-    return NextResponse.json({ error: 'Payment gateway is not configured on the server. Please check your .env file or contact support.' }, { status: 500 });
+  if (!keyId || !keySecret || keyId.startsWith('REPLACE_WITH_') || keySecret.startsWith('REPLACE_WITH_')) {
+    const errorMessage = "Razorpay API keys are not configured correctly on the server. Please check the .env file.";
+    console.error(errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 
   const razorpay = new Razorpay({
