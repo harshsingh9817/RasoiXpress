@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addAddress, getAddresses, getPaymentSettings } from '@/lib/data';
 import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
-import { Loader2, MapPin, User, Home, Phone } from 'lucide-react';
+import { Loader2, MapPin, User, Phone } from 'lucide-react';
 
 const containerStyle: React.CSSProperties = {
   width: '100%',
@@ -37,7 +37,6 @@ interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSaveSuccess: (newAddressId: string) => void;
-    apiUrl?: string | null;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -75,7 +74,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiUrl: propApiUrl }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -85,11 +84,9 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [apiUrl, setApiUrl] = useState<string | null>(propApiUrl || null);
 
     // Form state
     const [fullName, setFullName] = useState('');
-    const [street, setStreet] = useState('');
     const [phone, setPhone] = useState('');
 
     const initMap = useCallback(() => {
@@ -118,7 +115,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
         if (!isOpen) {
             setIsLoading(true);
             setError(null);
-            setStreet('');
             setPhone('');
             return;
         }
@@ -131,7 +127,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                 if (!url) {
                     throw new Error("Map API URL is not configured in admin settings.");
                 }
-                setApiUrl(url);
                 await loadScript(url, MAP_SCRIPT_ID);
                 if (isMounted) initMap();
             } catch (err: any) {
@@ -155,8 +150,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
             toast({ title: "Error", description: "You must be logged in to save an address.", variant: "destructive" });
             return;
         }
-        if (!fullName || !street || !phone) {
-            toast({ title: "Missing Details", description: "Please fill in all the required fields.", variant: "destructive" });
+        if (!fullName || !phone) {
+            toast({ title: "Missing Details", description: "Please fill in your name and phone number.", variant: "destructive" });
             return;
         }
         if (!mapInstanceRef.current) {
@@ -188,8 +183,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
 
             const addressToSave: Omit<Address, 'id'> = {
                 fullName,
-                type: 'Home', // Defaulting to Home, can be changed later
-                street, // This is now the house/building number
+                type: 'Home',
+                street: data.street || data.formattedAddress, // Use street from API, fallback to formatted address
                 village: data.village || '',
                 city: data.city || '',
                 pinCode: data.pinCode || '',
@@ -246,10 +241,6 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-9" />
-                        </div>
-                        <div className="relative">
-                           <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                           <Input placeholder="House No. / Building Name / Street" value={street} onChange={(e) => setStreet(e.target.value)} className="pl-9" />
                         </div>
                         <div className="relative">
                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
