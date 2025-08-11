@@ -5,84 +5,76 @@ service cloud.firestore {
 
     // --- Helper Functions ---
 
-    // Check if a user is authenticated
-    function isAuthenticated() {
+    function isUserAuthenticated() {
       return request.auth != null;
     }
 
-    // Check if the user is the owner of the document
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
-    
-    // Check for the specific admin email
+
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == 'harshsingh9817@gmail.com';
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // --- User Data ---
-
-    // The 'users' collection stores public profiles and private user data.
-    match /users/{userId} {
-      // Admins can read/write any user profile.
-      // Users can only read/write their own profile.
-      allow read, write: if isAdmin() || isOwner(userId);
-
-      // Users can manage their own addresses subcollection.
-      match /addresses/{addressId} {
-        allow read, write: if isAdmin() || isOwner(userId);
-      }
-    }
-    
-    // --- Admin-Only Collections ---
-    
-    // Admins have full control over menu items.
-    match /menuItems/{itemId} {
-      allow read: if isAuthenticated(); // All authenticated users can read the menu
-      allow write: if isAdmin(); // Only admins can create, update, or delete menu items
-    }
-
-    // Admins have full control over coupons.
-    match /coupons/{couponId} {
-        allow read: if isAuthenticated(); // All authenticated users can read coupons
-        allow write: if isAdmin(); // Only admins can manage coupons
-    }
-
-    // --- Shared Data Collections ---
-
-    // Orders can be created by users, and managed by admins.
-    match /orders/{orderId} {
-      // Users can create their own orders and read their own order history.
-      allow create: if isOwner(request.resource.data.user_id);
-      allow read: if isAdmin() || isOwner(resource.data.user_id);
-
-      // Only Admins can update/delete orders. Users can update (cancel) if the status is 'Order Placed'.
-      allow update: if isAdmin() || (isOwner(resource.data.user_id) && resource.data.status == 'Order Placed');
-      allow delete: if isAdmin();
-    }
-    
-    // Globals are read-only for users, writable by admins.
+    // --- Global Data (Read-Only for users) ---
     match /globals/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // --- Messaging and Support ---
-
-    // Admin messages are created by admins, but users can read their own.
-    match /adminMessages/{messageId} {
-      allow create: if isAdmin();
-      allow read: if isAdmin() || isOwner(resource.data.userId);
-      allow write, delete: if isAdmin();
+    // --- Menu Items (Read-Only for users) ---
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
     
-    // Support tickets are created by users, but managed by admins.
-    match /supportTickets/{ticketId} {
-      allow create: if isAuthenticated(); // Any logged-in user can create a ticket.
-      allow read, write, delete: if isAdmin();
+    // --- Coupons (Read-Only for users) ---
+    match /coupons/{couponId} {
+        allow read: if true;
+        allow write: if isAdmin();
     }
 
-    // Default deny all other access
+    // --- User Data (Protected) ---
+    match /users/{userId} {
+      // Admins can read any user profile
+      allow read: if isAdmin() || isOwner(userId);
+      // Users can only create their own profile or update it. Admins can update any profile.
+      allow create, update: if isOwner(userId) || isAdmin();
+      
+      // Addresses are sub-collections of a user
+      match /addresses/{addressId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
+    }
+    
+    // --- Orders (Protected) ---
+    match /orders/{orderId} {
+        // Users can create and read their own orders. Admins can read any order.
+        allow create: if isUserAuthenticated();
+        allow read: if isOwner(resource.data.user_id) || isAdmin();
+        // Users can update their own order only for specific fields like 'review' or 'cancellationReason'.
+        // Admins can update any field.
+        allow update: if (isOwner(resource.data.user_id) && (request.resource.data.keys().hasOnly(['review', 'cancellationReason', 'status']))) || isAdmin();
+        // Only admins can delete orders.
+        allow delete: if isAdmin();
+    }
+
+    // --- Admin Messages (User can only read their own) ---
+    match /adminMessages/{messageId} {
+        allow read: if isOwner(resource.data.userId) || isAdmin();
+        allow write: if isAdmin();
+    }
+
+    // --- Support Tickets (Users create, Admins manage) ---
+    match /supportTickets/{ticketId} {
+        allow create: if isUserAuthenticated();
+        allow read: if isOwner(resource.data.userId) || isAdmin();
+        allow update: if isAdmin(); // Only admins can reply/resolve
+    }
+    
+    // --- Default Deny ---
+    // Deny access to any other collections not explicitly defined.
     match /{path=**} {
       allow read, write: if false;
     }
