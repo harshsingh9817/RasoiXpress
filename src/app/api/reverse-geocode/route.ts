@@ -1,21 +1,19 @@
 
 import { NextResponse } from 'next/server';
-import { getPaymentSettings } from '@/lib/data';
 
 export async function POST(request: Request) {
   try {
-    const { lat, lng } = await request.json();
+    const { lat, lng, apiUrl } = await request.json();
 
     if (!lat || !lng) {
       return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
     }
-    
-    const settings = await getPaymentSettings();
-    let mapScriptUrl = settings.mapApiUrl;
 
-    if (!mapScriptUrl) {
-        return NextResponse.json({ error: 'Map API URL is not configured in admin settings.' }, { status: 500 });
+    if (!apiUrl) {
+      return NextResponse.json({ error: 'Map API URL is missing.' }, { status: 400 });
     }
+    
+    let mapScriptUrl = apiUrl;
     
     // Ensure the URL has a protocol, which is required by the URL constructor.
     if (!mapScriptUrl.startsWith('http://') && !mapScriptUrl.startsWith('https://')) {
@@ -32,7 +30,7 @@ export async function POST(request: Request) {
     }
     
     if (!apiKey) {
-      return NextResponse.json({ error: 'Could not extract a valid API key from the Map API URL in settings.' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not extract a valid API key from the Map API URL.' }, { status: 500 });
     }
 
     const geocodeApiHost = mapScriptUrl.includes('gomaps.pro') 

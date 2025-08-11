@@ -84,6 +84,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [mapApiUrl, setMapApiUrl] = useState<string | null>(null);
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -127,6 +128,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
                 if (!url) {
                     throw new Error("Map API URL is not configured in admin settings.");
                 }
+                setMapApiUrl(url);
                 await loadScript(url, MAP_SCRIPT_ID);
                 if (isMounted) initMap();
             } catch (err: any) {
@@ -158,6 +160,10 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
             toast({ title: "Map Error", description: "The map is not initialized. Please try again.", variant: "destructive" });
             return;
         }
+        if (!mapApiUrl) {
+            toast({ title: "Configuration Error", description: "Map API URL could not be loaded.", variant: "destructive" });
+            return;
+        }
 
         setIsProcessing(true);
         try {
@@ -171,7 +177,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat, lng }),
+                body: JSON.stringify({ lat, lng, apiUrl: mapApiUrl }),
             });
 
             const data = await response.json();
@@ -184,7 +190,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
             const addressToSave: Omit<Address, 'id'> = {
                 fullName,
                 type: 'Home',
-                street: data.street || data.formattedAddress, // Use street from API, fallback to formatted address
+                street: data.street || data.formattedAddress,
                 village: data.village || '',
                 city: data.city || '',
                 pinCode: data.pinCode || '',
