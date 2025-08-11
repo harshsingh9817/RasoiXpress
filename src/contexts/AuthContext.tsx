@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import {
   type User,
@@ -21,7 +21,7 @@ import {
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { getAddresses } from '@/lib/data';
 
 interface AuthContextType {
@@ -62,7 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,6 +169,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!email || !password || !fullName || !mobileNumber) {
       toast({ title: 'Signup Error', description: 'All fields are required.', variant: 'destructive' });
       return;
+    }
+    if (!/^\d{10}$/.test(mobileNumber)) {
+        toast({ title: "Invalid Mobile Number", description: "Please enter a valid 10-digit mobile number.", variant: "destructive" });
+        return;
     }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
