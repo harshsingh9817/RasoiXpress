@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,19 +11,16 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Smartphone, Bell, BellOff, Sun, Moon, Laptop, AlertCircle } from 'lucide-react';
+import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Bell, BellOff, Sun, Moon, Laptop, AlertCircle } from 'lucide-react';
 import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/lib/data';
+import { getAddresses, deleteAddress, setDefaultAddress } from '@/lib/data';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { useTheme } from 'next-themes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-const defaultAddressFormData: Omit<AddressType, 'id' | 'isDefault'> = { fullName: '', type: 'Home', street: '', village: '', city: '', pinCode: '', phone: '', alternatePhone: '' };
+import LocationPicker from '@/components/LocationPicker';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -37,9 +34,8 @@ export default function ProfilePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
-  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
-  const [currentAddressFormData, setCurrentAddressFormData] = useState<Omit<AddressType, 'id' | 'isDefault'>>(defaultAddressFormData);
 
   const isSetupMode = searchParams.get('setup') === 'true';
 
@@ -48,10 +44,10 @@ export default function ProfilePage() {
     setIsDataLoading(true);
     try {
         const userAddresses = await getAddresses(firebaseUser.uid);
-        setAddresses(userAddresses);
+        const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+        setAddresses(sortedAddresses);
 
-        // If in setup mode and user now has an address, remove the query param
-        if (isSetupMode && userAddresses.length > 0) {
+        if (isSetupMode && sortedAddresses.length > 0) {
             router.replace('/profile', { scroll: false });
         }
     } catch (error) {
@@ -75,7 +71,7 @@ export default function ProfilePage() {
     if (tabFromUrl && ['addresses', 'settings'].includes(tabFromUrl)) {
         setActiveTab(tabFromUrl);
     } else {
-        setActiveTab('addresses'); // Default to addresses
+        setActiveTab('addresses');
     }
   }, [isAuthenticated, isAuthLoading, router, searchParams]);
 
@@ -89,7 +85,6 @@ export default function ProfilePage() {
     if (!isDataLoading && isSetupMode && addresses.length === 0) {
       handleOpenAddAddressDialog();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDataLoading, isSetupMode, addresses]);
 
   const handleSetDefaultAddress = async (addressId: string) => {
@@ -106,38 +101,14 @@ export default function ProfilePage() {
 
   const handleOpenAddAddressDialog = () => {
     setAddressToEdit(null);
-    setCurrentAddressFormData({...defaultAddressFormData, fullName: firebaseUser?.displayName || ''});
-    setIsAddressDialogOpen(true);
+    setIsMapPickerOpen(true);
   };
 
   const handleOpenEditAddressDialog = (address: AddressType) => {
     setAddressToEdit(address);
-    setCurrentAddressFormData({ fullName: address.fullName, type: address.type, street: address.street, village: address.village || '', city: address.city, pinCode: address.pinCode, phone: address.phone, alternatePhone: address.alternatePhone || '' });
-    setIsAddressDialogOpen(true);
+    setIsMapPickerOpen(true);
   };
 
-  const handleAddressFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleAddressTypeChange = (value: AddressType['type']) => {
-    setCurrentAddressFormData(prev => ({ ...prev, type: value }));
-  };
-
-  const handleAddressFormSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!firebaseUser) return;
-    if (addressToEdit) {
-      await updateAddress(firebaseUser.uid, { ...addressToEdit, ...currentAddressFormData });
-    } else {
-      const existingAddresses = await getAddresses(firebaseUser.uid);
-      const newAddressData = { ...currentAddressFormData, isDefault: existingAddresses.length === 0 };
-      await addAddress(firebaseUser.uid, newAddressData);
-    }
-    await loadUserData();
-    setIsAddressDialogOpen(false);
-  };
-  
   const handleRequestNotificationPermission = () => {
     if (!('Notification' in window)) {
         toast({ title: "Unsupported Browser", description: "This browser does not support desktop notifications.", variant: "destructive" });
@@ -162,6 +133,7 @@ export default function ProfilePage() {
   }
 
   return (
+    <>
     <div className="max-w-5xl mx-auto space-y-8">
        <section className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6 mb-8 p-6 bg-primary/5 rounded-xl shadow-xl border border-primary/20">
         <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary/30 shadow-lg ring-2 ring-primary/20">
@@ -287,10 +259,13 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
       </Tabs>
-      
-      <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
-        <DialogContent><DialogHeader><DialogTitle>{addressToEdit ? 'Edit' : 'Add'} Address</DialogTitle></DialogHeader><form onSubmit={handleAddressFormSubmit}><div className="grid gap-4 py-4"><Input name="fullName" value={currentAddressFormData.fullName} onChange={handleAddressFormChange} required placeholder="Full Name" /><Select name="type" value={currentAddressFormData.type} onValueChange={handleAddressTypeChange}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Home">Home</SelectItem><SelectItem value="Work">Work</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><Input name="street" value={currentAddressFormData.street} onChange={handleAddressFormChange} required placeholder="Street"/><Input name="village" value={currentAddressFormData.village || ''} onChange={handleAddressFormChange} placeholder="Village/Area (Optional)" /><Input name="city" value={currentAddressFormData.city} onChange={handleAddressFormChange} required placeholder="City" /><Input name="pinCode" value={currentAddressFormData.pinCode} onChange={handleAddressFormChange} required placeholder="Pin Code" /><Input name="phone" type="tel" value={currentAddressFormData.phone} onChange={handleAddressFormChange} required placeholder="Phone" /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><Button type="submit">{addressToEdit ? 'Save' : 'Add'}</Button></DialogFooter></form></DialogContent>
-      </Dialog>
     </div>
+    <LocationPicker
+        isOpen={isMapPickerOpen}
+        onOpenChange={setIsMapPickerOpen}
+        onSaveSuccess={loadUserData}
+        addressToEdit={addressToEdit}
+    />
+    </>
   );
 }

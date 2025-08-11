@@ -15,10 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { addAddress, getAddresses, getPaymentSettings } from '@/lib/data';
+import { addAddress, getAddresses, getPaymentSettings, updateAddress } from '@/lib/data';
 import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
-import { Loader2, MapPin, User, Phone } from 'lucide-react';
+import { Loader2, MapPin, User, Phone, LocateFixed } from 'lucide-react';
 
 const containerStyle: React.CSSProperties = {
   width: '100%',
@@ -36,7 +36,8 @@ const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 interface LocationPickerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSaveSuccess: (newAddressId: string) => void;
+    onSaveSuccess: (newAddressId?: string) => void;
+    addressToEdit?: Address | null;
 }
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -74,7 +75,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, addressToEdit }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -95,28 +96,37 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
 
         setIsLoading(false);
 
+        const initialCenter = addressToEdit && addressToEdit.lat && addressToEdit.lng
+            ? { lat: addressToEdit.lat, lng: addressToEdit.lng }
+            : defaultCenter;
+
         const map = new window.google.maps.Map(mapRef.current, {
-            center: defaultCenter,
-            zoom: 15,
+            center: initialCenter,
+            zoom: 17,
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
         });
         mapInstanceRef.current = map;
 
-    }, []);
+    }, [addressToEdit]);
 
     useEffect(() => {
-        if (user?.displayName) {
-            setFullName(user.displayName);
+        if (isOpen) {
+            if (addressToEdit) {
+                setFullName(addressToEdit.fullName || user?.displayName || '');
+                setPhone(addressToEdit.phone || '');
+            } else {
+                setFullName(user?.displayName || '');
+                setPhone('');
+            }
         }
-    }, [user, isOpen]);
+    }, [user, isOpen, addressToEdit]);
     
     useEffect(() => {
         if (!isOpen) {
             setIsLoading(true);
             setError(null);
-            setPhone('');
             return;
         }
         let isMounted = true;
@@ -147,6 +157,28 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
         
     }, [isOpen, initMap, toast]);
 
+    const handleUseCurrentLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const newCenter = new window.google.maps.LatLng(latitude, longitude);
+                    mapInstanceRef.current?.setCenter(newCenter);
+                    mapInstanceRef.current?.setZoom(18);
+                },
+                () => {
+                    toast({
+                        title: "Location Access Denied",
+                        description: "Please enable location services in your browser settings to use this feature.",
+                        variant: "destructive"
+                    });
+                }
+            );
+        } else {
+            toast({ title: "Geolocation not supported", variant: "destructive" });
+        }
+    };
+
     const handleSaveAddress = async () => {
         if (!user) {
             toast({ title: "Error", description: "You must be logged in to save an address.", variant: "destructive" });
@@ -154,6 +186,10 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
         }
         if (!fullName || !phone) {
             toast({ title: "Missing Details", description: "Please fill in your name and phone number.", variant: "destructive" });
+            return;
+        }
+         if (!/^\d{10}$/.test(phone)) {
+            toast({ title: "Invalid Phone Number", description: "Please enter a valid 10-digit mobile number.", variant: "destructive" });
             return;
         }
         if (!mapInstanceRef.current) {
@@ -177,7 +213,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat, lng, apiUrl: mapApiUrl }),
+                body: JSON.stringify({ lat, lng }),
             });
 
             const data = await response.json();
@@ -185,26 +221,44 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
                 throw new Error(data.error || 'Failed to get address.');
             }
             
-            const existingAddresses = await getAddresses(user.uid);
+            if (addressToEdit) {
+                 const updatedAddressData: Address = {
+                    ...addressToEdit,
+                    fullName,
+                    phone,
+                    street: data.street || data.formattedAddress,
+                    village: data.village || '',
+                    city: data.city || '',
+                    pinCode: data.pinCode || '',
+                    lat,
+                    lng,
+                 };
+                 await updateAddress(user.uid, updatedAddressData);
+                 toast({ title: "Address Updated!", description: "Your address has been successfully updated." });
+                 onSaveSuccess();
+            } else {
+                const existingAddresses = await getAddresses(user.uid);
 
-            const addressToSave: Omit<Address, 'id'> = {
-                fullName,
-                type: 'Home',
-                street: data.street || data.formattedAddress,
-                village: data.village || '',
-                city: data.city || '',
-                pinCode: data.pinCode || '',
-                phone,
-                alternatePhone: '',
-                isDefault: existingAddresses.length === 0,
-                lat: lat,
-                lng: lng,
-            };
+                const addressToSave: Omit<Address, 'id'> = {
+                    fullName,
+                    type: 'Home',
+                    street: data.street || data.formattedAddress,
+                    village: data.village || '',
+                    city: data.city || '',
+                    pinCode: data.pinCode || '',
+                    phone,
+                    alternatePhone: '',
+                    isDefault: existingAddresses.length === 0,
+                    lat: lat,
+                    lng: lng,
+                };
 
-            const newAddress = await addAddress(user.uid, addressToSave);
+                const newAddress = await addAddress(user.uid, addressToSave);
 
-            toast({ title: "Address Saved!", description: "The new address has been added to your profile." });
-            onSaveSuccess(newAddress.id);
+                toast({ title: "Address Saved!", description: "The new address has been added to your profile." });
+                onSaveSuccess(newAddress.id);
+            }
+            
             onOpenChange(false);
 
         } catch (error: any) {
@@ -219,7 +273,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>Add a New Address</DialogTitle>
+                    <DialogTitle>{addressToEdit ? 'Edit Address' : 'Add a New Address'}</DialogTitle>
                     <DialogDescription>
                         Pan the map to position the pin at your delivery location, then confirm your details below.
                     </DialogDescription>
@@ -240,17 +294,28 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: 
                         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
                             <MapPin className="h-10 w-10 text-primary drop-shadow-lg" style={{ transform: 'translateY(-50%)' }} />
                         </div>
+                        {!isLoading && !error && (
+                            <Button
+                                type="button"
+                                size="icon"
+                                className="absolute bottom-4 right-4 z-20 shadow-lg"
+                                onClick={handleUseCurrentLocation}
+                                aria-label="Use current location"
+                            >
+                                <LocateFixed className="h-5 w-5" />
+                            </Button>
+                        )}
                         <div ref={mapRef} style={containerStyle} />
                     </div>
                     <div className="space-y-3">
                         <Label>Confirm Your Details</Label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-9" />
+                            <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-9" required />
                         </div>
                         <div className="relative">
                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                           <Input type="tel" placeholder="10-digit Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
+                           <Input type="tel" placeholder="10-digit Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" required pattern="\d{10}" />
                         </div>
                     </div>
                 </div>
