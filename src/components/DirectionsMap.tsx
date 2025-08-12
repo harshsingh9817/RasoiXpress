@@ -18,13 +18,12 @@ const containerStyle = {
 const RESTAURANT_COORDS = { lat: 25.970963, lng: 83.873754 };
 const MAP_SCRIPT_ID = "gomaps-pro-api-script";
 
-interface DirectionsMapProps {
-    destinationAddress: string;
-    destinationCoords?: { lat: number; lng: number };
-    riderCoords?: { lat: number; lng: number } | null;
-    view?: 'default' | 'satellite';
-    apiUrl?: string | null;
-}
+const buildScriptUrl = (keyOrUrl: string): string => {
+    if (keyOrUrl.startsWith('http')) {
+        return keyOrUrl;
+    }
+    return `https://maps.gomaps.pro/maps/api/js?key=${keyOrUrl}&libraries=places`;
+};
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -133,7 +132,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       let isMounted = true;
       
       if (!apiUrl) {
-        setError("Map API URL is not configured in settings.");
+        setError("Map API URL/Key is not configured in settings.");
         setIsLoading(false);
         return;
       }
@@ -141,7 +140,8 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       setIsLoading(true);
       setError(null);
   
-      loadScript(apiUrl, MAP_SCRIPT_ID)
+      const fullApiUrl = buildScriptUrl(apiUrl);
+      loadScript(fullApiUrl, MAP_SCRIPT_ID)
         .then(() => {
           if (isMounted) {
             initMap();
@@ -217,7 +217,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4">
                     <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                     <p className="text-destructive font-semibold">{error}</p>
-                    <p className="text-destructive/80 text-sm mt-1">Please check the URL in the admin settings.</p>
+                    <p className="text-destructive/80 text-sm mt-1">Please check the URL/Key in the admin settings.</p>
                      <Button variant="destructive" size="sm" asChild className="mt-4">
                         <Link href="/admin/payment">Go to Settings</Link>
                     </Button>

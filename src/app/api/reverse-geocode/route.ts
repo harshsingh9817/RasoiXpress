@@ -1,6 +1,16 @@
 
 import { NextResponse } from 'next/server';
 
+function buildScriptUrl(keyOrUrl: string): string {
+    // If it's a full URL, return it as is.
+    if (keyOrUrl.startsWith('http')) {
+        return keyOrUrl;
+    }
+    // Otherwise, construct the GoMaps Pro URL with the provided key.
+    return `https://maps.gomaps.pro/maps/api/js?key=${keyOrUrl}&libraries=places`;
+}
+
+
 export async function POST(request: Request) {
   try {
     const { lat, lng, apiUrl } = await request.json();
@@ -10,16 +20,12 @@ export async function POST(request: Request) {
     }
 
     if (!apiUrl) {
-      return NextResponse.json({ error: 'Map API URL is missing.' }, { status: 400 });
+      return NextResponse.json({ error: 'Map API URL or Key is missing.' }, { status: 400 });
     }
     
-    let mapScriptUrl = apiUrl;
+    // Build the full script URL from either the key or the full URL provided.
+    const mapScriptUrl = buildScriptUrl(apiUrl);
     
-    // Ensure the URL has a protocol, which is required by the URL constructor.
-    if (!mapScriptUrl.startsWith('http://') && !mapScriptUrl.startsWith('https://')) {
-        mapScriptUrl = 'https://' + mapScriptUrl;
-    }
-
     let apiKey: string | null = null;
     try {
         const url = new URL(mapScriptUrl);

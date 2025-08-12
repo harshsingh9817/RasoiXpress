@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { addAddress, getAddresses, updateAddress } from '@/lib/data';
-import type { Address, PaymentSettings } from '@/lib/types';
+import { addAddress, getAddresses, updateAddress, getPaymentSettings } from '@/lib/data';
+import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 import { Loader2, MapPin, User, Phone, LocateFixed, AlertTriangle } from 'lucide-react';
 
@@ -39,8 +39,14 @@ interface LocationPickerProps {
     onOpenChange: (open: boolean) => void;
     onSaveSuccess: (newAddressId?: string) => void;
     addressToEdit?: Address | null;
-    apiUrl: string | null;
 }
+
+const buildScriptUrl = (keyOrUrl: string): string => {
+    if (keyOrUrl.startsWith('http')) {
+        return keyOrUrl;
+    }
+    return `https://maps.gomaps.pro/maps/api/js?key=${keyOrUrl}&libraries=places`;
+};
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -48,13 +54,11 @@ const loadScript = (src: string, id: string): Promise<void> => {
             reject(new Error("Map script URL is empty."));
             return;
         }
-        // Always remove the old script tag if it exists, to ensure a fresh load
         const existingScript = document.getElementById(id);
         if (existingScript) {
             existingScript.remove();
         }
 
-        // Check if google maps is already available (e.g., from a previous successful load)
         if (window.google && window.google.maps) {
             return resolve();
         }
@@ -71,7 +75,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
 };
 
 
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, addressToEdit, apiUrl }: LocationPickerProps) {
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, addressToEdit }: LocationPickerProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -81,8 +85,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [apiUrl, setApiUrl] = useState<string | null>(null);
 
-    // Form state
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
 
@@ -128,10 +132,15 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
         
         const fetchAndLoadMap = async () => {
             try {
-                if (!apiUrl) {
-                    throw new Error("Map API URL is not configured in admin settings.");
+                const settings = await getPaymentSettings();
+                const mapApiUrl = settings?.mapApiUrl;
+                if (!mapApiUrl) {
+                    throw new Error("Map API URL/Key is not configured in admin settings.");
                 }
-                await loadScript(apiUrl, MAP_SCRIPT_ID);
+                setApiUrl(mapApiUrl);
+                
+                const fullApiUrl = buildScriptUrl(mapApiUrl);
+                await loadScript(fullApiUrl, MAP_SCRIPT_ID);
                 if (isMounted) initMap();
             } catch (err: any) {
                 console.error(err);
@@ -147,7 +156,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
         
         return () => { isMounted = false; }
         
-    }, [isOpen, initMap, toast, apiUrl]);
+    }, [isOpen, initMap, toast]);
 
     const handleUseCurrentLocation = () => {
         if (navigator.geolocation) {
@@ -189,7 +198,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
             return;
         }
         if (!apiUrl) {
-            toast({ title: "Configuration Error", description: "Map API URL could not be loaded.", variant: "destructive" });
+            toast({ title: "Configuration Error", description: "Map API URL/Key could not be loaded.", variant: "destructive" });
             return;
         }
 
@@ -205,7 +214,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat, lng, apiUrl: apiUrl }),
+                body: JSON.stringify({ lat, lng, apiUrl }),
             });
 
             const data = await response.json();
@@ -282,7 +291,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4 text-center">
                                 <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                                 <p className="text-destructive font-semibold">{error}</p>
-                                <p className="text-destructive/80 text-sm mt-1">Please check the URL in the admin settings.</p>
+                                <p className="text-destructive/80 text-sm mt-1">Please check the URL/Key in the admin settings.</p>
                                 <Button variant="destructive" size="sm" asChild className="mt-4">
                                     <Link href="/admin/payment">Go to Settings</Link>
                                 </Button>
