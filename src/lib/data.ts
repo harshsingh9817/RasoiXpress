@@ -634,7 +634,15 @@ export async function getCoupons(): Promise<Coupon[]> {
 
 export async function addCoupon(couponData: Omit<Coupon, 'id' | 'createdAt'>): Promise<Coupon> {
     const docRef = await addDoc(collection(db, 'coupons'), { ...couponData, createdAt: serverTimestamp() });
-    return { ...couponData, id: docRef.id, createdAt: new Date() } as Coupon;
+    const docSnap = await getDoc(docRef);
+    const data = docSnap.data();
+    return { 
+        ...couponData, 
+        id: docRef.id, 
+        createdAt: data?.createdAt.toDate(),
+        validFrom: data?.validFrom.toDate(),
+        validUntil: data?.validUntil.toDate(),
+    } as Coupon;
 }
 
 export async function updateCoupon(couponData: Partial<Coupon> & { id: string }): Promise<void> {
@@ -646,13 +654,13 @@ export async function deleteCoupon(couponId: string): Promise<void> {
     await deleteDoc(doc(db, 'coupons', couponId));
 }
 
-export async function checkCoupon(code: string): Promise<{ isValid: boolean, discountPercent?: number, error?: string }> {
+export async function checkCoupon(code: string, userId: string): Promise<{ isValid: boolean, coupon?: Coupon, error?: string }> {
     const q = query(collection(db, 'coupons'), where('code', '==', code));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return { isValid: false, error: "This coupon code does not exist." };
     
     const couponDoc = snapshot.docs[0];
-    const couponData = couponDoc.data() as Omit<Coupon, 'id'|'createdAt'|'validFrom'|'validUntil'> & {createdAt: any, validFrom: any, validUntil: any};
+    const couponData = { ...couponDoc.data(), id: couponDoc.id } as Coupon;
 
     if (couponData.status !== 'active') return { isValid: false, error: "This coupon is currently inactive." };
     
@@ -660,12 +668,21 @@ export async function checkCoupon(code: string): Promise<{ isValid: boolean, dis
     const validFrom = couponData.validFrom.toDate();
     const validUntil = couponData.validUntil.toDate();
     
-    if (validFrom && now < validFrom) return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
+    if (now < validFrom) return { isValid: false, error: `This coupon is not active yet. It starts on ${validFrom.toLocaleDateString()}.` };
     
-    if (validUntil) {
-        validUntil.setHours(23, 59, 59, 999);
-        if (now > validUntil) return { isValid: false, error: "This coupon has expired." };
+    validUntil.setHours(23, 59, 59, 999);
+    if (now > validUntil) return { isValid: false, error: "This coupon has expired." };
+
+    // Check if user has already used this coupon
+    const ordersQuery = query(
+        collection(db, 'orders'),
+        where('user_id', '==', userId),
+        where('couponCode', '==', code)
+    );
+    const ordersSnapshot = await getDocs(ordersQuery);
+    if (!ordersSnapshot.empty) {
+        return { isValid: false, error: "You have already used this coupon code." };
     }
     
-    return { isValid: true, discountPercent: couponData.discountPercent };
+    return { isValid: true, coupon: couponData };
 }

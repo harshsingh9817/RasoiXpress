@@ -548,6 +548,7 @@ export default function CheckoutPage() {
         isOpen={isMapOpen} 
         onOpenChange={setIsMapOpen} 
         onSaveSuccess={handleNewAddressAdded}
+        addressToEdit={addressToEdit}
      />
      
     <Dialog open={isEditAddressDialogOpen} onOpenChange={setIsEditAddressDialogOpen}>

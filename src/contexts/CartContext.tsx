@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { MenuItem, CartItem } from '@/lib/types';
+import type { MenuItem, CartItem, Coupon } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { getHeroData, checkCoupon } from '@/lib/data';
@@ -18,11 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 import { Button } from '@/components/ui/button';
-
-interface AppliedCoupon {
-  code: string;
-  discountPercent: number;
-}
+import { useAuth } from './AuthContext';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -43,7 +39,7 @@ interface CartContextType {
   isFreeDeliveryDialogOpen: boolean;
   setIsFreeDeliveryDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setProceedAction: React.Dispatch<React.SetStateAction<(() => void) | null>>;
-  appliedCoupon: AppliedCoupon | null;
+  appliedCoupon: Coupon | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -52,8 +48,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
@@ -202,6 +199,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const applyCoupon = async (couponCode: string) => {
+    if (!user) {
+      toast({ title: "Please log in", description: "You need to be logged in to apply a coupon.", variant: "destructive" });
+      return;
+    }
     if (appliedCoupon) {
         toast({
             title: "Coupon Already Applied",
@@ -212,13 +213,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
 
-    const { isValid, discountPercent, error } = await checkCoupon(couponCode.toUpperCase());
+    const { isValid, coupon, error } = await checkCoupon(couponCode.toUpperCase(), user.uid);
     
-    if (isValid && discountPercent) {
-      setAppliedCoupon({ code: couponCode.toUpperCase(), discountPercent: discountPercent });
+    if (isValid && coupon) {
+      setAppliedCoupon(coupon);
       toast({
         title: "Coupon Applied!",
-        description: `Congratulations! You've received a ${discountPercent}% discount.`,
+        description: `Congratulations! You've received a ${coupon.discountPercent}% discount.`,
         variant: "default",
         duration: 4000,
       });
