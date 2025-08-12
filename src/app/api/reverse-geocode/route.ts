@@ -1,52 +1,28 @@
 
 import { NextResponse } from 'next/server';
 
-function buildScriptUrl(keyOrUrl: string): string {
-    // If it's a full URL, return it as is.
-    if (keyOrUrl.startsWith('http')) {
-        return keyOrUrl;
-    }
-    // Otherwise, construct the GoMaps Pro URL with the provided key.
-    return `https://maps.gomaps.pro/maps/api/js?key=${keyOrUrl}&libraries=places`;
+// This function now ALWAYS assumes the input is a key and builds the URL.
+function buildApiUrl(key: string, lat: number, lng: number): string {
+    const host = 'https://maps.gomaps.pro'; 
+    return `${host}/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
 }
 
 
 export async function POST(request: Request) {
   try {
-    const { lat, lng, apiUrl } = await request.json();
+    const { lat, lng, apiKey } = await request.json();
 
     if (!lat || !lng) {
       return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
     }
 
-    if (!apiUrl) {
-      return NextResponse.json({ error: 'Map API URL or Key is missing.' }, { status: 400 });
-    }
-    
-    // Build the full script URL from either the key or the full URL provided.
-    const mapScriptUrl = buildScriptUrl(apiUrl);
-    
-    let apiKey: string | null = null;
-    try {
-        const url = new URL(mapScriptUrl);
-        apiKey = url.searchParams.get('key');
-    } catch (e) {
-        console.error("Failed to parse map script URL:", e);
-        return NextResponse.json({ error: 'The provided Map API URL is not a valid URL format.' }, { status: 500 });
-    }
-    
     if (!apiKey) {
-      return NextResponse.json({ error: 'Could not extract a valid API key from the Map API URL.' }, { status: 500 });
+      return NextResponse.json({ error: 'Map API Key is missing.' }, { status: 400 });
     }
+    
+    const geocodeApiUrl = buildApiUrl(apiKey, lat, lng);
 
-    const geocodeApiHost = mapScriptUrl.includes('gomaps.pro') 
-        ? 'https://maps.gomaps.pro' 
-        : 'https://maps.googleapis.com';
-
-    const response = await fetch(
-      `${geocodeApiHost}/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-    );
-
+    const response = await fetch(geocodeApiUrl);
     const data = await response.json();
 
     if (data.status !== 'OK' || !data.results || data.results.length === 0) {

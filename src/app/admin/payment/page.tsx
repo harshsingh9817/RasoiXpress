@@ -41,7 +41,7 @@ const paymentSettingsSchema = z.object({
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
-  mapApiUrl: z.string().url("Please enter a valid URL.").optional(),
+  mapApiUrl: z.string().min(1, "API Key is required."), // Changed from URL to string and made required
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -220,12 +220,12 @@ export default function PaymentSettingsPage() {
                 name="mapApiUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro Script URL</FormLabel>
+                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro API Key</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="https://maps.gomaps.pro/maps/api/js?key=YOUR_API_KEY..." {...field} value={field.value ?? ''} rows={3} />
+                      <Textarea placeholder="AlzaSyL1KdmS5eDvkDB2qZVBq-UmqUFQ9KZ3aoY..." {...field} value={field.value ?? ''} rows={3} />
                     </FormControl>
                       <FormDescription>
-                          This URL is used for the location picker and rider direction maps. Get it from your GoMaps Pro dashboard.
+                          Paste only the API Key here. The application will construct the full URL automatically. Get the key from your GoMaps Pro dashboard.
                       </FormDescription>
                     <FormMessage />
                   </FormItem>

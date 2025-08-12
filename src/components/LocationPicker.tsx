@@ -41,11 +41,14 @@ interface LocationPickerProps {
     addressToEdit?: Address | null;
 }
 
-const buildScriptUrl = (keyOrUrl: string): string => {
-    if (keyOrUrl.startsWith('http')) {
-        return keyOrUrl;
+// This function now ALWAYS assumes the input is a key and builds the URL.
+const buildScriptUrl = (apiKey: string): string => {
+    if (!apiKey) return "";
+    // If it looks like a full URL, use it, otherwise build it. This provides a fallback but prioritizes key-based construction.
+    if (apiKey.startsWith('http')) {
+        return apiKey;
     }
-    return `https://maps.gomaps.pro/maps/api/js?key=${keyOrUrl}&libraries=places`;
+    return `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
 };
 
 const loadScript = (src: string, id: string): Promise<void> => {
@@ -85,7 +88,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [apiUrl, setApiUrl] = useState<string | null>(null);
+    const [apiKey, setApiKey] = useState<string | null>(null);
 
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
@@ -133,13 +136,13 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
         const fetchAndLoadMap = async () => {
             try {
                 const settings = await getPaymentSettings();
-                const mapApiUrl = settings?.mapApiUrl;
-                if (!mapApiUrl) {
-                    throw new Error("Map API URL/Key is not configured in admin settings.");
+                const mapApiKey = settings?.mapApiUrl; // This field now holds the key
+                if (!mapApiKey) {
+                    throw new Error("Map API Key is not configured in admin settings.");
                 }
-                setApiUrl(mapApiUrl);
+                setApiKey(mapApiKey);
                 
-                const fullApiUrl = buildScriptUrl(mapApiUrl);
+                const fullApiUrl = buildScriptUrl(mapApiKey);
                 await loadScript(fullApiUrl, MAP_SCRIPT_ID);
                 if (isMounted) initMap();
             } catch (err: any) {
@@ -197,8 +200,8 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
             toast({ title: "Map Error", description: "The map is not initialized. Please try again.", variant: "destructive" });
             return;
         }
-        if (!apiUrl) {
-            toast({ title: "Configuration Error", description: "Map API URL/Key could not be loaded.", variant: "destructive" });
+        if (!apiKey) {
+            toast({ title: "Configuration Error", description: "Map API Key could not be loaded.", variant: "destructive" });
             return;
         }
 
@@ -214,7 +217,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat, lng, apiUrl }),
+                body: JSON.stringify({ lat, lng, apiKey }), // Pass apiKey directly
             });
 
             const data = await response.json();
@@ -291,7 +294,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4 text-center">
                                 <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                                 <p className="text-destructive font-semibold">{error}</p>
-                                <p className="text-destructive/80 text-sm mt-1">Please check the URL/Key in the admin settings.</p>
+                                <p className="text-destructive/80 text-sm mt-1">Please check the API Key in the admin settings.</p>
                                 <Button variant="destructive" size="sm" asChild className="mt-4">
                                     <Link href="/admin/payment">Go to Settings</Link>
                                 </Button>
