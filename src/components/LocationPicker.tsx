@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addAddress, getAddresses, getPaymentSettings, updateAddress } from '@/lib/data';
 import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
-import { Loader2, MapPin, User, Phone, LocateFixed } from 'lucide-react';
+import { Loader2, MapPin, User, Phone, LocateFixed, AlertTriangle } from 'lucide-react';
 
 const containerStyle: React.CSSProperties = {
   width: '100%',
@@ -69,7 +70,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
         script.async = true;
         script.defer = true;
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        script.onerror = () => reject(new Error(`Failed to load map script. The API key may be invalid or the URL incorrect.`));
         document.head.appendChild(script);
     });
 };
@@ -145,7 +146,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
                 console.error(err);
                 if (isMounted) {
                     setError(err.message || "Could not load map script.");
-                    toast({ title: "Error", description: err.message, variant: "destructive" });
+                    toast({ title: "Map Error", description: err.message, variant: "destructive" });
                     setIsLoading(false);
                 }
             }
@@ -213,7 +214,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
             const response = await fetch('/api/reverse-geocode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lat, lng }),
+                body: JSON.stringify({ lat, lng, apiUrl: mapApiUrl }),
             });
 
             const data = await response.json();
@@ -241,7 +242,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
 
                 const addressToSave: Omit<Address, 'id'> = {
                     fullName,
-                    type: 'Home',
+                    type: existingAddresses.length === 0 ? 'Home' : 'Other',
                     street: data.street || data.formattedAddress,
                     village: data.village || '',
                     city: data.city || '',
@@ -288,7 +289,12 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
                         )}
                         {error && !isLoading && (
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                                <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                                 <p className="text-destructive font-semibold">{error}</p>
+                                <p className="text-destructive/80 text-sm mt-1">Please check the URL in the admin settings.</p>
+                                <Button variant="destructive" size="sm" asChild className="mt-4">
+                                    <Link href="/admin/payment">Go to Settings</Link>
+                                </Button>
                             </div>
                         )}
                         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
@@ -315,7 +321,7 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ad
                         </div>
                         <div className="relative">
                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                           <Input type="tel" placeholder="10-digit Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" required pattern="\d{10}" />
+                           <Input type="tel" placeholder="10-digit Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" required pattern="\\d{10}" />
                         </div>
                     </div>
                 </div>

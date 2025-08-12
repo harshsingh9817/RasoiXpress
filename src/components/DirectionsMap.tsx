@@ -2,10 +2,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
-import { Route } from 'lucide-react';
+import { Route, AlertTriangle } from 'lucide-react';
+import { Button } from './ui/button';
 
 const containerStyle = {
   width: '100%',
@@ -50,7 +52,7 @@ const loadScript = (src: string, id: string): Promise<void> => {
       script.async = true;
       script.defer = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      script.onerror = () => reject(new Error(`Failed to load map script. The API key may be invalid or the URL incorrect.`));
       document.head.appendChild(script);
     });
 };
@@ -151,13 +153,13 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
             initMap();
           }
         })
-        .catch((err) => {
+        .catch((err: Error) => {
           console.error(err);
           if (isMounted) {
-            setError("Could not load map script. Check the URL in admin settings.");
+            setError(err.message);
             toast({
-              title: "Error",
-              description: "Could not load the map.",
+              title: "Map Error",
+              description: err.message,
               variant: "destructive",
             });
             setIsLoading(false);
@@ -218,8 +220,13 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
                 </div>
             )}
             {error && !isLoading && (
-                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-background/80 backdrop-blur-sm rounded-lg p-4">
+                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4">
+                    <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                     <p className="text-destructive font-semibold">{error}</p>
+                    <p className="text-destructive/80 text-sm mt-1">Please check the URL in the admin settings.</p>
+                     <Button variant="destructive" size="sm" asChild className="mt-4">
+                        <Link href="/admin/payment">Go to Settings</Link>
+                    </Button>
                 </div>
             )}
             <div ref={mapRef} style={containerStyle} />
