@@ -197,7 +197,7 @@ export default function CouponManagementPage() {
                 <Tag className="mr-3 h-6 w-6 text-primary" /> Coupon Management
               </CardTitle>
               <CardDescription>
-                Create, view, and manage promotional coupon codes for your customers.
+                Create, view, and manage promotional coupon codes for your customers. Expired coupons are automatically removed.
               </CardDescription>
             </div>
             <Button onClick={() => handleOpenFormDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New Coupon</Button>
@@ -222,7 +222,7 @@ export default function CouponManagementPage() {
                     <TableCell>{coupon.discountPercent}%</TableCell>
                     <TableCell>
                         {coupon.validFrom && coupon.validUntil
-                            ? `${format(coupon.validFrom, "PP")} - ${format(coupon.validUntil, "PP")}`
+                            ? `${format(coupon.validFrom, "PPp")} - ${format(coupon.validUntil, "PPp")}`
                             : 'N/A'
                         }
                     </TableCell>
@@ -304,13 +304,13 @@ export default function CouponManagementPage() {
                                         <PopoverTrigger asChild>
                                         <FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                            {field.value ? format(field.value, "PP") : <span>Pick a date</span>}
+                                            {field.value ? format(field.value, "PPp") : <span>Pick a date</span>}
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
                                         </FormControl>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus withTime />
                                         </PopoverContent>
                                     </Popover>
                                     <FormMessage />
@@ -327,13 +327,13 @@ export default function CouponManagementPage() {
                                     <PopoverTrigger asChild>
                                     <FormControl>
                                         <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? format(field.value, "PP") : <span>Pick a date</span>}
+                                        {field.value ? format(field.value, "PPp") : <span>Pick a date</span>}
                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
                                     </FormControl>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus withTime />
                                     </PopoverContent>
                                 </Popover>
                                 <FormMessage />
