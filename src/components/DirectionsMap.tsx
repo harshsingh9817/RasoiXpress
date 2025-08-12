@@ -28,25 +28,18 @@ interface DirectionsMapProps {
 
 const loadScript = (src: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      let script = document.getElementById(id) as HTMLScriptElement;
-      if (script && script.src === src) { // Check if the existing script is the same
-        const checkGoogle = () => {
-          if (window.google && window.google.maps) {
-            resolve();
-          } else {
-            setTimeout(checkGoogle, 100);
-          }
-        };
-        checkGoogle();
-        return;
-      }
-  
-      // If script exists but with a different URL, remove it first
-      if (script) {
-        script.remove();
+      // Always remove the old script tag if it exists, to ensure a fresh load
+      const existingScript = document.getElementById(id);
+      if (existingScript) {
+        existingScript.remove();
       }
 
-      script = document.createElement('script');
+      // Check if google maps is already available (e.g., from a previous successful load)
+      if (window.google && window.google.maps) {
+        return resolve();
+      }
+  
+      const script = document.createElement('script');
       script.src = src;
       script.id = id;
       script.async = true;
@@ -146,6 +139,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       }
   
       setIsLoading(true);
+      setError(null);
   
       loadScript(apiUrl, MAP_SCRIPT_ID)
         .then(() => {
