@@ -155,8 +155,8 @@ export default function HomePage() {
             />
         ))}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 p-4 sm:p-6 lg:p-8">
-          <div className="text-center md:text-left md:w-1/2 space-y-4">
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-8 p-4 sm:p-6 lg:p-8">
+          <div className="text-center md:text-left md:w-1/2 lg:w-3/5 space-y-4">
               <div
                 role="heading"
                 aria-level="1"
@@ -187,13 +187,13 @@ export default function HomePage() {
                 ) : (heroData && <Skeleton className="h-10 w-64 bg-white/20 rounded-full" />)}
               </div>
           </div>
-          <div className="md:w-1/2 flex justify-center text-primary-foreground">
+          <div className="md:w-1/2 lg:w-2/5 flex justify-center text-primary-foreground">
               <AnimatedDeliveryScooter className="w-full max-w-xs h-auto" />
           </div>
         </div>
       </section>
 
-       <section>
+       <section id="categories">
         <h2 className="text-2xl font-headline font-bold mb-4">Categories</h2>
          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <button
