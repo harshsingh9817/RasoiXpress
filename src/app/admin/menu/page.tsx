@@ -272,47 +272,50 @@ export default function MenuManagementPage() {
             </TableHeader>
             <TableBody>
               {filteredMenuItems.length > 0 ? (
-                filteredMenuItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Image
-                        src={item.imageUrl.includes('data-ai-hint') ? item.imageUrl.split('?data-ai-hint=')[0] : item.imageUrl.split('data-ai-hint=')[0]}
-                        alt={item.name}
-                        width={64}
-                        height={64}
-                        className="rounded-md object-cover"
-                        data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">Rs.{item.price.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">
-                      {item.isPopular ? <CheckCircle className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={item.isVisible !== false}
-                        onCheckedChange={(checked) => handleVisibilityToggle(item, checked)}
-                        aria-label={`Toggle visibility for ${item.name}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                         <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
-                           <Edit className="h-4 w-4" />
-                           <span className="sr-only">Edit</span>
-                         </Button>
-                         <Button variant="destructive" size="icon" onClick={() => handleDelete(item)}>
-                           <Trash2 className="h-4 w-4" />
-                           <span className="sr-only">Delete</span>
-                         </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredMenuItems.map((item) => {
+                  const cleanImageUrl = (item.imageUrl || '').trimStart();
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Image
+                          src={cleanImageUrl.split('?data-ai-hint=')[0].split('data-ai-hint=')[0]}
+                          alt={item.name}
+                          width={64}
+                          height={64}
+                          className="rounded-md object-cover"
+                          data-ai-hint={item.imageUrl.includes('data-ai-hint=') ? item.imageUrl.split('data-ai-hint=')[1] : `${item.name.split(" ")[0].toLowerCase()} ${item.category?.toLowerCase() || 'food'}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.category}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">Rs.{item.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        {item.isPopular ? <CheckCircle className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={item.isVisible !== false}
+                          onCheckedChange={(checked) => handleVisibilityToggle(item, checked)}
+                          aria-label={`Toggle visibility for ${item.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button variant="destructive" size="icon" onClick={() => handleDelete(item)}>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
