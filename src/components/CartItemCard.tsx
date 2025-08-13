@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { FC } from 'react';
@@ -8,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Plus, Minus, Leaf } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import { cn } from '@/lib/utils';
 
 interface CartItemCardProps {
   item: CartItem;
@@ -37,7 +37,6 @@ const CartItemCard: FC<CartItemCardProps> = ({ item }) => {
             <h4 className="font-semibold text-base">{item.name}</h4>
             {item.isVegetarian && <Leaf className="h-4 w-4 text-green-600 shrink-0" />}
         </div>
-        <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
         <p className="text-sm text-muted-foreground mt-2">Rs.{item.price.toFixed(2)} each</p>
         <div className="flex items-center mt-3">
           <Button

@@ -149,17 +149,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await signInWithPopup(auth, provider);
       await manageUserInFirestore(userCredential.user);
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      
+      // Key Fix: Check for profile completion first.
       if (!userDoc.exists() || !userDoc.data()?.mobileNumber) {
+        toast({ title: 'Welcome!', description: 'Please complete your profile to continue.' });
         router.push('/complete-profile');
         return;
       }
+  
+      // Then check for address setup.
       const addresses = await getAddresses(userCredential.user.uid);
       if (addresses.length === 0) {
+          toast({ title: 'Almost there!', description: 'Please add a delivery address.' });
           router.push('/profile?setup=true');
       } else {
+          toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
           router.push('/');
       }
-      toast({ title: 'Logged In!', description: 'Welcome back!', variant: 'default' });
     } catch (error: any) {
       toast({ title: 'Google Sign-In Failed', description: error.message, variant: 'destructive' });
     }

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { FC } from 'react';
@@ -12,11 +13,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Leaf, ShoppingCart, Tag, Weight, UtensilsCrossed, Info, ShoppingBag } from 'lucide-react'; // Changed UtensilsCross to UtensilsCrossed
+import { Leaf, ShoppingCart, Tag, Weight, UtensilsCrossed } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { Separator } from './ui/separator';
 
@@ -27,28 +27,13 @@ interface FoodItemDetailDialogProps {
 }
 
 const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen, onOpenChange }) => {
-  const { addToCart, getCartTotal, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
-  const router = useRouter();
+  const { addToCart } = useCart();
 
   if (!menuItem) return null;
 
   const handleAddToCart = () => {
     addToCart(menuItem);
-    onOpenChange(false); // Optionally close dialog after adding to cart
-  };
-
-  const handleBuyNow = () => {
-    const currentTotal = getCartTotal();
-    const wasAdded = addToCart(menuItem);
-    if (wasAdded) {
-      const newTotal = currentTotal + menuItem.price;
-      if (newTotal < 300) {
-        setProceedAction(() => () => router.push('/checkout'));
-        setIsFreeDeliveryDialogOpen(true);
-      } else {
-        router.push('/checkout');
-      }
-    }
+    onOpenChange(false);
   };
 
   return (
@@ -109,11 +94,8 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
         </div>
 
         <DialogFooter className="p-6 pt-4 border-t gap-2 sm:justify-start">
-          <Button onClick={handleAddToCart} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Button onClick={handleAddToCart} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
             <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
-          </Button>
-          <Button onClick={handleBuyNow} className="flex-1 bg-primary hover:bg-primary/90">
-            <ShoppingBag className="mr-2 h-4 w-4" /> Buy Now
           </Button>
         </DialogFooter>
       </DialogContent>

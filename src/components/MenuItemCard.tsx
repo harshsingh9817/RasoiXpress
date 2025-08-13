@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { FC } from 'react';
@@ -18,25 +19,8 @@ interface MenuItemCardProps {
 }
 
 const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
-  const { addToCart, getCartTotal, setIsFreeDeliveryDialogOpen, setProceedAction } = useCart();
-  const router = useRouter();
+  const { addToCart } = useCart();
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
-
-  const handleBuyNow = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const currentTotal = getCartTotal();
-    const wasAdded = addToCart(menuItem);
-
-    if (wasAdded) {
-      const newTotal = currentTotal + menuItem.price;
-      if (newTotal < 300) {
-        setProceedAction(() => () => router.push('/checkout'));
-        setIsFreeDeliveryDialogOpen(true);
-      } else {
-        router.push('/checkout');
-      }
-    }
-  };
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -76,18 +60,9 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
             </div>
           </div>
           <div className="flex items-center gap-2 mt-auto">
-             <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleBuyNow}
-            >
-              <ShoppingBag className="mr-2 h-4 w-4"/>
-              Buy Now
-            </Button>
             <Button
               onClick={handleAddToCart}
-              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               aria-label={`Add ${menuItem.name} to cart`}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Add to Cart
