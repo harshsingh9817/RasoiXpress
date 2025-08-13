@@ -194,36 +194,6 @@ export default function HomePage() {
         </div>
       </section>
 
-       <section id="categories">
-        <h2 className="text-2xl font-headline font-bold mb-4">Categories</h2>
-         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <button
-            onClick={() => setFilterCategory('All')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-all",
-              filterCategory === 'All' ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary"
-            )}
-          >
-            <Utensils className="h-8 w-8" />
-            <span className="text-sm font-medium">All</span>
-          </button>
-          {categories.map(cat => (
-            <Link
-              key={cat.id}
-              href={`/categories/${encodeURIComponent(cat.name)}`}
-              onClick={() => setFilterCategory(cat.name)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-all group",
-                filterCategory === cat.name ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary"
-              )}
-            >
-              <Image src={cat.imageUrl} alt={cat.name} width={40} height={40} className="h-10 w-10 object-contain group-hover:scale-110 transition-transform" data-ai-hint={cat.name.toLowerCase()} />
-              <span className="text-sm font-medium">{cat.name}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
         <div className="w-full md:flex-1">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
