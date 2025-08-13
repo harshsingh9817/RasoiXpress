@@ -23,6 +23,7 @@ import { useAuth } from './AuthContext';
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: MenuItem, quantity?: number) => boolean;
+  buyNow: (item: MenuItem) => boolean;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   applyCoupon: (couponCode: string) => void;
@@ -162,6 +163,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  const buyNow = (item: MenuItem): boolean => {
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        return false;
+    }
+    // Clear the cart and add just this one item
+    setCartItems([{ ...item, quantity: 1 }]);
+    // We don't toast here because we're immediately redirecting
+    return true;
+  };
+
   const removeFromCart = (itemId: string) => {
     const itemToRemove = cartItems.find(item => item.id === itemId);
     setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
@@ -292,6 +304,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       value={{
         cartItems,
         addToCart,
+        buyNow,
         removeFromCart,
         updateQuantity,
         applyCoupon,

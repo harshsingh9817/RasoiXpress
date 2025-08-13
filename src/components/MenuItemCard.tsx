@@ -19,12 +19,20 @@ interface MenuItemCardProps {
 }
 
 const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
-  const { addToCart } = useCart();
+  const { addToCart, buyNow } = useCart();
+  const router = useRouter();
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     addToCart(menuItem);
+  };
+
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (buyNow(menuItem)) {
+      router.push('/checkout');
+    }
   };
 
   return (
@@ -60,12 +68,20 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
             </div>
           </div>
           <div className="flex items-center gap-2 mt-auto">
+             <Button
+              onClick={handleBuyNow}
+              variant="outline"
+              className="w-full"
+              aria-label={`Buy ${menuItem.name} now`}
+            >
+              <ShoppingBag className="mr-2 h-4 w-4" /> Buy Now
+            </Button>
             <Button
               onClick={handleAddToCart}
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               aria-label={`Add ${menuItem.name} to cart`}
             >
-              <PlusCircle className="mr-2 h-4 w-4" /> Add to Cart
+              <PlusCircle className="mr-2 h-4 w-4" /> Add
             </Button>
           </div>
         </CardContent>

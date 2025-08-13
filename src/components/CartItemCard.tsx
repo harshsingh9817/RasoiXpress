@@ -37,7 +37,7 @@ const CartItemCard: FC<CartItemCardProps> = ({ item }) => {
             <h4 className="font-semibold text-base">{item.name}</h4>
             {item.isVegetarian && <Leaf className="h-4 w-4 text-green-600 shrink-0" />}
         </div>
-        <p className="text-sm text-muted-foreground mt-2">Rs.{item.price.toFixed(2)} each</p>
+        <p className="text-sm text-muted-foreground mt-1">Rs.{item.price.toFixed(2)} each</p>
         <div className="flex items-center mt-3">
           <Button
             variant="outline"
