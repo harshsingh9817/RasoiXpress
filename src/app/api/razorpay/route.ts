@@ -4,7 +4,7 @@ import Razorpay from 'razorpay';
 import type { Order } from 'razorpay/dist/types/orders';
 
 export async function POST(request: Request) {
-  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
   if (!keyId || !keySecret || keyId.startsWith('REPLACE_WITH_') || keySecret.startsWith('REPLACE_WITH_')) {
