@@ -40,6 +40,7 @@ export interface CartItem extends MenuItem {
 }
 
 export type OrderStatus =
+  | 'Pending Payment'
   | 'Order Placed'
   | 'Confirmed'
   | 'Preparing'
@@ -70,7 +71,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'Razorpay' | 'Cash on Delivery';
+  paymentMethod: 'UPI' | 'Cash on Delivery';
   cancellationReason?: string;
   review?: Review; 
   customerPhone?: string;
@@ -134,13 +135,12 @@ export interface HeroData {
 }
 
 export interface PaymentSettings {
-  upiId: string;
-  qrCodeImageUrl: string;
-  isRazorpayEnabled: boolean;
   isDeliveryFeeEnabled: boolean;
   deliveryRadiusKm?: number;
   orderExpirationMinutes?: number;
   mapApiUrl: string;
+  upiId?: string;
+  merchantName?: string;
 }
 
 export interface DailyChartData {

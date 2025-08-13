@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@hodix/react-hook-form/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, AtSign, Building } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
@@ -37,11 +37,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const paymentSettingsSchema = z.object({
-  isRazorpayEnabled: z.boolean().optional(),
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
-  mapApiUrl: z.string().min(1, "API Key is required."), // Changed from URL to string and made required
+  mapApiUrl: z.string().min(1, "API Key is required."),
+  upiId: z.string().min(3, "A valid UPI ID is required.").refine(val => val.includes('@'), { message: "Please enter a valid UPI ID (e.g., your-id@bank)." }),
+  merchantName: z.string().min(3, "Merchant name is required.").max(50, "Merchant name is too long."),
 });
 
 type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
@@ -55,11 +56,12 @@ export default function PaymentSettingsPage() {
   const form = useForm<PaymentSettingsFormValues>({
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
-      isRazorpayEnabled: true,
       isDeliveryFeeEnabled: true,
       deliveryRadiusKm: 5,
       orderExpirationMinutes: 5,
       mapApiUrl: "",
+      upiId: "",
+      merchantName: "Rasoi Xpress",
     },
   });
 
@@ -72,11 +74,12 @@ export default function PaymentSettingsPage() {
       const loadSettings = async () => {
         const data = await getPaymentSettings();
         form.reset({
-          isRazorpayEnabled: data.isRazorpayEnabled,
           isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           deliveryRadiusKm: data.deliveryRadiusKm || 5,
           orderExpirationMinutes: data.orderExpirationMinutes || 5,
           mapApiUrl: data.mapApiUrl || "",
+          upiId: data.upiId || "",
+          merchantName: data.merchantName || "Rasoi Xpress",
         });
       }
       loadSettings();
@@ -87,11 +90,12 @@ export default function PaymentSettingsPage() {
     setIsSubmitting(true);
     try {
       await updatePaymentSettings({
-        isRazorpayEnabled: data.isRazorpayEnabled,
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         deliveryRadiusKm: data.deliveryRadiusKm,
         orderExpirationMinutes: data.orderExpirationMinutes,
         mapApiUrl: data.mapApiUrl,
+        upiId: data.upiId,
+        merchantName: data.merchantName,
       });
       toast({
         title: "Settings Updated",
@@ -130,30 +134,41 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
               </CardTitle>
               <CardDescription>
-                Manage payment gateways, delivery fees, and third-party service integrations.
+                Manage UPI payments, delivery fees, and third-party service integrations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="isRazorpayEnabled"
-                render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <FormLabel className="text-base">Enable Razorpay Payments</FormLabel>
-                        <FormDescription>
-                           Turn this on to accept online payments. If off, all orders will default to "Cash on Delivery".
-                        </FormDescription>
-                    </div>
-                    <FormControl>
-                        <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        />
-                    </FormControl>
+               <div className="space-y-4">
+                 <h3 className="font-medium text-lg">UPI Payment Gateway</h3>
+                 <FormField
+                  control={form.control}
+                  name="upiId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><AtSign className="mr-2 h-4 w-4"/>Merchant UPI ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="your-business@bank" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormDescription>The UPI ID where you will receive payments.</FormDescription>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="merchantName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><Building className="mr-2 h-4 w-4"/>Merchant Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your Business Name" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormDescription>The name that appears in the customer's UPI app.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+               </div>
               
                <Separator />
                 
@@ -252,13 +267,9 @@ export default function PaymentSettingsPage() {
       
       <Alert>
         <KeyRound className="h-4 w-4" />
-        <AlertTitle>API Key Configuration</AlertTitle>
+        <AlertTitle>Razorpay API Keys</AlertTitle>
         <AlertDescriptionElement>
-            Your Razorpay API Key ID and Key Secret are configured in the `.env` file for security. You must update them there to process live payments.
-            You can get your keys from the{" "}
-            <Link href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">
-                Razorpay Dashboard
-            </Link>.
+            Your old Razorpay API keys in the `.env` file are no longer used for payments but are kept for potential future use, like payment verification.
         </AlertDescriptionElement>
       </Alert>
     </div>
