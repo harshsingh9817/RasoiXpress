@@ -48,6 +48,8 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
     return d;
 };
 
+declare global { interface Window { Razorpay: any; } }
+
 export default function CheckoutPage() {
   const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -183,35 +185,160 @@ export default function CheckoutPage() {
     }
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
+  const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
+    setIsLoading(true);
+    try {
+        const placedOrder = await placeOrder(orderData);
+        await updateOrderStatus(placedOrder.id, 'Order Placed');
+        setOrderDetails(placedOrder);
+        clearCart();
+        setCurrentStep('success');
+        setTimeout(() => { router.push('/my-orders'); }, 8000);
+    } catch (error) {
+        console.error("Failed to place order:", error);
+        toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-checkout-js')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'razorpay-checkout-js';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRazorpayPayment = async (orderData: Omit<Order, 'id'>, selectedAddress: AddressType) => {
+    setIsProcessingPayment(true);
+    
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
+      toast({
+        title: "Configuration Error",
+        description: "Razorpay client key is not set. Please contact support.",
+        variant: "destructive",
+      });
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    try {
+      // First, create the "pending" order in our DB
+      const pendingOrder = await placeOrder(orderData);
+
+      const orderResponse = await fetch('/api/razorpay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: grandTotal }),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.error || 'Failed to create Razorpay order');
+      }
+      const razorpayOrder = await orderResponse.json();
+
+      const options = {
+        key: keyId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Rasoi Xpress",
+        description: "Order Payment",
+        order_id: razorpayOrder.id,
+        handler: async (response: any) => {
+          // On successful payment, update our existing order's status
+          await updateOrderStatus(pendingOrder.id, 'Order Placed');
+          setOrderDetails({ ...pendingOrder, status: 'Order Placed' });
+          clearCart();
+          setCurrentStep('success');
+          setTimeout(() => { router.push('/my-orders'); }, 8000);
+        },
+        prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
+        theme: { color: "#E64A19" },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.on('payment.failed', (response: any) => {
+        console.error('Razorpay payment failed:', response.error);
+        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
+        setIsProcessingPayment(false);
+      });
+      paymentObject.open();
+
+    } catch (error: any) {
+      console.error("Error during Razorpay process:", error);
+      toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
+      setIsProcessingPayment(false);
+    }
+  };
+  
+  const handleUpiPayment = async (orderData: Omit<Order, 'id'>) => {
+      setIsProcessingPayment(true);
+      try {
+        if (!paymentSettings?.upiId || !paymentSettings?.merchantName) {
+            throw new Error("UPI ID or Merchant Name is not configured.");
+        }
+        const placedOrder = await placeOrder(orderData);
+  
+        const upiUrl = `upi://pay?pa=${encodeURIComponent(paymentSettings.upiId)}&pn=${encodeURIComponent(paymentSettings.merchantName)}&tr=${encodeURIComponent(placedOrder.id)}&tn=${encodeURIComponent('Order Payment')}&am=${grandTotal.toFixed(2)}&cu=INR`;
+        
+        setOrderDetails(placedOrder);
+        clearCart();
+        setCurrentStep('success');
+        
+        window.location.href = upiUrl;
+  
+      } catch (error: any) {
+        console.error("Failed to initiate UPI payment:", error);
+        toast({ title: "Order Failed", description: "Could not initiate payment. Please try again.", variant: "destructive" });
+      } finally {
+        setIsProcessingPayment(false);
+      }
+  }
+
+
   const handlePlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !selectedAddressId) {
-      toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
-      return;
+        toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
+        return;
     }
-    if (!paymentSettings?.upiId || !paymentSettings?.merchantName) {
-      toast({ title: "Configuration Error", description: "UPI ID or Merchant Name is not configured.", variant: "destructive" });
-      return;
+    
+    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+    if (!selectedAddress) {
+        toast({ title: "Address Error", description: "Could not find the selected address. Please try again.", variant: "destructive" });
+        return;
     }
-
-    setIsProcessingPayment(true);
-    try {
-      const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-      if (!selectedAddress) throw new Error("Selected address not found.");
-
-      const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
-      const pendingOrderData: Omit<Order, 'id'> = {
+    
+    const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
+    const newOrderData: Omit<Order, 'id'> = {
         user_id: user.uid,
         userEmail: user.email || 'N/A',
         customerName: selectedAddress.fullName,
         date: new Date().toISOString(),
-        status: 'Pending Payment', // Start with pending status
+        status: 'Pending Payment',
         total: grandTotal,
         items: cartItems.map(item => ({ ...item })),
         shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
         shippingLat: selectedAddress.lat,
         shippingLng: selectedAddress.lng,
-        paymentMethod: 'UPI',
+        paymentMethod: paymentSettings?.isRazorpayEnabled ? 'Razorpay' : 'UPI',
         customerPhone: selectedAddress.phone,
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
         deliveryFee: deliveryFee,
@@ -220,25 +347,12 @@ export default function CheckoutPage() {
           couponCode: appliedCoupon.code,
           discountAmount: discountAmount
         })
-      };
-      
-      const placedOrder = await placeOrder(pendingOrderData);
-
-      const upiUrl = `upi://pay?pa=${encodeURIComponent(paymentSettings.upiId)}&pn=${encodeURIComponent(paymentSettings.merchantName)}&tr=${encodeURIComponent(placedOrder.id)}&tn=${encodeURIComponent('Order Payment')}&am=${grandTotal.toFixed(2)}&cu=INR`;
-      
-      // Clear cart and show success-like screen *before* redirecting
-      setOrderDetails(placedOrder);
-      clearCart();
-      setCurrentStep('success');
-      
-      // Redirect to UPI app
-      window.location.href = upiUrl;
-
-    } catch (error: any) {
-      console.error("Failed to initiate UPI payment:", error);
-      toast({ title: "Order Failed", description: "Could not initiate payment. Please try again.", variant: "destructive" });
-    } finally {
-      setIsProcessingPayment(false);
+    };
+    
+    if (paymentSettings?.isRazorpayEnabled) {
+        handleRazorpayPayment(newOrderData, selectedAddress);
+    } else {
+        handleUpiPayment(newOrderData);
     }
   };
 
@@ -297,11 +411,16 @@ export default function CheckoutPage() {
   }
 
   if (currentStep === 'success') {
+    const isUpiPayment = orderDetails?.paymentMethod === 'UPI';
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
-        <QrCode className="h-24 w-24 text-green-500 mb-6" />
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Redirecting to UPI...</h1>
-        <p className="text-lg text-muted-foreground max-w-md">Please complete the payment in your UPI app. You can track your order on the "My Orders" page afterward.</p>
+        {isUpiPayment ? <QrCode className="h-24 w-24 text-green-500 mb-6" /> : <CheckCircle className="h-24 w-24 text-green-500 mb-6" />}
+        <h1 className="text-4xl font-headline font-bold text-primary mb-2">
+            {isUpiPayment ? 'Redirecting to UPI...' : 'Order Placed!'}
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-md">
+            {isUpiPayment ? 'Please complete the payment in your UPI app. You can track your order on the "My Orders" page afterward.' : 'You can track your order on the "My Orders" page.'}
+        </p>
         <div className="mt-8 flex gap-4">
             <Button onClick={() => router.push('/my-orders')} size="lg">Go to My Orders</Button>
         </div>
@@ -426,8 +545,8 @@ export default function CheckoutPage() {
                     <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
                 </div>
                  <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId || !isServiceable} className="w-full">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <QrCode className="mr-2" />} 
-                    {isProcessing ? 'Processing...' : `Pay with UPI`}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : (paymentSettings?.isRazorpayEnabled ? <CreditCard className="mr-2" /> : <QrCode className="mr-2" />)} 
+                    {isProcessing ? 'Processing...' : `Pay with ${paymentSettings?.isRazorpayEnabled ? 'Razorpay' : 'UPI'}`}
                 </Button>
             </CardContent>
          </Card>

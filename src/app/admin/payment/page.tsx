@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const paymentSettingsSchema = z.object({
+  isRazorpayEnabled: z.boolean().optional(),
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
@@ -56,6 +57,7 @@ export default function PaymentSettingsPage() {
   const form = useForm<PaymentSettingsFormValues>({
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
+      isRazorpayEnabled: true,
       isDeliveryFeeEnabled: true,
       deliveryRadiusKm: 5,
       orderExpirationMinutes: 5,
@@ -74,6 +76,7 @@ export default function PaymentSettingsPage() {
       const loadSettings = async () => {
         const data = await getPaymentSettings();
         form.reset({
+          isRazorpayEnabled: data.isRazorpayEnabled ?? true,
           isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           deliveryRadiusKm: data.deliveryRadiusKm || 5,
           orderExpirationMinutes: data.orderExpirationMinutes || 5,
@@ -90,6 +93,7 @@ export default function PaymentSettingsPage() {
     setIsSubmitting(true);
     try {
       await updatePaymentSettings({
+        isRazorpayEnabled: data.isRazorpayEnabled,
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         deliveryRadiusKm: data.deliveryRadiusKm,
         orderExpirationMinutes: data.orderExpirationMinutes,
@@ -134,12 +138,32 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
               </CardTitle>
               <CardDescription>
-                Manage UPI payments, delivery fees, and third-party service integrations.
+                Manage UPI, Razorpay, delivery fees, and third-party service integrations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                <div className="space-y-4">
-                 <h3 className="font-medium text-lg">UPI Payment Gateway</h3>
+                 <h3 className="font-medium text-lg">Payment Method</h3>
+                  <FormField
+                  control={form.control}
+                  name="isRazorpayEnabled"
+                  render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                          <FormLabel className="text-base flex items-center"><CreditCard className="mr-2 h-4 w-4"/>Enable Razorpay Gateway</FormLabel>
+                          <FormDescription>
+                            Turn this on to use Razorpay's checkout. If off, direct UPI payment will be used.
+                          </FormDescription>
+                      </div>
+                      <FormControl>
+                          <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          />
+                      </FormControl>
+                      </FormItem>
+                  )}
+                 />
                  <FormField
                   control={form.control}
                   name="upiId"
@@ -149,7 +173,7 @@ export default function PaymentSettingsPage() {
                       <FormControl>
                         <Input placeholder="your-business@bank" {...field} value={field.value ?? ''} />
                       </FormControl>
-                      <FormDescription>The UPI ID where you will receive payments.</FormDescription>
+                      <FormDescription>The UPI ID for direct payments or Razorpay UPI.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -163,7 +187,7 @@ export default function PaymentSettingsPage() {
                       <FormControl>
                         <Input placeholder="Your Business Name" {...field} value={field.value ?? ''} />
                       </FormControl>
-                      <FormDescription>The name that appears in the customer's UPI app.</FormDescription>
+                      <FormDescription>The name that appears in the customer's payment app.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -269,7 +293,7 @@ export default function PaymentSettingsPage() {
         <KeyRound className="h-4 w-4" />
         <AlertTitle>Razorpay API Keys</AlertTitle>
         <AlertDescriptionElement>
-            Your old Razorpay API keys in the `.env` file are no longer used for payments but are kept for potential future use, like payment verification.
+            Your Razorpay API keys in the `.env` file are used for the Razorpay Gateway. The UPI details above are for direct UPI payments.
         </AlertDescriptionElement>
       </Alert>
     </div>

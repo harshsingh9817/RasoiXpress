@@ -98,13 +98,13 @@ const defaultHeroData: HeroData = {
 };
 
 const defaultPaymentSettings: PaymentSettings = {
-    upiId: 'rasoixpress@okbank',
-    qrCodeImageUrl: 'https://placehold.co/250x250.png?text=Scan+to+Pay',
     isRazorpayEnabled: true,
     isDeliveryFeeEnabled: true,
     deliveryRadiusKm: 5,
     orderExpirationMinutes: 5,
-    mapApiUrl: ""
+    mapApiUrl: "",
+    upiId: "",
+    merchantName: "",
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {
@@ -366,6 +366,8 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
     return onSnapshot(q, (snapshot) => {
         const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(userOrders);
+    }, (error) => {
+        console.error("Error listening to user orders:", error);
     });
 }
 
