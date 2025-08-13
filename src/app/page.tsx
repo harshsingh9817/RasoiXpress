@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
+import Link from 'next/link';
 
 export default function HomePage() {
   const { isAuthenticated, isAuthLoading, isAdmin } = useAuth();
@@ -207,8 +208,9 @@ export default function HomePage() {
             <span className="text-sm font-medium">All</span>
           </button>
           {categories.map(cat => (
-            <button
+            <Link
               key={cat.id}
+              href={`/categories/${encodeURIComponent(cat.name)}`}
               onClick={() => setFilterCategory(cat.name)}
               className={cn(
                 "flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-all group",
@@ -217,7 +219,7 @@ export default function HomePage() {
             >
               <Image src={cat.imageUrl} alt={cat.name} width={40} height={40} className="h-10 w-10 object-contain group-hover:scale-110 transition-transform" data-ai-hint={cat.name.toLowerCase()} />
               <span className="text-sm font-medium">{cat.name}</span>
-            </button>
+            </Link>
           ))}
         </div>
       </section>

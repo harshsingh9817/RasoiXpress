@@ -184,7 +184,7 @@ const Header = () => {
           
           <nav className="hidden md:flex items-center space-x-2">
             <Link href="/"><Button variant="ghost"><Home className="mr-2 h-4 w-4" />Menu</Button></Link>
-            <Link href="/#categories"><Button variant="ghost"><LayoutGrid className="mr-2 h-4 w-4" />Categories</Button></Link>
+            <Link href="/categories"><Button variant="ghost"><LayoutGrid className="mr-2 h-4 w-4" />Categories</Button></Link>
             <Link href="/my-orders"><Button variant="ghost"><ListOrdered className="mr-2 h-4 w-4" />My Orders</Button></Link>
             <Button variant="ghost" onClick={() => setIsHelpDialogOpen(true)}><HelpCircle className="mr-2 h-4 w-4" />Help</Button>
             {isAdmin && <Link href="/admin"><Button variant="ghost" className="text-red-600"><ShieldCheck className="mr-2 h-4 w-4" />Admin</Button></Link>}
