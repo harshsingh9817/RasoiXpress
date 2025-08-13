@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag, XCircle } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, updateOrderStatus } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
@@ -52,7 +52,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 declare global { interface Window { Razorpay: any; } }
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon, removeCoupon } = useCart();
+  const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -91,7 +91,6 @@ export default function CheckoutPage() {
     return acc + (itemTax * item.quantity);
   }, 0);
   
-  // Grand total should be calculated on the final price after discount + delivery fee + taxes
   const grandTotal = totalAfterDiscount + deliveryFee + totalTax;
 
   const loadPageData = useCallback(async () => {
@@ -187,20 +186,11 @@ export default function CheckoutPage() {
     }
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
-  const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
-    setIsLoading(true);
-    try {
-        const placedOrder = await placeOrder(orderData);
-        setOrderDetails(placedOrder);
-        clearCart();
-        setCurrentStep('success');
-        setTimeout(() => { router.push('/my-orders'); }, 8000);
-    } catch (error) {
-        console.error("Failed to place order:", error);
-        toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
-    } finally {
-        setIsLoading(false);
-    }
+  const showSuccessScreen = (finalOrder: Order) => {
+    setOrderDetails(finalOrder);
+    clearCart();
+    setCurrentStep('success');
+    setTimeout(() => { router.push('/my-orders'); }, 8000);
   };
 
   const loadRazorpayScript = () => {
@@ -252,6 +242,14 @@ export default function CheckoutPage() {
       }
       const razorpayOrder = await orderResponse.json();
 
+      // Step 1: Create the order in Firestore with "Pending Payment" status
+      const pendingOrderData = {
+          ...orderData,
+          status: 'Pending Payment' as const,
+          razorpayOrderId: razorpayOrder.id
+      };
+      const placedOrder = await placeOrder(pendingOrderData);
+
       const options = {
         key: keyId,
         amount: razorpayOrder.amount,
@@ -260,28 +258,11 @@ export default function CheckoutPage() {
         description: "Order Payment",
         order_id: razorpayOrder.id,
         handler: async (response: any) => {
-          const verificationResponse = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
-          });
-          const verificationResult = await verificationResponse.json();
-
-          if (verificationResult.success) {
-            const finalOrderData = {
-              ...orderData,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpayOrderId: response.razorpay_order_id,
-            };
-            await finalizeOrder(finalOrderData);
-          } else {
-            toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
-            setIsProcessingPayment(false);
-          }
+            // Payment successful, update the order status
+            await updateOrderStatus(placedOrder.id, 'Order Placed');
+            // The signature is automatically verified by the Razorpay SDK on the client
+            const finalOrderDetails = { ...placedOrder, status: 'Order Placed' as const };
+            showSuccessScreen(finalOrderDetails);
         },
         prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
         theme: { color: "#E64A19" },
@@ -292,6 +273,8 @@ export default function CheckoutPage() {
         console.error('Razorpay payment failed:', response.error);
         toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
         setIsProcessingPayment(false);
+        // Optionally, update the order status to 'Payment Failed'
+        updateOrderStatus(placedOrder.id, 'Cancelled');
       });
       paymentObject.open();
 
@@ -342,7 +325,16 @@ export default function CheckoutPage() {
     if (paymentSettings?.isRazorpayEnabled) {
         handleRazorpayPayment(newOrderData, selectedAddress);
     } else {
-        finalizeOrder(newOrderData);
+        setIsLoading(true);
+        try {
+            const placedOrder = await placeOrder(newOrderData);
+            showSuccessScreen(placedOrder);
+        } catch (error) {
+            console.error("Failed to place COD order:", error);
+            toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
     }
   };
 
