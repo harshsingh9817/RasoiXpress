@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, User, ShieldCheck, HelpCircle, Bike, ListOrdered, Bell } from 'lucide-react';
+import { Home, User, ShieldCheck, HelpCircle, LayoutGrid, ListOrdered } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import HelpDialog from './HelpDialog';
@@ -28,6 +28,10 @@ const BottomNav = () => {
             <Link href="/" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/', true) ? 'text-primary' : 'text-muted-foreground')}>
                 <Home className="h-6 w-6" />
                 <span className="text-xs font-medium">Menu</span>
+            </Link>
+            <Link href="/categories" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/categories') ? 'text-primary' : 'text-muted-foreground')}>
+                <LayoutGrid className="h-6 w-6" />
+                <span className="text-xs font-medium">Categories</span>
             </Link>
             <Link href="/my-orders" className={cn("flex flex-col items-center gap-1 p-2 rounded-md", getActiveClass('/my-orders') ? 'text-primary' : 'text-muted-foreground')}>
                 <ListOrdered className="h-6 w-6" />
