@@ -1,4 +1,5 @@
-// Import the functions you need from the SDKs you need
+// src/lib/firebase.ts
+import '../env'; // Import the environment loader to ensure variables are loaded
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
