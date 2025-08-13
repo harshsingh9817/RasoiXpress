@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { MenuItem } from "@/lib/types";
+import type { MenuItem, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,9 +28,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { addMenuItem, updateMenuItem } from "@/lib/data";
+import { addMenuItem, updateMenuItem, getCategories } from "@/lib/data";
 import { useEffect, useState } from "react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const menuItemSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
@@ -64,6 +71,8 @@ export default function MenuItemFormDialog({
 }: MenuItemFormDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
   const form = useForm<MenuItemFormValues>({
     resolver: zodResolver(menuItemSchema),
     defaultValues: {
@@ -75,6 +84,16 @@ export default function MenuItemFormDialog({
 
   const { reset } = form;
   const imageUrl = form.watch("imageUrl");
+
+  useEffect(() => {
+    async function loadCategories() {
+        const fetchedCategories = await getCategories();
+        setCategories(fetchedCategories);
+    }
+    if(isOpen) {
+        loadCategories();
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
@@ -187,18 +206,27 @@ export default function MenuItemFormDialog({
                   )}
                 />
                  <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Pizza" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
              </div>
              <div className="grid grid-cols-2 gap-4">
                 <FormField

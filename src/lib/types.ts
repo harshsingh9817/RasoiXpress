@@ -13,6 +13,12 @@ export interface Restaurant {
   promotions?: string[];
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
+
 export interface MenuItem {
   id:string;
   name: string;
@@ -134,7 +140,7 @@ export interface PaymentSettings {
   isDeliveryFeeEnabled: boolean;
   deliveryRadiusKm?: number;
   orderExpirationMinutes?: number;
-  mapApiUrl?: string;
+  mapApiUrl: string;
 }
 
 export interface DailyChartData {
@@ -187,4 +193,10 @@ export interface Coupon {
     createdAt: any; 
     validFrom: any; 
     validUntil: any; 
+}
+
+export interface listenToCategories {
+    id: string;
+    name: string;
+    imageUrl: string;
 }

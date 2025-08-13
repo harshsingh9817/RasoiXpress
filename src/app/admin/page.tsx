@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy, Store, Tag } from 'lucide-react';
+import { LogOut, Utensils, ClipboardList, LayoutTemplate, CreditCard, BarChart2, MessageSquare, Bike, LifeBuoy, Store, Tag, LayoutGrid } from 'lucide-react';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 
 export default function AdminPage() {
@@ -59,6 +59,21 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Click here to manage all food items available in the application.</p>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/categories" className="block h-full">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow h-full hover:border-primary">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center">
+                  <LayoutGrid className="mr-2 h-6 w-6 text-primary"/>
+                  Manage Categories
+              </CardTitle>
+              <CardDescription>Organize your menu by creating food categories.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Click here to add or edit food categories like 'Pizza', 'Drinks', etc.</p>
             </CardContent>
           </Card>
         </Link>

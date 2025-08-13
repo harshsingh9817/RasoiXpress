@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { MenuItem, HeroData } from '@/lib/types';
-import { listenToMenuItems, getHeroData } from '@/lib/data';
+import type { MenuItem, HeroData, Category } from '@/lib/types';
+import { listenToMenuItems, getHeroData, getCategories, listenToCategories } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
@@ -38,17 +39,14 @@ export default function HomePage() {
   const [currentBanner, setCurrentBanner] = useState(0);
 
   useEffect(() => {
-    // Only run the timer if there are images to cycle through
     if (!heroData || !heroData.bannerImages || heroData.bannerImages.length === 0) {
       return;
     }
-
     const timer = setInterval(() => {
       setCurrentBanner((prevBanner) => (prevBanner + 1) % heroData.bannerImages.length);
-    }, 5000); // Change image every 5 seconds
-
-    return () => clearInterval(timer); // Cleanup on unmount
-  }, [heroData]); // Re-run when heroData changes
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroData]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -59,23 +57,29 @@ export default function HomePage() {
 
     let heroDataLoaded = false;
     let menuItemsLoaded = false;
+    let categoriesLoaded = false;
 
     const checkLoadingDone = () => {
-        if (heroDataLoaded && menuItemsLoaded) {
+        if (heroDataLoaded && menuItemsLoaded && categoriesLoaded) {
             setIsLoading(false);
         }
     }
 
     setIsLoading(true);
     
-    const unsubscribe = listenToMenuItems((items) => {
+    const unsubscribeMenu = listenToMenuItems((items) => {
       setMenuItems(items);
       menuItemsLoaded = true;
       checkLoadingDone();
     }, isAdmin);
 
+    const unsubscribeCategories = listenToCategories((cats) => {
+        setCategories(cats);
+        categoriesLoaded = true;
+        checkLoadingDone();
+    });
+
     getHeroData().then(hero => {
-        // Sort banner images by the new 'order' property
         if (hero.bannerImages && Array.isArray(hero.bannerImages)) {
             hero.bannerImages.sort((a, b) => (a.order || 99) - (b.order || 99));
         }
@@ -84,13 +88,11 @@ export default function HomePage() {
         checkLoadingDone();
     });
 
-    return () => unsubscribe();
+    return () => {
+        unsubscribeMenu();
+        unsubscribeCategories();
+    };
   }, [isAuthenticated, isAuthLoading, router, isAdmin]);
-
-  const uniqueCategories = useMemo(() => {
-    const allCategories = new Set(menuItems.map(item => item.category));
-    return ['All', ...Array.from(allCategories)];
-  }, [menuItems]);
 
   const filteredAndSortedMenu = useMemo(() => {
     let items = menuItems.filter(item =>
@@ -117,7 +119,7 @@ export default function HomePage() {
         if (a.isPopular && !b.isPopular) return -1;
         if (!a.isPopular && b.isPopular) return 1;
       }
-      return 0; // Default sort if no other condition met
+      return 0;
     });
 
     return items;
@@ -143,14 +145,13 @@ export default function HomePage() {
                 key={banner.src + index}
                 src={banner.src}
                 alt={`Promotional banner ${index + 1}`}
-                layout="fill"
-                objectFit="cover"
-                priority={index === 0}
+                fill
                 className={cn(
-                    "transition-opacity duration-1000 ease-in-out",
+                    "object-cover transition-opacity duration-1000 ease-in-out",
                     currentBanner === index ? "opacity-100" : "opacity-0"
                 )}
                 data-ai-hint={banner.hint}
+                priority={index === 0}
             />
         ))}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
@@ -192,23 +193,41 @@ export default function HomePage() {
         </div>
       </section>
 
+       <section>
+        <h2 className="text-2xl font-headline font-bold mb-4">Categories</h2>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <button
+            onClick={() => setFilterCategory('All')}
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-all",
+              filterCategory === 'All' ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary"
+            )}
+          >
+            <Utensils className="h-8 w-8" />
+            <span className="text-sm font-medium">All</span>
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setFilterCategory(cat.name)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-all group",
+                filterCategory === cat.name ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary"
+              )}
+            >
+              <Image src={cat.imageUrl} alt={cat.name} width={40} height={40} className="h-10 w-10 object-contain group-hover:scale-110 transition-transform" data-ai-hint={cat.name.toLowerCase()} />
+              <span className="text-sm font-medium">{cat.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">
         <div className="w-full md:flex-1">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search for food..." />
         </div>
         <TooltipProvider>
           <div className="flex w-full md:w-auto flex-wrap justify-end items-center gap-2">
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-auto" aria-label="Filter by category">
-                  <Filter className="mr-2 h-4 w-4 text-muted-foreground"/>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueCategories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={sortOption} onValueChange={setSortOption}>
                 <SelectTrigger className="w-auto" aria-label="Sort by">
                   <TrendingUp className="mr-2 h-4 w-4 text-muted-foreground"/>

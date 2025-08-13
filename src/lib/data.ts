@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, OrderStatus } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, OrderStatus, Category } from './types';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
@@ -711,4 +711,37 @@ export async function checkCoupon(code: string, userId: string): Promise<{ isVal
     }
     
     return { isValid: true, coupon: couponData };
+}
+
+// --- Category Management (Firestore) ---
+export async function getCategories(): Promise<Category[]> {
+    const categoriesCol = collection(db, 'categories');
+    const q = query(categoriesCol, orderBy("name"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Category[];
+}
+
+export async function addCategory(categoryData: Omit<Category, 'id'>): Promise<Category> {
+    const docRef = await addDoc(collection(db, 'categories'), categoryData);
+    return { ...categoryData, id: docRef.id };
+}
+
+export async function updateCategory(categoryData: Category): Promise<void> {
+    const { id, ...data } = categoryData;
+    await updateDoc(doc(db, 'categories', id), data);
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+    await deleteDoc(doc(db, 'categories', categoryId));
+}
+
+export function listenToCategories(callback: (categories: Category[]) => void): () => void {
+    const categoriesCol = collection(db, 'categories');
+    const q = query(categoriesCol, orderBy("name"));
+    return onSnapshot(q, (snapshot) => {
+        const categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Category[];
+        callback(categories);
+    }, (error) => {
+        console.error("Error listening to categories:", error);
+    });
 }
