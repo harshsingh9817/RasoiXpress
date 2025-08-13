@@ -129,7 +129,7 @@ export default function AdminOrdersPage() {
         unsubscribeOrders();
         unsubscribeRiderUpdates();
     };
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast, selectedOrder]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
 
   const filteredOrders = useMemo(() => {
     return orders
@@ -492,7 +492,6 @@ export default function AdminOrdersPage() {
                                     }
                                     destinationAddress={selectedOrder.shippingAddress}
                                     apiUrl={paymentSettings.mapApiUrl}
-                                    useLiveLocationForOrigin={false}
                                 />
                             </div>
                         </>
