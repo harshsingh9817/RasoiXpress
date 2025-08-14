@@ -18,6 +18,7 @@ import {
   signInWithPopup,
   setPersistence,
   browserLocalPersistence,
+  type FirebaseError,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -110,16 +111,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Login Error', description: 'Email/phone and password are required.', variant: 'destructive' });
       return;
     }
+    
     let emailToLogin = identifier;
     try {
+      // Check if identifier is a mobile number
       if (/^\d{10,}$/.test(identifier)) {
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("mobileNumber", "==", identifier));
         const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) throw new Error("auth/user-not-found");
+        
+        if (querySnapshot.empty) {
+          // If no user is found with that mobile number, we know it's a failed login.
+          // We can directly show the error without calling Firebase Auth.
+          toast({ title: 'Login Failed', description: 'Incorrect email, phone number, or password.', variant: 'destructive' });
+          return;
+        }
         emailToLogin = querySnapshot.docs[0].data().email;
       }
+
+      // Proceed with Firebase email/password sign-in
       const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
+      
       if (!userCredential.user.emailVerified) {
         await firebaseSignOut(auth);
         toast({
@@ -134,7 +146,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/');
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message === "auth/user-not-found") {
+      // This will now only catch errors from signInWithEmailAndPassword,
+      // as the mobile number check is handled separately.
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-email') {
           description = 'Incorrect email, phone number, or password.';
       } else if (error.code === 'auth/invalid-credential') {
           description = "This account might be a Google account. Try signing in with Google.";
