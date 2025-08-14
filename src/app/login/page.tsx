@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { KeyRound, LogInIcon, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, LogInIcon, Eye, EyeOff, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -162,13 +162,16 @@ export default function LoginPage() {
               </Button>
 
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <p className="text-sm text-muted-foreground text-center">
-                Don&apos;t have an account?{' '}
-                <Link href="/signup" className="font-semibold text-primary hover:underline">
+            <CardFooter className="flex flex-col gap-2 pt-4 border-t">
+               <p className="text-sm text-muted-foreground text-center">
+                Don&apos;t have an account?
+              </p>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/signup">
+                  <UserPlus className="mr-2 h-4 w-4" />
                   Sign Up
                 </Link>
-              </p>
+              </Button>
             </CardFooter>
         </Card>
       </div>
