@@ -62,7 +62,7 @@ export interface Review {
 
 export interface Order {
   id: string;
-  user_id: string;
+  userId: string;
   supabase_order_uuid?: string; // Added to store the Supabase UUID
   userEmail: string; 
   customerName: string; 
@@ -71,7 +71,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'UPI' | 'Razorpay' | 'Cash on Delivery';
+  paymentMethod: 'Razorpay' | 'Cash on Delivery';
   cancellationReason?: string;
   review?: Review; 
   customerPhone?: string;
@@ -113,7 +113,7 @@ export interface AppNotification {
   title: string;
   message: string;
   read: boolean;
-  type: 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'admin_new_support_ticket';
+  type: 'order_update' | 'admin_message' | 'admin_new_order' | 'admin_order_delivered' | 'admin_new_support_ticket' | 'delivery_available';
   link?: string;
   orderId?: string;
   orderStatus?: OrderStatus;

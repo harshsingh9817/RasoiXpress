@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, updateOrderStatus } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import LocationPicker from '@/components/LocationPicker';
@@ -47,6 +47,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
     const d = R * c; // Distance in km
     return d;
 };
+
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -185,23 +186,6 @@ export default function CheckoutPage() {
     }
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
-  const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
-    setIsLoading(true);
-    try {
-        const placedOrder = await placeOrder(orderData);
-        await updateOrderStatus(placedOrder.id, 'Order Placed');
-        setOrderDetails(placedOrder);
-        clearCart();
-        setCurrentStep('success');
-        setTimeout(() => { router.push('/my-orders'); }, 8000);
-    } catch (error) {
-        console.error("Failed to place order:", error);
-        toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       if (document.getElementById('razorpay-checkout-js')) {
@@ -217,14 +201,26 @@ export default function CheckoutPage() {
     });
   };
 
-  const handleRazorpayPayment = async (orderData: Omit<Order, 'id'>, selectedAddress: AddressType) => {
+  const handlePlaceOrder = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedAddressId) {
+        toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
+        return;
+    }
+    
+    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+    if (!selectedAddress) {
+        toast({ title: "Address Error", description: "Could not find the selected address. Please try again.", variant: "destructive" });
+        return;
+    }
+    
     setIsProcessingPayment(true);
     
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
       toast({
         title: "Configuration Error",
-        description: "Razorpay client key is not set. Please contact support.",
+        description: "Razorpay client key (NEXT_PUBLIC_RAZORPAY_KEY_ID) is not set. Please contact support.",
         variant: "destructive",
       });
       setIsProcessingPayment(false);
@@ -239,9 +235,6 @@ export default function CheckoutPage() {
     }
 
     try {
-      // First, create the "pending" order in our DB
-      const pendingOrder = await placeOrder(orderData);
-
       const orderResponse = await fetch('/api/razorpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -254,20 +247,57 @@ export default function CheckoutPage() {
       }
       const razorpayOrder = await orderResponse.json();
 
+      const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
+      const orderDataForDb: Omit<Order, 'id'> = {
+          userId: user.uid,
+          userEmail: user.email || 'N/A',
+          customerName: selectedAddress.fullName,
+          date: new Date().toISOString(),
+          status: 'Pending Payment',
+          total: grandTotal,
+          items: cartItems.map(item => ({ ...item })),
+          shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
+          shippingLat: selectedAddress.lat,
+          shippingLng: selectedAddress.lng,
+          paymentMethod: 'Razorpay',
+          customerPhone: selectedAddress.phone,
+          deliveryFee: deliveryFee,
+          totalTax: totalTax,
+          razorpayOrderId: razorpayOrder.id,
+          couponCode: appliedCoupon?.code,
+          discountAmount: discountAmount
+      };
+
       const options = {
         key: keyId,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
         name: "Rasoi Xpress",
         description: "Order Payment",
+        image: "https://firebasestorage.googleapis.com/v0/b/rasoi-xpress.appspot.com/o/app-images%2Frasoi-xpress-logo.png?alt=media&token=26223b20-5627-46f9-813c-1b70273a340b",
         order_id: razorpayOrder.id,
         handler: async (response: any) => {
-          // On successful payment, update our existing order's status
-          await updateOrderStatus(pendingOrder.id, 'Order Placed');
-          setOrderDetails({ ...pendingOrder, status: 'Order Placed' });
-          clearCart();
-          setCurrentStep('success');
-          setTimeout(() => { router.push('/my-orders'); }, 8000);
+          const verificationResponse = await fetch('/api/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderData: orderDataForDb
+            }),
+          });
+          const verificationResult = await verificationResponse.json();
+
+          if (verificationResult.success) {
+            setOrderDetails(verificationResult.order);
+            clearCart();
+            setCurrentStep('success');
+            setTimeout(() => { router.push('/my-orders'); }, 8000);
+          } else {
+            toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
+            setIsProcessingPayment(false);
+          }
         },
         prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
         theme: { color: "#E64A19" },
@@ -285,74 +315,6 @@ export default function CheckoutPage() {
       console.error("Error during Razorpay process:", error);
       toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
       setIsProcessingPayment(false);
-    }
-  };
-  
-  const handleUpiPayment = async (orderData: Omit<Order, 'id'>) => {
-      setIsProcessingPayment(true);
-      try {
-        if (!paymentSettings?.upiId || !paymentSettings?.merchantName) {
-            throw new Error("UPI ID or Merchant Name is not configured.");
-        }
-        const placedOrder = await placeOrder(orderData);
-  
-        const upiUrl = `upi://pay?pa=${encodeURIComponent(paymentSettings.upiId)}&pn=${encodeURIComponent(paymentSettings.merchantName)}&tr=${encodeURIComponent(placedOrder.id)}&tn=${encodeURIComponent('Order Payment')}&am=${grandTotal.toFixed(2)}&cu=INR`;
-        
-        setOrderDetails(placedOrder);
-        clearCart();
-        setCurrentStep('success');
-        
-        window.location.href = upiUrl;
-  
-      } catch (error: any) {
-        console.error("Failed to initiate UPI payment:", error);
-        toast({ title: "Order Failed", description: "Could not initiate payment. Please try again.", variant: "destructive" });
-      } finally {
-        setIsProcessingPayment(false);
-      }
-  }
-
-
-  const handlePlaceOrder = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user || !selectedAddressId) {
-        toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
-        return;
-    }
-    
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    if (!selectedAddress) {
-        toast({ title: "Address Error", description: "Could not find the selected address. Please try again.", variant: "destructive" });
-        return;
-    }
-    
-    const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
-    const newOrderData: Omit<Order, 'id'> = {
-        user_id: user.uid,
-        userEmail: user.email || 'N/A',
-        customerName: selectedAddress.fullName,
-        date: new Date().toISOString(),
-        status: 'Pending Payment',
-        total: grandTotal,
-        items: cartItems.map(item => ({ ...item })),
-        shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
-        shippingLat: selectedAddress.lat,
-        shippingLng: selectedAddress.lng,
-        paymentMethod: paymentSettings?.isRazorpayEnabled ? 'Razorpay' : 'UPI',
-        customerPhone: selectedAddress.phone,
-        deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
-        deliveryFee: deliveryFee,
-        totalTax: totalTax,
-        ...(appliedCoupon && {
-          couponCode: appliedCoupon.code,
-          discountAmount: discountAmount
-        })
-    };
-    
-    if (paymentSettings?.isRazorpayEnabled) {
-        handleRazorpayPayment(newOrderData, selectedAddress);
-    } else {
-        handleUpiPayment(newOrderData);
     }
   };
 
@@ -411,19 +373,19 @@ export default function CheckoutPage() {
   }
 
   if (currentStep === 'success') {
-    const isUpiPayment = orderDetails?.paymentMethod === 'UPI';
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
-        {isUpiPayment ? <QrCode className="h-24 w-24 text-green-500 mb-6" /> : <CheckCircle className="h-24 w-24 text-green-500 mb-6" />}
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">
-            {isUpiPayment ? 'Redirecting to UPI...' : 'Order Placed!'}
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-md">
-            {isUpiPayment ? 'Please complete the payment in your UPI app. You can track your order on the "My Orders" page afterward.' : 'You can track your order on the "My Orders" page.'}
-        </p>
+        <CheckCircle className="h-24 w-24 text-green-500 mb-6" />
+        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Placed!</h1>
+        <p className="text-lg text-muted-foreground max-w-md">You can track your order on the "My Orders" page.</p>
+        {orderDetails?.deliveryConfirmationCode && (
+           <Card className="mt-6 text-center p-4 border-dashed"><CardHeader className="p-2"><CardTitle className="text-lg text-primary"><ShieldCheck className="mr-2 h-5 w-5 inline"/>Delivery Code</CardTitle></CardHeader><CardContent className="p-2"><p className="text-4xl font-bold tracking-widest">{orderDetails.deliveryConfirmationCode}</p><p className="text-xs text-muted-foreground mt-2">Share this with the delivery partner.</p></CardContent></Card>
+        )}
         <div className="mt-8 flex gap-4">
             <Button onClick={() => router.push('/my-orders')} size="lg">Go to My Orders</Button>
+            <Button onClick={() => router.push('/')} variant="outline" size="lg">Continue Shopping</Button>
         </div>
+        <p className="text-xs text-muted-foreground mt-6">Redirecting automatically...</p>
       </div>
     );
   }
@@ -545,8 +507,8 @@ export default function CheckoutPage() {
                     <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
                 </div>
                  <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId || !isServiceable} className="w-full">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : (paymentSettings?.isRazorpayEnabled ? <CreditCard className="mr-2" /> : <QrCode className="mr-2" />)} 
-                    {isProcessing ? 'Processing...' : `Pay with ${paymentSettings?.isRazorpayEnabled ? 'Razorpay' : 'UPI'}`}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <PackageCheck className="mr-2" />} 
+                    {isProcessing ? 'Processing...' : `Place Order`}
                 </Button>
             </CardContent>
          </Card>
