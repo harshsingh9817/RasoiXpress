@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, CheckCircle, ShieldCheck, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
+import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
 import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -60,10 +60,8 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState<'address' | 'summary' | 'success'>('address');
   
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -127,10 +125,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthLoading) return;
     if (!isAuthenticated) { router.replace('/login'); return; }
-    if (getCartItemCount() === 0 && currentStep !== 'success') { router.replace('/'); return; }
+    if (getCartItemCount() === 0) { router.replace('/'); return; }
     if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
     if (!selectedAddressId) {
@@ -290,10 +288,8 @@ export default function CheckoutPage() {
           const verificationResult = await verificationResponse.json();
 
           if (verificationResult.success) {
-            setOrderDetails(verificationResult.order);
             clearCart();
-            setCurrentStep('success');
-            setTimeout(() => { router.push('/my-orders'); }, 8000);
+            router.push(`/my-orders?track=${verificationResult.order.id}`);
           } else {
             toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
             setIsProcessingPayment(false);
@@ -368,24 +364,6 @@ export default function CheckoutPage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
         <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading..." : "Getting ready..."}</p>
-      </div>
-    );
-  }
-
-  if (currentStep === 'success') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
-        <CheckCircle className="h-24 w-24 text-green-500 mb-6" />
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Placed!</h1>
-        <p className="text-lg text-muted-foreground max-w-md">You can track your order on the "My Orders" page.</p>
-        {orderDetails?.deliveryConfirmationCode && (
-           <Card className="mt-6 text-center p-4 border-dashed"><CardHeader className="p-2"><CardTitle className="text-lg text-primary"><ShieldCheck className="mr-2 h-5 w-5 inline"/>Delivery Code</CardTitle></CardHeader><CardContent className="p-2"><p className="text-4xl font-bold tracking-widest">{orderDetails.deliveryConfirmationCode}</p><p className="text-xs text-muted-foreground mt-2">Share this with the delivery partner.</p></CardContent></Card>
-        )}
-        <div className="mt-8 flex gap-4">
-            <Button onClick={() => router.push('/my-orders')} size="lg">Go to My Orders</Button>
-            <Button onClick={() => router.push('/')} variant="outline" size="lg">Continue Shopping</Button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-6">Redirecting automatically...</p>
       </div>
     );
   }
