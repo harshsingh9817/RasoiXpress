@@ -93,9 +93,20 @@ export default function LoginPage() {
             <KeyRound className="mx-auto h-12 w-12 text-primary mb-2" />
             <CardTitle className="text-3xl font-headline animate-fade-in-up">Welcome Back!</CardTitle>
             <CardDescription className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Log in to access your Rasoi Xpress account.</CardDescription>
+            <div className="pt-4 flex flex-col gap-2">
+                <p className="text-sm text-muted-foreground text-center">
+                    Don&apos;t have an account?
+                </p>
+                <Button asChild variant="outline" className="w-full">
+                    <Link href="/signup">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Sign Up
+                    </Link>
+                </Button>
+            </div>
           </CardHeader>
           
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-4 border-t">
               <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="identifier">Email or Mobile Number</Label>
@@ -162,17 +173,6 @@ export default function LoginPage() {
               </Button>
 
             </CardContent>
-            <CardFooter className="flex flex-col gap-2 pt-4 border-t">
-               <p className="text-sm text-muted-foreground text-center">
-                Don&apos;t have an account?
-              </p>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/signup">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Sign Up
-                </Link>
-              </Button>
-            </CardFooter>
         </Card>
       </div>
 
