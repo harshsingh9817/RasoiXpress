@@ -19,6 +19,10 @@ export async function POST(request: Request) {
       orderData,
     } = await request.json();
 
+    if (!orderData) {
+      return NextResponse.json({ success: false, error: 'Order data is missing from the verification request.' }, { status: 400 });
+    }
+
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
