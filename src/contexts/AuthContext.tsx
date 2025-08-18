@@ -18,7 +18,6 @@ import {
   signInWithPopup,
   setPersistence,
   browserLocalPersistence,
-  type FirebaseError,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -153,9 +152,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/');
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
-      if (error instanceof FirebaseError && (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential')) {
+      if (error.code && (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential')) {
           description = 'Incorrect email, phone number, or password.';
-      } else if (error instanceof FirebaseError) {
+      } else if (error.message) {
           description = error.message;
       }
       toast({ title: 'Login Failed', description, variant: 'destructive' });
