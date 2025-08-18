@@ -13,7 +13,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview, listenToRiderAppOrders, getPaymentSettings, getUserProfile } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, getPaymentSettings, getUserProfile } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
@@ -84,13 +84,10 @@ export default function MyOrdersPage() {
             setIsLoading(false);
         });
         
-        const unsubscribeRiderUpdates = listenToRiderAppOrders(() => {});
-
         return () => {
             unsubscribeUserOrders();
-            unsubscribeRiderUpdates();
         };
-    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams]);
+    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams, trackedOrder]);
 
     useEffect(() => {
       if (!trackedOrder || !trackedOrder.supabase_order_uuid || !supabase) {
@@ -542,3 +539,5 @@ export default function MyOrdersPage() {
         </div>
     );
 }
+
+    
