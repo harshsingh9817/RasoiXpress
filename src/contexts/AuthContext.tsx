@@ -111,26 +111,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Login Error', description: 'Email/phone and password are required.', variant: 'destructive' });
       return;
     }
-    
-    let emailToLogin = identifier;
-    try {
-      // Check if identifier is a mobile number
-      if (/^\d{10,}$/.test(identifier)) {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("mobileNumber", "==", identifier));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-          // If no user is found with that mobile number, we know it's a failed login.
-          // We can directly show the error without calling Firebase Auth.
-          toast({ title: 'Login Failed', description: 'Incorrect email, phone number, or password.', variant: 'destructive' });
-          return;
-        }
-        emailToLogin = querySnapshot.docs[0].data().email;
-      }
 
-      // Proceed with Firebase email/password sign-in
-      const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
+    let emailToUse = identifier;
+
+    // Step 1: Check if the identifier is a mobile number
+    if (/^\d{10,}$/.test(identifier)) {
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("mobileNumber", "==", identifier));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                // Step 2: If no user is found, show the correct error and stop.
+                toast({ title: 'Login Failed', description: 'Incorrect email, phone number, or password.', variant: 'destructive' });
+                return;
+            }
+            // Step 3: If a user is found, get their email to use for sign-in.
+            emailToUse = querySnapshot.docs[0].data().email;
+        } catch (error) {
+            console.error("Error fetching user by mobile number:", error);
+            toast({ title: 'Login Failed', description: 'An unexpected error occurred while checking your details.', variant: 'destructive' });
+            return;
+        }
+    }
+
+    // Step 4: Proceed with Firebase email/password sign-in using the determined email.
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
       
       if (!userCredential.user.emailVerified) {
         await firebaseSignOut(auth);
@@ -146,12 +153,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/');
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
-      // This will now only catch errors from signInWithEmailAndPassword,
-      // as the mobile number check is handled separately.
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-email') {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential') {
           description = 'Incorrect email, phone number, or password.';
-      } else if (error.code === 'auth/invalid-credential') {
-          description = "This account might be a Google account. Try signing in with Google.";
       }
       toast({ title: 'Login Failed', description, variant: 'destructive' });
     }
@@ -164,14 +167,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await manageUserInFirestore(userCredential.user);
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       
-      // Key Fix: Check for profile completion first.
       if (!userDoc.exists() || !userDoc.data()?.mobileNumber) {
         toast({ title: 'Welcome!', description: 'Please complete your profile to continue.' });
         router.push('/complete-profile');
         return;
       }
   
-      // Then check for address setup.
       const addresses = await getAddresses(userCredential.user.uid);
       if (addresses.length === 0) {
           toast({ title: 'Almost there!', description: 'Please add a delivery address.' });
