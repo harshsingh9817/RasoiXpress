@@ -27,22 +27,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, AtSign, Building } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, Building } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const paymentSettingsSchema = z.object({
-  isRazorpayEnabled: z.boolean().optional(),
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
   mapApiUrl: z.string().min(1, "API Key is required."),
-  upiId: z.string().min(3, "A valid UPI ID is required.").refine(val => val.includes('@'), { message: "Please enter a valid UPI ID (e.g., your-id@bank)." }),
   merchantName: z.string().min(3, "Merchant name is required.").max(50, "Merchant name is too long."),
 });
 
@@ -57,12 +54,10 @@ export default function PaymentSettingsPage() {
   const form = useForm<PaymentSettingsFormValues>({
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
-      isRazorpayEnabled: true,
       isDeliveryFeeEnabled: true,
       deliveryRadiusKm: 5,
       orderExpirationMinutes: 5,
       mapApiUrl: "",
-      upiId: "",
       merchantName: "Rasoi Xpress",
     },
   });
@@ -76,12 +71,10 @@ export default function PaymentSettingsPage() {
       const loadSettings = async () => {
         const data = await getPaymentSettings();
         form.reset({
-          isRazorpayEnabled: data.isRazorpayEnabled ?? true,
           isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
           deliveryRadiusKm: data.deliveryRadiusKm || 5,
           orderExpirationMinutes: data.orderExpirationMinutes || 5,
           mapApiUrl: data.mapApiUrl || "",
-          upiId: data.upiId || "",
           merchantName: data.merchantName || "Rasoi Xpress",
         });
       }
@@ -93,13 +86,12 @@ export default function PaymentSettingsPage() {
     setIsSubmitting(true);
     try {
       await updatePaymentSettings({
-        isRazorpayEnabled: data.isRazorpayEnabled,
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         deliveryRadiusKm: data.deliveryRadiusKm,
         orderExpirationMinutes: data.orderExpirationMinutes,
         mapApiUrl: data.mapApiUrl,
-        upiId: data.upiId,
         merchantName: data.merchantName,
+        isRazorpayEnabled: true, // Always true
       });
       toast({
         title: "Settings Updated",
@@ -138,46 +130,20 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
               </CardTitle>
               <CardDescription>
-                Manage UPI, Razorpay, delivery fees, and third-party service integrations.
+                Manage Razorpay, delivery fees, and third-party service integrations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                <div className="space-y-4">
                  <h3 className="font-medium text-lg">Payment Method</h3>
-                  <FormField
-                  control={form.control}
-                  name="isRazorpayEnabled"
-                  render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                          <FormLabel className="text-base flex items-center"><CreditCard className="mr-2 h-4 w-4"/>Enable Razorpay Gateway</FormLabel>
-                          <FormDescription>
-                            Turn this on to use Razorpay's checkout. If off, direct UPI payment will be used.
-                          </FormDescription>
-                      </div>
-                      <FormControl>
-                          <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          />
-                      </FormControl>
-                      </FormItem>
-                  )}
-                 />
-                 <FormField
-                  control={form.control}
-                  name="upiId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><AtSign className="mr-2 h-4 w-4"/>Merchant UPI ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="your-business@bank" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormDescription>The UPI ID for direct payments or Razorpay UPI.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <Alert variant="default" className="border-primary/50 bg-primary/5">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <AlertTitleElement className="text-primary font-bold">Razorpay is Enabled</AlertTitleElement>
+                    <AlertDescriptionElement>
+                      Your store exclusively uses the Razorpay payment gateway for all transactions.
+                    </AlertDescriptionElement>
+                  </Alert>
+
                  <FormField
                   control={form.control}
                   name="merchantName"
@@ -293,7 +259,7 @@ export default function PaymentSettingsPage() {
         <KeyRound className="h-4 w-4" />
         <AlertTitle>Razorpay API Keys</AlertTitle>
         <AlertDescriptionElement>
-            Your Razorpay API keys in the `.env` file are used for the Razorpay Gateway. The UPI details above are for direct UPI payments.
+            Your Razorpay API keys in the `.env` file are used to power the payment gateway.
         </AlertDescriptionElement>
       </Alert>
     </div>

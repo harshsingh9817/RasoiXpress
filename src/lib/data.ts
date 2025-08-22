@@ -103,8 +103,7 @@ const defaultPaymentSettings: PaymentSettings = {
     deliveryRadiusKm: 5,
     orderExpirationMinutes: 5,
     mapApiUrl: "",
-    upiId: "",
-    merchantName: "",
+    merchantName: "Rasoi Xpress",
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {

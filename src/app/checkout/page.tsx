@@ -244,7 +244,7 @@ export default function CheckoutPage() {
         throw new Error(errorData.error || 'Failed to create Razorpay order');
       }
       const razorpayOrder = await orderResponse.json();
-
+      
       const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
       const orderDataForDb: Omit<Order, 'id'> = {
           userId: user.uid,

@@ -71,7 +71,7 @@ export interface Order {
   total: number; // This is the grand total
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'Razorpay' | 'Cash on Delivery';
+  paymentMethod: 'Razorpay';
   cancellationReason?: string;
   review?: Review; 
   customerPhone?: string;
@@ -135,12 +135,11 @@ export interface HeroData {
 }
 
 export interface PaymentSettings {
-  isRazorpayEnabled?: boolean;
+  isRazorpayEnabled: boolean;
   isDeliveryFeeEnabled: boolean;
   deliveryRadiusKm?: number;
   orderExpirationMinutes?: number;
   mapApiUrl: string;
-  upiId?: string;
   merchantName?: string;
 }
 
