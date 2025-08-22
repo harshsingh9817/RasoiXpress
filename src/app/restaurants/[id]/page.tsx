@@ -229,5 +229,6 @@ export default function RestaurantDetailPage() {
         )}
       </section>
     </div>
+    
   );
 }
