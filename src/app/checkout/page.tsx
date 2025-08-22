@@ -266,34 +266,22 @@ export default function CheckoutPage() {
           discountAmount: discountAmount
       };
 
+      // Place the order in our DB with 'Pending Payment' status BEFORE opening Razorpay
+      const pendingOrder = await placeOrder(orderDataForDb);
+
       const options = {
         key: keyId,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        name: "Rasoi Xpress",
+        name: paymentSettings?.merchantName || "Rasoi Xpress",
         description: "Order Payment",
         image: "https://firebasestorage.googleapis.com/v0/b/rasoi-xpress.appspot.com/o/app-images%2Frasoi-xpress-logo.png?alt=media&token=26223b20-5627-46f9-813c-1b70273a340b",
         order_id: razorpayOrder.id,
         handler: async (response: any) => {
-          const verificationResponse = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              orderData: orderDataForDb
-            }),
-          });
-          const verificationResult = await verificationResponse.json();
-
-          if (verificationResult.success) {
-            clearCart();
-            router.push(`/my-orders?track=${verificationResult.order.id}`);
-          } else {
-            toast({ title: "Payment Failed", description: "Payment verification failed. Please contact support.", variant: "destructive" });
-            setIsProcessingPayment(false);
-          }
+          // On successful payment, the webhook will handle the verification and status update.
+          // We just need to clear the cart and redirect the user.
+          clearCart();
+          router.push(`/my-orders?track=${pendingOrder.id}`);
         },
         prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
         theme: { color: "#E64A19" },
@@ -302,8 +290,9 @@ export default function CheckoutPage() {
       const paymentObject = new window.Razorpay(options);
       paymentObject.on('payment.failed', (response: any) => {
         console.error('Razorpay payment failed:', response.error);
-        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
+        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred. Your order was not placed.', variant: "destructive" });
         setIsProcessingPayment(false);
+        // Note: The order remains in 'Pending Payment' status and can be cleaned up later.
       });
       paymentObject.open();
 
