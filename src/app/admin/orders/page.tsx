@@ -39,7 +39,7 @@ import {
     AlertDialogContent,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogDescription as AlertDialogDescriptionElement,
+    AlertDialogDescription,
     AlertDialogFooter,
   } from "@/components/ui/alert-dialog"
 import {
@@ -243,7 +243,7 @@ export default function AdminOrdersPage() {
         } else {
             title = `A message regarding your order #${orderToMessage.id.toString().slice(-6)}`;
         }
-        await sendAdminMessage(orderToMessage.user_id, orderToMessage.userEmail, title, messageContent);
+        await sendAdminMessage(orderToMessage.userId, orderToMessage.userEmail, title, messageContent);
         toast({ title: "Message Sent!", description: `Your message has been sent to ${orderToMessage.customerName}.` });
         setIsMessageDialogOpen(false);
     } catch (error) {
@@ -532,11 +532,11 @@ export default function AdminOrdersPage() {
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
-            <AlertDialogDescriptionElement>
+            <AlertDialogDescription>
                 This action will mark order
                 <span className="font-semibold"> #{orderToCancel?.id.toString().slice(-6)} </span>
                 as 'Cancelled'. This cannot be undone.
-            </AlertDialogDescriptionElement>
+            </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
@@ -551,11 +551,11 @@ export default function AdminOrdersPage() {
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescriptionElement>
+            <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the order
                 <span className="font-semibold"> #{orderToDelete?.id.toString().slice(-6)} </span>
                 from the database.
-            </AlertDialogDescriptionElement>
+            </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>

@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, Building } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
-import { Alert, AlertTitle, AlertDescription as AlertDescriptionElement } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -138,10 +138,10 @@ export default function PaymentSettingsPage() {
                  <h3 className="font-medium text-lg">Payment Method</h3>
                   <Alert variant="default" className="border-primary/50 bg-primary/5">
                     <CreditCard className="h-4 w-4 text-primary" />
-                    <AlertTitleElement className="text-primary font-bold">Razorpay is Enabled</AlertTitleElement>
-                    <AlertDescriptionElement>
+                    <AlertTitle className="text-primary font-bold">Razorpay is Enabled</AlertTitle>
+                    <AlertDescription>
                       Your store exclusively uses the Razorpay payment gateway for all transactions.
-                    </AlertDescriptionElement>
+                    </AlertDescription>
                   </Alert>
 
                  <FormField
@@ -258,9 +258,9 @@ export default function PaymentSettingsPage() {
       <Alert>
         <KeyRound className="h-4 w-4" />
         <AlertTitle>Razorpay API Keys</AlertTitle>
-        <AlertDescriptionElement>
+        <AlertDescription>
             Your Razorpay API keys in the `.env` file are used to power the payment gateway.
-        </AlertDescriptionElement>
+        </AlertDescription>
       </Alert>
     </div>
   );

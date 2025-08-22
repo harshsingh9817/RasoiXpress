@@ -27,7 +27,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle as AlertTitleElement } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogContent, DialogHeader as EditDialogHeader, DialogTitle as EditDialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -432,7 +432,7 @@ export default function CheckoutPage() {
                  {!isServiceable && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertTitleElement>Out of Delivery Area</AlertTitleElement>
+                      <AlertTitle>Out of Delivery Area</AlertTitle>
                       <AlertDescription>
                         Sorry, this location is more than {paymentSettings?.deliveryRadiusKm || 5}km away. We cannot deliver to this address.
                       </AlertDescription>
@@ -441,7 +441,7 @@ export default function CheckoutPage() {
                 {isServiceable && paymentSettings?.isDeliveryFeeEnabled === false && (
                     <Alert>
                         <Gift className="h-4 w-4" />
-                        <AlertTitleElement>Free Delivery Unlocked!</AlertTitleElement>
+                        <AlertTitle>Free Delivery Unlocked!</AlertTitle>
                         <AlertDescription>
                             All delivery fees are currently waived as part of a special promotion.
                         </AlertDescription>
@@ -450,7 +450,7 @@ export default function CheckoutPage() {
                 {isServiceable && paymentSettings?.isDeliveryFeeEnabled !== false && isFirstOrder && (
                     <Alert>
                         <Gift className="h-4 w-4" />
-                        <AlertTitleElement>First Order Bonus!</AlertTitleElement>
+                        <AlertTitle>First Order Bonus!</AlertTitle>
                         <AlertDescription>
                             Congratulations! Your first delivery is on the house.
                         </AlertDescription>
