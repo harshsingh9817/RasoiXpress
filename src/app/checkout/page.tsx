@@ -262,8 +262,8 @@ export default function CheckoutPage() {
           deliveryFee: deliveryFee,
           totalTax: totalTax,
           razorpayOrderId: razorpayOrder.id,
-          couponCode: appliedCoupon?.code,
-          discountAmount: discountAmount
+          ...(appliedCoupon && { couponCode: appliedCoupon.code }),
+          ...(appliedCoupon && { discountAmount: discountAmount }),
       };
 
       // Place the order in our DB with 'Pending Payment' status BEFORE opening Razorpay
