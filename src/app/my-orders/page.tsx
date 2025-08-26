@@ -13,7 +13,7 @@ import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview, getPaymentSettings, getUserProfile, getOrderById, updateOrderPaymentDetails } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, getPaymentSettings, getUserProfile, getOrderById, updateOrderPaymentDetails, getUserOrders } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
@@ -63,34 +63,51 @@ export default function MyOrdersPage() {
             router.replace('/login');
             return;
         }
-        if (!firebaseUser) {
-            setIsLoading(false);
-            return;
-        }
-        
-        let initialLoadHandled = false;
 
-        const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
-            setOrders(userOrders);
-
-            if (trackParam) {
-                const orderToTrack = userOrders.find(o => o.id === trackParam);
-                setTrackedOrder(orderToTrack || null);
-            }
-            
-            if (!initialLoadHandled) {
+        const loadInitialData = async () => {
+            if (!firebaseUser) {
                 setIsLoading(false);
-                initialLoadHandled = true;
+                return;
             }
-        });
+            setIsLoading(true);
+            try {
+                const [initialOrders, settings, profile] = await Promise.all([
+                    getUserOrders(firebaseUser.uid),
+                    getPaymentSettings(),
+                    getUserProfile(firebaseUser.uid)
+                ]);
 
-        getPaymentSettings().then(setPaymentSettings);
-        getUserProfile(firebaseUser.uid).then(setUserProfile);
-        
-        return () => {
-            unsubscribeUserOrders();
+                setOrders(initialOrders);
+                setPaymentSettings(settings);
+                setUserProfile(profile);
+
+                if (trackParam) {
+                    const orderToTrack = initialOrders.find(o => o.id === trackParam);
+                    setTrackedOrder(orderToTrack || null);
+                }
+            } catch (error) {
+                console.error("Failed to load initial order data:", error);
+                toast({ title: "Error", description: "Could not fetch your orders.", variant: "destructive" });
+            } finally {
+                setIsLoading(false);
+            }
         };
-    }, [isAuthenticated, isAuthLoading, firebaseUser, router, trackParam]);
+
+        loadInitialData();
+
+        if (firebaseUser) {
+            const unsubscribe = listenToUserOrders(firebaseUser.uid, (updatedOrders) => {
+                setOrders(updatedOrders);
+                if (trackParam) {
+                    const updatedTrackedOrder = updatedOrders.find(o => o.id === trackParam);
+                    setTrackedOrder(updatedTrackedOrder || null);
+                }
+            });
+            return () => unsubscribe();
+        }
+
+    }, [isAuthenticated, isAuthLoading, firebaseUser, router, trackParam, toast]);
+
 
     useEffect(() => {
       if (!trackedOrder || !trackedOrder.supabase_order_uuid || !supabase) {
