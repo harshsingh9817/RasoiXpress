@@ -68,8 +68,7 @@ export default function MyOrdersPage() {
             return;
         }
         
-        // This state is just to track if the first data load has happened
-        let initialLoadComplete = false;
+        let initialLoadHandled = false;
 
         const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             setOrders(userOrders);
@@ -79,14 +78,12 @@ export default function MyOrdersPage() {
                 setTrackedOrder(orderToTrack || null);
             }
             
-            // Only set loading to false on the very first data fetch
-            if (!initialLoadComplete) {
+            if (!initialLoadHandled) {
                 setIsLoading(false);
-                initialLoadComplete = true;
+                initialLoadHandled = true;
             }
         });
 
-        // Also fetch static data needed for the page
         getPaymentSettings().then(setPaymentSettings);
         getUserProfile(firebaseUser.uid).then(setUserProfile);
         
