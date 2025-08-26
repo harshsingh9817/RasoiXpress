@@ -30,6 +30,21 @@ const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': Pack
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 
+const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-checkout-js')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'razorpay-checkout-js';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+};
+
 export default function MyOrdersPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -57,56 +72,58 @@ export default function MyOrdersPage() {
 
     const trackParam = searchParams.get('track');
 
+    const loadInitialData = useCallback(async () => {
+        if (!firebaseUser) {
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const [initialOrders, settings, profile] = await Promise.all([
+                getUserOrders(firebaseUser.uid),
+                getPaymentSettings(),
+                getUserProfile(firebaseUser.uid)
+            ]);
+
+            setOrders(initialOrders);
+            setPaymentSettings(settings);
+            setUserProfile(profile);
+
+            if (trackParam) {
+                const orderToTrack = initialOrders.find(o => o.id === trackParam);
+                setTrackedOrder(orderToTrack || null);
+            }
+        } catch (error) {
+            console.error("Failed to load initial order data:", error);
+            toast({ title: "Error", description: "Could not fetch your orders.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firebaseUser, trackParam, toast]);
+
     useEffect(() => {
         if (isAuthLoading) return;
         if (!isAuthenticated) {
             router.replace('/login');
             return;
         }
-
-        const loadInitialData = async () => {
-            if (!firebaseUser) {
-                setIsLoading(false);
-                return;
-            }
-            setIsLoading(true);
-            try {
-                const [initialOrders, settings, profile] = await Promise.all([
-                    getUserOrders(firebaseUser.uid),
-                    getPaymentSettings(),
-                    getUserProfile(firebaseUser.uid)
-                ]);
-
-                setOrders(initialOrders);
-                setPaymentSettings(settings);
-                setUserProfile(profile);
-
-                if (trackParam) {
-                    const orderToTrack = initialOrders.find(o => o.id === trackParam);
-                    setTrackedOrder(orderToTrack || null);
-                }
-            } catch (error) {
-                console.error("Failed to load initial order data:", error);
-                toast({ title: "Error", description: "Could not fetch your orders.", variant: "destructive" });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+        
         loadInitialData();
 
-        if (firebaseUser) {
-            const unsubscribe = listenToUserOrders(firebaseUser.uid, (updatedOrders) => {
-                setOrders(updatedOrders);
-                if (trackParam) {
-                    const updatedTrackedOrder = updatedOrders.find(o => o.id === trackParam);
-                    setTrackedOrder(updatedTrackedOrder || null);
-                }
-            });
-            return () => unsubscribe();
-        }
+    }, [isAuthenticated, isAuthLoading, router, loadInitialData]);
 
-    }, [isAuthenticated, isAuthLoading, firebaseUser, router, trackParam, toast]);
+    useEffect(() => {
+        if (!firebaseUser) return () => {};
+
+        const unsubscribe = listenToUserOrders(firebaseUser.uid, (updatedOrders) => {
+            setOrders(updatedOrders);
+            if (trackParam) {
+                const updatedTrackedOrder = updatedOrders.find(o => o.id === trackParam);
+                setTrackedOrder(updatedTrackedOrder || null);
+            }
+        });
+        return () => unsubscribe();
+    }, [firebaseUser, trackParam]);
 
 
     useEffect(() => {
@@ -230,6 +247,13 @@ export default function MyOrdersPage() {
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
           toast({ title: "Configuration Error", description: "Payment gateway is not configured.", variant: "destructive" });
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
           setIsProcessingPayment(false);
           return;
         }
