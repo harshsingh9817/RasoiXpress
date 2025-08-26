@@ -68,20 +68,27 @@ export default function MyOrdersPage() {
             return;
         }
         
-        setIsLoading(true);
-        getPaymentSettings().then(setPaymentSettings);
-        getUserProfile(firebaseUser.uid).then(setUserProfile);
+        // This state is just to track if the first data load has happened
+        let initialLoadComplete = false;
 
         const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             setOrders(userOrders);
 
-            // If a track param is present, update the trackedOrder state
             if (trackParam) {
                 const orderToTrack = userOrders.find(o => o.id === trackParam);
                 setTrackedOrder(orderToTrack || null);
             }
-            setIsLoading(false);
+            
+            // Only set loading to false on the very first data fetch
+            if (!initialLoadComplete) {
+                setIsLoading(false);
+                initialLoadComplete = true;
+            }
         });
+
+        // Also fetch static data needed for the page
+        getPaymentSettings().then(setPaymentSettings);
+        getUserProfile(firebaseUser.uid).then(setUserProfile);
         
         return () => {
             unsubscribeUserOrders();
