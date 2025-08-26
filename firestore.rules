@@ -4,80 +4,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-
-    // Checks if a user is signed in.
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Checks if the signed-in user's ID matches the document's userId.
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    // Checks if the user is the admin based on their email.
+    // Helper function to check for the admin user
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == 'harshsingh9817@gmail.com';
+      return request.auth != null && request.auth.token.email == 'harshsingh9817@gmail.com';
     }
 
-    // --- Collection Rules ---
+    // Users can read/update their own profile data
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+    
+    // Rules for user-specific subcollections like addresses
+    match /users/{userId}/{subcollection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
 
-    // MenuItems, Categories, and Globals can be read by anyone, but only written by an admin.
+    // Orders can be read by the user who owns it or by an admin.
+    // Users can only create orders for themselves.
+    // Users can only update their own order (e.g., to cancel).
+    match /orders/{orderId} {
+      allow read: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Menu items, categories, and globals are read-only for authenticated users, but writable for admins.
     match /menuItems/{itemId} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if isAdmin();
     }
+    
     match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    match /globals/{docId} { // For hero, paymentSettings, etc.
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Coupons can be read by any logged-in user, but only managed by an admin.
-    match /coupons/{couponId} {
-        allow read: if isAuthenticated();
+        allow read: if request.auth != null;
         allow write: if isAdmin();
     }
 
-    // Orders can be created by authenticated users.
-    // They can only be read/updated by the user who owns it or an admin.
-    // Deletion is admin-only.
-    match /orders/{orderId} {
-      allow create: if isAuthenticated();
-      allow read, update: if isOwner(request.resource.data.user_id) || isAdmin();
-      allow delete: if isAdmin();
+    match /globals/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
     
-    // User-specific data.
-    match /users/{userId} {
-        // Any signed-in user can create their own user document.
-        allow create: if isAuthenticated();
-        // Users can read/update their own profile. Admin can read/update any profile.
-        allow read, update: if isOwner(userId) || isAdmin();
-        
-        // Addresses can be managed by the user who owns them or an admin.
-        match /addresses/{addressId} {
-            allow read, create, update, delete: if isOwner(userId) || isAdmin();
-        }
+    // Support tickets can be created by any authenticated user.
+    // Admins can read and write all tickets.
+    match /supportTickets/{ticketId} {
+        allow create: if request.auth != null;
+        allow read, write: if isAdmin();
     }
     
-    // Admin messages can be created for any user by an admin.
-    // Users can only read messages addressed to them.
+    // Admin messages can be read by the intended user or an admin.
+    // Only admins can create messages.
     match /adminMessages/{messageId} {
-      allow create: if isAdmin();
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow update, delete: if isAdmin();
+        allow read: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+        allow write: if isAdmin();
     }
 
-    // Support tickets can be created by anyone (guests or logged-in users).
-    // They can only be read/managed by an admin.
-    match /supportTickets/{ticketId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+    // Coupons are read-only for users, writable for admins.
+    match /coupons/{couponId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
     }
   }
 }
