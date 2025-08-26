@@ -259,6 +259,11 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
 }
 
+export async function updateOrderPaymentDetails(orderId: string, paymentData: { razorpayOrderId: string }): Promise<void> {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, paymentData);
+}
+
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status: status });
@@ -323,7 +328,7 @@ export async function getAllOrders(): Promise<Order[]> {
 export async function getUserOrders(userId: string): Promise<Order[]> {
     if (!userId) return [];
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('user_id', '==', userId));
+    const q = query(ordersCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
     const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -361,7 +366,7 @@ export function listenToAllOrders(callback: (orders: Order[]) => void): () => vo
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
     if (!userId) return () => {};
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('user_id', '==', userId), orderBy('date', 'desc'));
+    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(userOrders);
@@ -703,7 +708,7 @@ export async function checkCoupon(code: string, userId: string): Promise<{ isVal
     // Check if user has already used this coupon
     const ordersQuery = query(
         collection(db, 'orders'),
-        where('user_id', '==', userId),
+        where('userId', '==', userId),
         where('couponCode', '==', code)
     );
     const ordersSnapshot = await getDocs(ordersQuery);

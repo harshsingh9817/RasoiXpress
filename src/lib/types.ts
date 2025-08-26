@@ -88,7 +88,7 @@ export interface Order {
   isAvailableForPickup?: boolean;
   shippingLat?: number;
   shippingLng?: number;
-  couponCode?: string;
+  couponCode?: string | null;
   discountAmount?: number;
 }
 

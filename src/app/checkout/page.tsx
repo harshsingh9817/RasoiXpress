@@ -292,7 +292,9 @@ export default function CheckoutPage() {
         console.error('Razorpay payment failed:', response.error);
         toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred. Your order was not placed.', variant: "destructive" });
         setIsProcessingPayment(false);
-        // Note: The order remains in 'Pending Payment' status and can be cleaned up later.
+        // User is redirected to My Orders to see the 'Pending Payment' order and can retry.
+        clearCart();
+        router.push(`/my-orders?track=${pendingOrder.id}`);
       });
       paymentObject.open();
 

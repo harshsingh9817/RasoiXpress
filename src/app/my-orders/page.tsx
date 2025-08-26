@@ -7,13 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone, TimerOff, Car, PersonStanding
+  PackageSearch, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, AlertTriangle, XCircle, FileText, Ban, Star, ShieldCheck, ArrowLeft, CreditCard, QrCode, UserCheck, Phone, TimerOff, Car, PersonStanding, WalletCards
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, OrderItem, OrderStatus, Review } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { listenToUserOrders, cancelOrder, submitOrderReview, getPaymentSettings, getUserProfile } from '@/lib/data';
+import { listenToUserOrders, cancelOrder, submitOrderReview, getPaymentSettings, getUserProfile, getOrderById, updateOrderPaymentDetails } from '@/lib/data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
@@ -23,9 +23,10 @@ import DirectionsMap from '@/components/DirectionsMap';
 import { supabase } from '@/lib/supabase';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+declare global { interface Window { Razorpay: any; } }
 
 const orderProgressSteps: OrderStatus[] = [ 'Order Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Accepted by Rider', 'Delivered' ];
-const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Accepted by Rider': UserCheck, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff };
+const stepIcons: Record<OrderStatus, React.ElementType> = { 'Order Placed': PackagePlus, 'Confirmed': ClipboardCheck, 'Preparing': ChefHat, 'Out for Delivery': Bike, 'Accepted by Rider': UserCheck, 'Delivered': DeliveredIcon, 'Cancelled': XCircle, 'Expired': TimerOff, 'Pending Payment': WalletCards };
 
 const CANCELLATION_REASONS = [ "Ordered by mistake", "Want to change items in the order", "Delivery time is too long", "Found a better deal elsewhere", "Personal reasons", "Other (please specify if possible)" ];
 
@@ -41,6 +42,7 @@ export default function MyOrdersPage() {
     const [paymentSettings, setPaymentSettings] = useState<any>(null);
     const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [userProfile, setUserProfile] = useState<any | null>(null);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Dialog states
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -52,6 +54,8 @@ export default function MyOrdersPage() {
     const [orderToReview, setOrderToReview] = useState<Order | null>(null);
     const [currentRating, setCurrentRating] = useState(0);
     const [currentReviewComment, setCurrentReviewComment] = useState('');
+
+    const trackParam = searchParams.get('track');
 
     useEffect(() => {
         if (isAuthLoading) return;
@@ -71,15 +75,10 @@ export default function MyOrdersPage() {
         const unsubscribeUserOrders = listenToUserOrders(firebaseUser.uid, (userOrders) => {
             setOrders(userOrders);
 
-            const trackParam = searchParams.get('track');
+            // If a track param is present, update the trackedOrder state
             if (trackParam) {
                 const orderToTrack = userOrders.find(o => o.id === trackParam);
-                if (orderToTrack) {
-                   setTrackedOrder(orderToTrack);
-                } else if (trackedOrder && trackedOrder.id === trackParam) {
-                   const updatedTrackedOrder = userOrders.find(o => o.id === trackParam);
-                   setTrackedOrder(updatedTrackedOrder || null);
-                }
+                setTrackedOrder(orderToTrack || null);
             }
             setIsLoading(false);
         });
@@ -87,7 +86,7 @@ export default function MyOrdersPage() {
         return () => {
             unsubscribeUserOrders();
         };
-    }, [isAuthenticated, isAuthLoading, firebaseUser, router, searchParams, trackedOrder]);
+    }, [isAuthenticated, isAuthLoading, firebaseUser, router, trackParam]);
 
     useEffect(() => {
       if (!trackedOrder || !trackedOrder.supabase_order_uuid || !supabase) {
@@ -128,7 +127,6 @@ export default function MyOrdersPage() {
 
 
     const handleTrackOrderFromList = (order: Order) => {
-        setTrackedOrder(order);
         router.push(`/my-orders?track=${order.id}`, { scroll: false });
     };
     
@@ -146,13 +144,14 @@ export default function MyOrdersPage() {
           case 'Accepted by Rider': return 'text-orange-600';
           case 'Cancelled': return 'text-red-600';
           case 'Expired': return 'text-gray-500';
+          case 'Pending Payment': return 'text-amber-600';
           default: return 'text-orange-600';
         }
     };
     
     // --- DIALOG HANDLERS ---
     const handleOpenCancelDialog = (order: Order) => {
-        if (order.status === 'Order Placed') {
+        if (order.status === 'Order Placed' || order.status === 'Pending Payment') {
             setOrderToCancel(order);
             setSelectedCancelReason('');
             setIsCancelDialogOpen(true);
@@ -165,7 +164,7 @@ export default function MyOrdersPage() {
         if (!orderToCancel || !selectedCancelReason) return;
         await cancelOrder(orderToCancel.id, selectedCancelReason);
         
-        const isPrepaid = orderToCancel.paymentMethod === 'Razorpay';
+        const isPrepaid = orderToCancel.paymentMethod === 'Razorpay' && orderToCancel.status !== 'Pending Payment';
         const refundMessage = isPrepaid ? ' Your refund will be processed within 24-48 hours.' : '';
 
         toast({
@@ -199,6 +198,69 @@ export default function MyOrdersPage() {
         toast({ title: 'Review Submitted!', description: 'Thank you for your feedback.' });
         setIsReviewDialogOpen(false);
     };
+    
+    const handlePayNow = async (orderToPay: Order) => {
+        if (!paymentSettings?.isRazorpayEnabled || !firebaseUser) {
+          toast({ title: "Payment Error", description: "Payment system is currently unavailable.", variant: "destructive" });
+          return;
+        }
+        setIsProcessingPayment(true);
+    
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          toast({ title: "Configuration Error", description: "Payment gateway is not configured.", variant: "destructive" });
+          setIsProcessingPayment(false);
+          return;
+        }
+    
+        try {
+          const orderResponse = await fetch('/api/razorpay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: orderToPay.total }),
+          });
+    
+          if (!orderResponse.ok) throw new Error('Failed to create Razorpay order');
+          const razorpayOrder = await orderResponse.json();
+    
+          // Update the existing order with the new Razorpay order ID
+          await updateOrderPaymentDetails(orderToPay.id, { razorpayOrderId: razorpayOrder.id });
+    
+          const options = {
+            key: keyId,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            name: paymentSettings.merchantName || "Rasoi Xpress",
+            description: `Payment for Order #${orderToPay.id.slice(-6)}`,
+            order_id: razorpayOrder.id,
+            handler: (response: any) => {
+              // The webhook will handle final verification and status update.
+              // Just need to inform the user.
+              toast({ title: "Payment Successful!", description: "Your order is being confirmed." });
+              handleTrackOrderFromList(orderToPay);
+            },
+            prefill: {
+              name: orderToPay.customerName,
+              email: orderToPay.userEmail,
+              contact: orderToPay.customerPhone,
+            },
+            theme: { color: "#E64A19" },
+          };
+    
+          const paymentObject = new window.Razorpay(options);
+          paymentObject.on('payment.failed', (response: any) => {
+            console.error('Razorpay payment failed:', response.error);
+            toast({ title: "Payment Failed", description: response.error.description || 'Please try again.', variant: "destructive" });
+          });
+          paymentObject.open();
+    
+        } catch (error) {
+          console.error("Pay Now error:", error);
+          toast({ title: "Error", description: "Could not initiate payment.", variant: "destructive" });
+        } finally {
+          setIsProcessingPayment(false);
+        }
+      };
 
 
     if (isAuthLoading || isLoading) {
@@ -259,16 +321,27 @@ export default function MyOrdersPage() {
                             </CardContent>
                         </Card>
                     )}
-                    {trackedOrder.status === 'Cancelled' || trackedOrder.status === 'Expired' ? (
-                        <Card className="mt-4 border-destructive bg-destructive/10">
+                    {trackedOrder.status === 'Cancelled' || trackedOrder.status === 'Expired' || trackedOrder.status === 'Pending Payment' ? (
+                        <Card className={cn("mt-4 border-destructive bg-destructive/10", trackedOrder.status === 'Pending Payment' && "border-amber-500 bg-amber-500/10")}>
                             <CardHeader className="flex flex-row items-center space-x-3">
-                                {trackedOrder.status === 'Cancelled' ? <AlertTriangle className="h-8 w-8 text-destructive" /> : <TimerOff className="h-8 w-8 text-destructive" />}
+                                {trackedOrder.status === 'Cancelled' && <AlertTriangle className="h-8 w-8 text-destructive" />}
+                                {trackedOrder.status === 'Expired' && <TimerOff className="h-8 w-8 text-destructive" />}
+                                {trackedOrder.status === 'Pending Payment' && <WalletCards className="h-8 w-8 text-amber-600" />}
                                 <div>
-                                    <CardTitle className="text-destructive">Order {trackedOrder.status}</CardTitle>
+                                    <CardTitle className={cn("text-destructive", trackedOrder.status === 'Pending Payment' && "text-amber-600")}>Order {trackedOrder.status}</CardTitle>
                                     {trackedOrder.cancellationReason && <CardDescription>Reason: {trackedOrder.cancellationReason}</CardDescription>}
                                     {trackedOrder.status === 'Expired' && <CardDescription>The restaurant did not confirm your order in time.</CardDescription>}
+                                    {trackedOrder.status === 'Pending Payment' && <CardDescription>Your payment was not completed. Please try again.</CardDescription>}
                                 </div>
                             </CardHeader>
+                            {trackedOrder.status === 'Pending Payment' && (
+                                <CardContent>
+                                    <Button className="w-full" onClick={() => handlePayNow(trackedOrder)} disabled={isProcessingPayment}>
+                                        {isProcessingPayment ? <AnimatedPlateSpinner className="w-6 h-6 mr-2"/> : <CreditCard className="mr-2 h-4 w-4"/>}
+                                        {isProcessingPayment ? 'Processing...' : 'Pay Now'}
+                                    </Button>
+                                </CardContent>
+                            )}
                         </Card>
                     ) : (
                         <div className="relative pt-4 pl-4">
@@ -295,7 +368,7 @@ export default function MyOrdersPage() {
                         </div>
                     )}
 
-                    {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Expired' && trackedOrder.deliveryConfirmationCode && (
+                    {trackedOrder.status !== 'Cancelled' && trackedOrder.status !== 'Expired' && trackedOrder.status !== 'Pending Payment' && trackedOrder.deliveryConfirmationCode && (
                         <>
                             <Separator className="my-4" />
                             <div className="p-4 border-dashed border-2 border-primary/50 rounded-lg text-center bg-primary/5">
@@ -394,7 +467,12 @@ export default function MyOrdersPage() {
                                   <Separator />
 
                                   <div className="flex flex-wrap gap-2">
-                                     {showTrackingGuide ? (
+                                     {order.status === 'Pending Payment' ? (
+                                        <Button size="sm" onClick={() => handlePayNow(order)} disabled={isProcessingPayment}>
+                                            {isProcessingPayment ? <AnimatedPlateSpinner className="w-5 h-5 mr-2"/> : <CreditCard className="mr-2 h-4 w-4"/>}
+                                            {isProcessingPayment ? 'Processing...' : 'Pay Now'}
+                                        </Button>
+                                     ) : showTrackingGuide ? (
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>{trackButton}</TooltipTrigger>
@@ -407,7 +485,7 @@ export default function MyOrdersPage() {
                                         trackButton
                                      )}
                                      <Button variant="outline" size="sm" onClick={() => handleOpenBillDialog(order)}><FileText className="mr-2 h-4 w-4" />View Bill</Button>
-                                     {order.status === 'Order Placed' && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}
+                                     {(order.status === 'Order Placed' || order.status === 'Pending Payment') && <Button variant="destructive" size="sm" onClick={() => handleOpenCancelDialog(order)}><Ban className="mr-2 h-4 w-4" />Cancel Order</Button>}
                                      {order.status === 'Delivered' && !order.review && <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => handleOpenReviewDialog(order)}><Star className="mr-2 h-4 w-4" />Leave Review</Button>}
                                   </div>
                                 </CardContent>
@@ -431,7 +509,7 @@ export default function MyOrdersPage() {
                     <DialogTitle>Confirm Cancellation</DialogTitle>
                     <DialogDescription>
                         Select a reason for cancelling order <span className="font-semibold">#{orderToCancel?.id.toString().slice(-6)}</span>.
-                        {orderToCancel?.paymentMethod === 'Razorpay' && (
+                        {orderToCancel?.paymentMethod === 'Razorpay' && orderToCancel.status !== 'Pending Payment' && (
                             <p className="mt-2 text-sm text-primary">
                                 As this was a prepaid order, your refund will be processed within 24-48 hours upon cancellation.
                             </p>
@@ -506,6 +584,12 @@ export default function MyOrdersPage() {
                                         <span>Taxes:</span>
                                         <span>Rs.{(orderForBillView.totalTax ?? (calculateSubtotal(orderForBillView.items) * (orderForBillView.taxRate ?? 0))).toFixed(2)}</span>
                                     </div>
+                                     {orderForBillView.discountAmount && orderForBillView.discountAmount > 0 && (
+                                        <div className="flex justify-between text-green-600">
+                                            <span>Discount ({orderForBillView.couponCode}):</span>
+                                            <span>- Rs.{orderForBillView.discountAmount.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                     <Separator className="my-2"/>
                                     <div className="flex justify-between font-bold text-base mt-2">
                                         <span>Grand Total:</span>
@@ -539,5 +623,3 @@ export default function MyOrdersPage() {
         </div>
     );
 }
-
-    
