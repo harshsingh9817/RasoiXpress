@@ -1,0 +1,21 @@
+{
+  "name": "Rasoi Xpress",
+  "short_name": "RasoiXpress",
+  "description": "Order your favorite food online with Rasoi Xpress from the best restaurants near you.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F5F2",
+  "theme_color": "#E64A19",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

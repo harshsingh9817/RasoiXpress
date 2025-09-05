@@ -24,6 +24,7 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: 'Rasoi Xpress - Fast Food Delivery',
   description: 'Order your favorite food online with Rasoi Xpress from the best restaurants near you.',
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
@@ -32,6 +33,7 @@ export const viewport: Viewport = {
   maximumScale: 1.0,
   userScalable: false,
   shrinkToFit: 'no',
+  themeColor: '#E64A19',
 };
 
 export default function RootLayout({

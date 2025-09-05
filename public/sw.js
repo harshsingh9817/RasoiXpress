@@ -1,41 +1,74 @@
-// This service worker handles notification events.
+// A basic service worker for caching assets
 
-// Fired when a user clicks on a notification.
-self.addEventListener('notificationclick', (event) => {
-  const rootUrl = new URL('/', location).href;
-  event.notification.close();
-  // This looks for an open window with the app's URL and focuses it.
+const CACHE_NAME = 'rasoi-xpress-cache-v1';
+const urlsToCache = [
+  '/',
+  '/styles/globals.css',
+  // Add other important assets here
+];
+
+self.addEventListener('install', event => {
+  // Perform install steps
   event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true,
-    }).then((clientList) => {
-      // If a window is already open, focus it.
-      const client = clientList.find((c) => c.url === rootUrl && 'focus' in c);
-      if (client) {
-        return client.focus();
-      }
-      // Otherwise, open a new window.
-      if (clients.openWindow) {
-        return clients.openWindow(rootUrl);
-      }
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
   );
 });
 
-// Fired when the service worker receives a push event from a server.
-// This is included for future-proofing, as we currently trigger notifications from the client.
-self.addEventListener('push', (event) => {
-    if (!(self.Notification && self.Notification.permission === 'granted')) {
-        return;
-    }
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
 
-    const data = event.data ? event.data.json() : {};
-    const title = data.title || 'Rasoi Xpress';
-    const options = {
-        body: data.body || 'You have a new notification.',
-        // An icon can be added here, e.g., icon: '/icon-192x192.png'
-    };
+        // IMPORTANT: Clone the request. A request is a stream and
+        // can only be consumed once. Since we are consuming this
+        // once by cache and once by the browser for fetch, we need
+        // to clone the response.
+        const fetchRequest = event.request.clone();
 
-    event.waitUntil(self.registration.showNotification(title, options));
+        return fetch(fetchRequest).then(
+          response => {
+            // Check if we received a valid response
+            if(!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // IMPORTANT: Clone the response. A response is a stream
+            // and because we want the browser to consume the response
+            // as well as the cache consuming the response, we need
+            // to clone it so we have two streams.
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          }
+        );
+      })
+    );
+});
+
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
 });
