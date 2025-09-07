@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -38,6 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { uploadImage } from "@/lib/appwrite";
+import { Upload } from "lucide-react";
 
 const menuItemSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
@@ -45,7 +46,7 @@ const menuItemSchema = z.object({
   price: z.coerce.number().min(0, "Price must be a positive number."),
   costPrice: z.coerce.number().min(0, "Cost price must be a positive number.").optional(),
   category: z.string().min(1, "Category is required."),
-  imageUrl: z.string().url("Must be a valid URL."),
+  imageUrl: z.string().url("A valid image URL is required."),
   isVegetarian: z.boolean().default(false),
   isPopular: z.boolean().default(false),
   isVisible: z.boolean().default(true).optional(),
@@ -72,6 +73,8 @@ export default function MenuItemFormDialog({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<MenuItemFormValues>({
     resolver: zodResolver(menuItemSchema),
@@ -79,10 +82,11 @@ export default function MenuItemFormDialog({
       isVegetarian: false,
       isPopular: false,
       isVisible: true,
+      imageUrl: "https://placehold.co/300x200.png",
     },
   });
 
-  const { reset } = form;
+  const { reset, setValue } = form;
   const imageUrl = form.watch("imageUrl");
 
   useEffect(() => {
@@ -97,13 +101,15 @@ export default function MenuItemFormDialog({
 
   useEffect(() => {
     if (isOpen) {
+        setImageFile(null);
         if (menuItem) {
           reset({
             ...menuItem,
             costPrice: menuItem.costPrice || undefined,
             taxRate: menuItem.taxRate || undefined,
-            isVisible: menuItem.isVisible !== false, // Default to true if undefined
-        });
+            isVisible: menuItem.isVisible !== false,
+          });
+          setImagePreview(menuItem.imageUrl);
         } else {
           reset({
             name: "",
@@ -119,19 +125,33 @@ export default function MenuItemFormDialog({
             ingredients: "",
             taxRate: undefined,
           });
+          setImagePreview("https://placehold.co/300x200.png");
         }
     }
   }, [menuItem, reset, isOpen]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data: MenuItemFormValues) => {
     setIsSubmitting(true);
     try {
-      const dataToSave: { [key: string]: any } = {};
-        Object.entries(data).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-                dataToSave[key] = value;
-            }
-        });
+      let finalImageUrl = data.imageUrl;
+      if (imageFile) {
+        finalImageUrl = await uploadImage(imageFile);
+        setValue("imageUrl", finalImageUrl);
+      }
+      
+      const dataToSave = { ...data, imageUrl: finalImageUrl };
 
       if (menuItem) {
         await updateMenuItem({ ...dataToSave, id: menuItem.id } as MenuItem);
@@ -257,33 +277,38 @@ export default function MenuItemFormDialog({
                   )}
                 />
             </div>
-             <FormField
-              control={form.control}
-              name="imageUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Image URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://placehold.co/300x200.png" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            {imageUrl && (
+            <FormItem>
+              <FormLabel>Item Image</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input 
+                    type="file" 
+                    onChange={handleImageChange} 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                    aria-label="Upload image"
+                  />
+                  <Button type="button" variant="outline" className="w-full" asChild>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="mr-2 h-4 w-4" />
+                      {imageFile ? imageFile.name : "Choose an image"}
+                    </label>
+                  </Button>
+                </div>
+              </FormControl>
+              <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+            </FormItem>
+
+            {imagePreview && (
               <div className="space-y-2 pt-2">
                 <FormLabel>Image Preview</FormLabel>
                 <div className="p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-[4/3]">
                   <Image
-                    src={imageUrl}
+                    src={imagePreview}
                     alt="Image Preview"
                     width={200}
                     height={150}
                     className="rounded-md object-cover h-full w-full"
-                    onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://placehold.co/200x150.png?text=Invalid+URL';
-                    }}
                     data-ai-hint="food item"
                   />
                 </div>

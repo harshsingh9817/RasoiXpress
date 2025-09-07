@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -54,13 +53,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Trash2, Edit, PackageSearch, LayoutGrid } from "lucide-react";
+import { PlusCircle, Trash2, Edit, PackageSearch, LayoutGrid, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
+import { uploadImage } from "@/lib/appwrite";
 
 const categorySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
-  imageUrl: z.string().url("Please enter a valid image URL."),
+  imageUrl: z.string().url("Please upload an image."),
 });
 
 type CategoryFormValues = z.infer<typeof categorySchema>;
@@ -76,13 +76,15 @@ export default function CategoryManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
     defaultValues: { name: "", imageUrl: "" },
   });
   
-  const imageUrl = form.watch("imageUrl");
+  const { setValue } = form;
 
   const loadCategories = useCallback(async () => {
     setIsDataLoading(true);
@@ -109,21 +111,51 @@ export default function CategoryManagementPage() {
 
   const handleOpenFormDialog = (category: Category | null) => {
     setCategoryToEdit(category);
-    form.reset(category || { name: "", imageUrl: "" });
+    setImageFile(null);
+    if (category) {
+      form.reset(category);
+      setImagePreview(category.imageUrl);
+    } else {
+      form.reset({ name: "", imageUrl: "" });
+      setImagePreview(null);
+    }
     setIsFormOpen(true);
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data: CategoryFormValues) => {
     try {
-        if (categoryToEdit) {
-            await updateCategory({ id: categoryToEdit.id, ...data });
-            toast({ title: "Category Updated", description: `Category "${data.name}" has been updated.` });
-        } else {
-            await addCategory(data);
-            toast({ title: "Category Created", description: `Category "${data.name}" has been created.` });
-        }
-        await loadCategories();
-        setIsFormOpen(false);
+      let finalImageUrl = data.imageUrl;
+      if (imageFile) {
+        finalImageUrl = await uploadImage(imageFile);
+        setValue("imageUrl", finalImageUrl);
+      } else if (!categoryToEdit) {
+        toast({ title: "Image Required", description: "Please upload an image for the new category.", variant: "destructive" });
+        return;
+      }
+
+      const categoryData = { ...data, imageUrl: finalImageUrl };
+
+      if (categoryToEdit) {
+        await updateCategory({ id: categoryToEdit.id, ...categoryData });
+        toast({ title: "Category Updated", description: `Category "${data.name}" has been updated.` });
+      } else {
+        await addCategory(categoryData);
+        toast({ title: "Category Created", description: `Category "${data.name}" has been created.` });
+      }
+      await loadCategories();
+      setIsFormOpen(false);
     } catch (error: any) {
         console.error("Failed to save category", error);
         toast({ title: "Save Failed", description: error.message || "Could not save the category.", variant: "destructive" });
@@ -247,32 +279,37 @@ export default function CategoryManagementPage() {
                             </FormItem>
                         )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="imageUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Image URL</FormLabel>
-                            <FormControl>
-                               <Input placeholder="https://placehold.co/100x100.png" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    {imageUrl && (
+                    <FormItem>
+                      <FormLabel>Category Image</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            type="file" 
+                            onChange={handleImageChange} 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                            aria-label="Upload image"
+                          />
+                          <Button type="button" variant="outline" className="w-full" asChild>
+                            <label htmlFor="file-upload" className="cursor-pointer">
+                              <Upload className="mr-2 h-4 w-4" />
+                              {imageFile ? imageFile.name : "Choose an image"}
+                            </label>
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+                    </FormItem>
+                    
+                    {imagePreview && (
                         <div className="space-y-2 pt-2">
                             <FormLabel>Image Preview</FormLabel>
                             <div className="p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-square w-32 mx-auto">
                             <Image
-                                src={imageUrl}
+                                src={imagePreview}
                                 alt="Image Preview"
                                 width={100}
                                 height={100}
                                 className="rounded-md object-contain h-full w-full"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png?text=Invalid+URL';
-                                }}
                                 data-ai-hint="food category"
                             />
                             </div>

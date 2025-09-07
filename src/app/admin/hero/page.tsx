@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -30,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Save, PlusCircle, Trash2 } from "lucide-react";
+import { LayoutTemplate, Save, PlusCircle, Trash2, Upload } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -43,9 +42,10 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog"
+import { uploadImage } from "@/lib/appwrite";
 
 const bannerSchema = z.object({
-  src: z.string().url("Please enter a valid image URL."),
+  src: z.string().url("Please upload an image for each banner."),
   hint: z.string().min(1, "AI hint is required (e.g., 'pizza meal')."),
   order: z.coerce.number().min(1, "Order must be at least 1."),
 });
@@ -61,6 +61,11 @@ const heroSchema = z.object({
 
 type HeroFormValues = z.infer<typeof heroSchema>;
 
+type BannerFile = {
+  file: File | null;
+  preview: string;
+};
+
 export default function HeroManagementPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -71,6 +76,8 @@ export default function HeroManagementPage() {
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [bannerIndexToDelete, setBannerIndexToDelete] = useState<number | null>(null);
+
+  const [bannerFiles, setBannerFiles] = useState<BannerFile[]>([]);
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
@@ -84,13 +91,11 @@ export default function HeroManagementPage() {
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "bannerImages",
   });
   
-  const watchedBanners = form.watch("bannerImages");
-
   useEffect(() => {
     if (!isAuthLoading && (!isAuthenticated || !isAdmin)) {
       router.replace("/");
@@ -99,7 +104,6 @@ export default function HeroManagementPage() {
     if (isAuthenticated && isAdmin) {
       const loadData = async () => {
         const data = await getHeroData();
-        // Sort banners by order before resetting the form
         if (data.bannerImages && Array.isArray(data.bannerImages)) {
           data.bannerImages.sort((a, b) => (a.order || 99) - (b.order || 99));
         }
@@ -108,6 +112,7 @@ export default function HeroManagementPage() {
             headlineColor: data.headlineColor || '#FFFFFF',
             subheadlineColor: data.subheadlineColor || '#E5E7EB',
         });
+        setBannerFiles(data.bannerImages.map(img => ({ file: null, preview: img.src })))
         if (data.orderingTime && data.orderingTime.includes(' - ')) {
             const [start, end] = data.orderingTime.split(' - ');
             setStartTime(start.trim());
@@ -131,10 +136,39 @@ export default function HeroManagementPage() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   });
 
+  const handleImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const newBannerFiles = [...bannerFiles];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newBannerFiles[index] = { file, preview: reader.result as string };
+        setBannerFiles(newBannerFiles);
+        // Set a temporary URL to satisfy schema, it will be replaced on submit
+        form.setValue(`bannerImages.${index}.src`, reader.result as string, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
   const onSubmit = async (data: HeroFormValues) => {
     setIsSubmitting(true);
     try {
-      await updateHeroData(data);
+      const uploadedImageUrls = await Promise.all(
+        bannerFiles.map(async (banner, index) => {
+          if (banner.file) {
+            return await uploadImage(banner.file);
+          }
+          return data.bannerImages[index].src;
+        })
+      );
+  
+      const updatedBanners = data.bannerImages.map((banner, index) => ({
+        ...banner,
+        src: uploadedImageUrls[index],
+      }));
+  
+      await updateHeroData({ ...data, bannerImages: updatedBanners });
       toast({
         title: "Hero Section Updated",
         description: "The homepage hero has been successfully updated.",
@@ -159,6 +193,9 @@ export default function HeroManagementPage() {
   const confirmDelete = () => {
     if (bannerIndexToDelete !== null) {
         remove(bannerIndexToDelete);
+        const newBannerFiles = [...bannerFiles];
+        newBannerFiles.splice(bannerIndexToDelete, 1);
+        setBannerFiles(newBannerFiles);
         toast({
             title: "Banner Removed",
             description: "The banner has been removed. Click 'Save All Changes' to make it permanent.",
@@ -167,6 +204,13 @@ export default function HeroManagementPage() {
     setIsDeleteDialogOpen(false);
     setBannerIndexToDelete(null);
   };
+  
+  const handleAddBanner = () => {
+    const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order)) + 1 : 1;
+    append({ src: '', hint: 'new banner', order: newOrder });
+    setBannerFiles([...bannerFiles, { file: null, preview: 'https://placehold.co/1280x400.png' }]);
+  };
+
 
   if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
     return (
@@ -192,9 +236,6 @@ export default function HeroManagementPage() {
                         </CardTitle>
                         <CardDescription>
                             Update the text and rotating banner images displayed on the homepage.
-                            <p className="mt-1">
-                            Search image on <a href="https://unsplash.com/search/photos/food" target="_blank" rel="noopener noreferrer" className="text-primary underline">UNSPLASH website</a> or <a href="https://www.yummytummyaarthi.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Yummy Tummy Aarthi</a>.
-                            </p>
                         </CardDescription>
                       </div>
                       <Button type="submit" disabled={isSubmitting} className="shrink-0">
@@ -352,19 +393,26 @@ export default function HeroManagementPage() {
                                             </FormItem>
                                         )}
                                     />
-                                    <FormField
-                                        control={form.control}
-                                        name={`bannerImages.${index}.src`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Image URL</FormLabel>
-                                                <FormControl>
-                                                <Input placeholder="https://placehold.co/1280x400.png" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <FormItem>
+                                      <FormLabel>Upload Image</FormLabel>
+                                      <FormControl>
+                                        <div className="relative">
+                                          <Input 
+                                            type="file"
+                                            onChange={(e) => handleImageChange(index, e)}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            aria-label={`Upload banner image ${index + 1}`}
+                                          />
+                                          <Button type="button" variant="outline" className="w-full" asChild>
+                                            <label className="cursor-pointer">
+                                              <Upload className="mr-2 h-4 w-4" />
+                                              {bannerFiles[index]?.file?.name || "Choose an image"}
+                                            </label>
+                                          </Button>
+                                        </div>
+                                      </FormControl>
+                                      <FormMessage>{form.formState.errors.bannerImages?.[index]?.src?.message}</FormMessage>
+                                    </FormItem>
                                </div>
                                <FormField
                                 control={form.control}
@@ -385,20 +433,17 @@ export default function HeroManagementPage() {
                               <span className="sr-only">Remove banner</span>
                             </Button>
                         </div>
-                        {watchedBanners?.[index]?.src && (
+                        {bannerFiles[index]?.preview && (
                             <div className="w-full">
                                 <FormLabel>Banner Preview</FormLabel>
                                 <div className="mt-2 p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-[16/6]">
                                     <Image
-                                        src={watchedBanners[index].src}
+                                        src={bannerFiles[index].preview}
                                         alt={`Banner Preview ${index + 1}`}
                                         width={1280}
                                         height={400}
                                         className="rounded-md object-cover h-full w-full"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = 'https://placehold.co/1280x400.png?text=Invalid+URL';
-                                        }}
-                                        data-ai-hint={watchedBanners[index].hint || 'banner'}
+                                        data-ai-hint={field.hint || 'banner'}
                                     />
                                 </div>
                             </div>
@@ -410,12 +455,12 @@ export default function HeroManagementPage() {
                    <Button
                       type="button"
                       variant="outline"
-                      onClick={() => append({ src: 'https://placehold.co/1280x400.png', hint: 'new banner', order: fields.length + 1 })}
+                      onClick={handleAddBanner}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Banner
                     </Button>
-                    <FormMessage>{form.formState.errors.bannerImages?.message}</FormMessage>
+                    <FormMessage>{form.formState.errors.bannerImages?.message || form.formState.errors.bannerImages?.root?.message}</FormMessage>
 
                 </CardContent>
             </form>
