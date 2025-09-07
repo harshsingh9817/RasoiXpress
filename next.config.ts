@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
       },
       { // Added for Appwrite
         protocol: 'https',
-        hostname: 'cloud.appwrite.io',
+        hostname: 'fra.cloud.appwrite.io',
         port: '',
         pathname: '/**',
       }

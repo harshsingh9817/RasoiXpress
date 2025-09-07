@@ -65,6 +65,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.yummytummyaarthi.com',
         port: '',
         pathname: '/**',
+      },
+      { // Added for Appwrite
+        protocol: 'https',
+        hostname: 'fra.cloud.appwrite.io',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

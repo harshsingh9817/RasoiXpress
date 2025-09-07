@@ -246,6 +246,7 @@ export default function CheckoutPage() {
       const razorpayOrder = await orderResponse.json();
       
       const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
+      
       const orderDataForDb: Omit<Order, 'id'> = {
           userId: user.uid,
           userEmail: user.email || 'N/A',
