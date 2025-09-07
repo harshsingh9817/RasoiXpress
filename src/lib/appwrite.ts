@@ -15,7 +15,7 @@ if (!endpoint || !projectId) {
 
 const storage = new Storage(client);
 
-const BUCKET_ID = 'menu-images'; // Use a consistent bucket ID
+const BUCKET_ID = '68bd2c020011529f85d0'; // Use a consistent bucket ID
 
 /**
  * Uploads a file to Appwrite Storage.
