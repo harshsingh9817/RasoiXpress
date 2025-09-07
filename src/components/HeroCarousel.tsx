@@ -40,6 +40,15 @@ export default function HeroCarousel({ media, slideInterval }: HeroCarouselProps
     Autoplay({ delay: (slideInterval || 5) * 1000, stopOnInteraction: false, stopOnMouseEnter: true })
   )
 
+  // Gracefully handle cases where media is not yet available or is empty.
+  if (!media || media.length === 0) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center bg-muted">
+        <p className="text-muted-foreground">No slides to display.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full relative">
       <Carousel
