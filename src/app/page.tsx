@@ -8,8 +8,7 @@ import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Utensils, Leaf, Filter, TrendingUp, Clock } from 'lucide-react';
-import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
+import { Leaf, Filter, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -20,10 +19,8 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { cn } from '@/lib/utils';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
-import Link from 'next/link';
+import HeroCarousel from '@/components/HeroCarousel';
 
 export default function HomePage() {
   const { isAuthenticated, isAuthLoading, isAdmin } = useAuth();
@@ -37,17 +34,6 @@ export default function HomePage() {
   const [sortOption, setSortOption] = useState<string>('popular'); // 'popular', 'priceLowHigh', 'priceHighLow'
   const [showVegetarian, setShowVegetarian] = useState<boolean>(false);
   const [heroData, setHeroData] = useState<HeroData | null>(null);
-  const [currentBanner, setCurrentBanner] = useState(0);
-
-  useEffect(() => {
-    if (!heroData || !heroData.bannerImages || heroData.bannerImages.length === 0) {
-      return;
-    }
-    const timer = setInterval(() => {
-      setCurrentBanner((prevBanner) => (prevBanner + 1) % heroData.bannerImages.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [heroData]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -81,8 +67,8 @@ export default function HomePage() {
     });
 
     getHeroData().then(hero => {
-        if (hero.bannerImages && Array.isArray(hero.bannerImages)) {
-            hero.bannerImages.sort((a, b) => (a.order || 99) - (b.order || 99));
+        if (hero.media && Array.isArray(hero.media)) {
+            hero.media.sort((a, b) => (a.order || 99) - (b.order || 99));
         }
         setHeroData(hero);
         heroDataLoaded = true;
@@ -140,58 +126,12 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-       <section className="relative h-auto md:h-80 w-full rounded-lg overflow-hidden shadow-xl flex items-center">
-        {heroData?.bannerImages?.map((banner, index) => (
-            <Image
-                key={banner.src + index}
-                src={banner.src}
-                alt={`Promotional banner ${index + 1}`}
-                fill
-                className={cn(
-                    "object-cover transition-opacity duration-1000 ease-in-out",
-                    currentBanner === index ? "opacity-100" : "opacity-0"
-                )}
-                data-ai-hint={banner.hint}
-                priority={index === 0}
-            />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-8 p-4 sm:p-6 lg:p-8">
-          <div className="text-center md:text-left md:w-1/2 lg:w-3/5 space-y-4">
-              <div
-                role="heading"
-                aria-level="1"
-                className="text-4xl md:text-5xl font-headline font-bold mb-3 animate-fade-in-up"
-                style={{
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                  color: heroData?.headlineColor || '#FFFFFF',
-                }}
-              >
-                {heroData ? heroData.headline : <Skeleton className="h-14 w-full max-w-lg bg-white/20" />}
-              </div>
-              <div
-                className="text-lg md:text-xl max-w-2xl mx-auto md:mx-0 animate-fade-in-up"
-                style={{
-                  animationDelay: '0.2s',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                  color: heroData?.subheadlineColor || '#E5E7EB',
-                }}
-              >
-                {heroData ? heroData.subheadline : <Skeleton className="h-7 w-full max-w-md bg-white/20" />}
-              </div>
-              <div className="text-lg text-gray-200 max-w-2xl mx-auto md:mx-0 animate-fade-in-up" style={{ animationDelay: '0.4s', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
-                {heroData?.orderingTime ? (
-                    <div className="flex items-center justify-center md:justify-start gap-2 mt-2 font-semibold bg-black/30 backdrop-blur-sm rounded-full px-4 py-2 w-fit mx-auto md:mx-0">
-                        <Clock className="h-5 w-5" />
-                        <span>Open: {heroData.orderingTime}</span>
-                    </div>
-                ) : (heroData && <Skeleton className="h-10 w-64 bg-white/20 rounded-full" />)}
-              </div>
-          </div>
-          <div className="md:w-1/2 lg:w-2/5 flex justify-center text-primary-foreground">
-              <AnimatedDeliveryScooter className="w-full max-w-xs h-auto" />
-          </div>
-        </div>
+       <section className="relative h-auto md:h-[500px] w-full rounded-lg overflow-hidden shadow-xl flex items-center">
+          {heroData ? (
+            <HeroCarousel media={heroData.media} slideInterval={heroData.slideInterval} />
+          ) : (
+            <Skeleton className="h-full w-full" />
+          )}
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 bg-card rounded-lg shadow sticky top-16 z-10 -mx-4 px-4 border-b">

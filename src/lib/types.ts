@@ -119,19 +119,15 @@ export interface AppNotification {
   orderStatus?: OrderStatus;
 }
 
-export interface BannerImage {
+export interface HeroMedia {
+  type: 'image' | 'video';
   src: string;
-  hint: string;
   order: number;
 }
 
 export interface HeroData {
-  headline: string;
-  subheadline: string;
-  orderingTime: string;
-  bannerImages: BannerImage[];
-  headlineColor?: string;
-  subheadlineColor?: string;
+  media: HeroMedia[];
+  slideInterval: number; // in seconds
 }
 
 export interface PaymentSettings {
