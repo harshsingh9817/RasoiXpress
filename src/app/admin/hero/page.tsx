@@ -16,7 +16,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Timer, Video, Image as ImageIcon } from "lucide-react";
+import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Timer, Video, Image as ImageIcon, Text } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { uploadImage } from "@/lib/appwrite"; // Re-using for file uploads
@@ -26,10 +26,14 @@ const heroMediaSchema = z.object({
   type: z.enum(["image", "video"]),
   src: z.string().url("Please upload a file for each slide."),
   order: z.coerce.number().min(1, "Order must be at least 1."),
+  headline: z.string().optional(),
+  subheadline: z.string().optional(),
 });
 
 const heroSchema = z.object({
   slideInterval: z.coerce.number().min(1, "Interval must be at least 1 second.").default(5),
+  globalHeadline: z.string().optional(),
+  globalSubheadline: z.string().optional(),
   media: z.array(heroMediaSchema).min(1, "You must have at least one slide."),
 });
 
@@ -47,7 +51,7 @@ export default function HeroManagementPage() {
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
-    defaultValues: { media: [], slideInterval: 5 },
+    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', globalSubheadline: '' },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -68,6 +72,8 @@ export default function HeroManagementPage() {
         }
         form.reset({
           slideInterval: data.slideInterval || 5,
+          globalHeadline: data.globalHeadline || '',
+          globalSubheadline: data.globalSubheadline || '',
           media: data.media || [],
         });
         setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
@@ -149,7 +155,7 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order)) + 1 : 1;
-    append({ type: 'image', src: '', order: newOrder });
+    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
@@ -174,7 +180,7 @@ export default function HeroManagementPage() {
                     <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
                   </CardTitle>
                   <CardDescription>
-                    Manage the rotating images and videos on the homepage, and set the autoplay speed.
+                    Manage slides, text overlays, and autoplay speed for the homepage carousel.
                   </CardDescription>
                 </div>
                 <Button type="submit" disabled={isSubmitting} className="shrink-0">
@@ -199,8 +205,32 @@ export default function HeroManagementPage() {
               />
               <Separator />
               <div>
+                <h3 className="text-lg font-medium flex items-center"><Text className="mr-2 h-5 w-5 text-primary"/>Global Text Overlay</h3>
+                <p className="text-sm text-muted-foreground">This text will appear on all slides unless overridden by individual slide text.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <FormField control={form.control} name="globalHeadline" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Global Headline</FormLabel>
+                        <FormControl><Input placeholder="E.g., Welcome to Rasoi Xpress" {...field} value={field.value || ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField control={form.control} name="globalSubheadline" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Global Subheadline</FormLabel>
+                        <FormControl><Input placeholder="E.g., Fresh, Fast, Delicious." {...field} value={field.value || ''}/></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+              <div>
                 <h3 className="text-lg font-medium">Manage Slides</h3>
-                <p className="text-sm text-muted-foreground">Add or remove images/videos for the carousel. Set a display order for each slide.</p>
+                <p className="text-sm text-muted-foreground">Add or remove slides. Set a display order and optional custom text for each.</p>
               </div>
               <div className="space-y-4">
                 {fields.map((field, index) => (
@@ -208,38 +238,30 @@ export default function HeroManagementPage() {
                     <div className="flex items-start gap-4">
                       <div className="flex-1 space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-4 items-end">
-                          <FormField
-                            control={form.control}
-                            name={`media.${index}.order`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Order</FormLabel>
-                                <FormControl><Input type="number" placeholder="1" {...field} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
+                          <FormField control={form.control} name={`media.${index}.order`} render={({ field }) => (
+                              <FormItem><FormLabel>Order</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
                             )}
                           />
                           <FormItem>
                             <FormLabel>Upload Image or Video</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <Input
-                                  type="file"
-                                  accept="image/*,video/*"
-                                  onChange={(e) => handleFileChange(index, e)}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                  aria-label={`Upload slide ${index + 1}`}
-                                />
+                                <Input type="file" accept="image/*,video/*" onChange={(e) => handleFileChange(index, e)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label={`Upload slide ${index + 1}`}/>
                                 <Button type="button" variant="outline" className="w-full" asChild>
-                                  <label className="cursor-pointer">
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    {mediaFiles[index]?.file?.name || "Choose file"}
-                                  </label>
+                                  <label className="cursor-pointer"><Upload className="mr-2 h-4 w-4" />{mediaFiles[index]?.file?.name || "Choose file"}</label>
                                 </Button>
                               </div>
                             </FormControl>
                             <FormMessage>{form.formState.errors.media?.[index]?.src?.message}</FormMessage>
                           </FormItem>
+                        </div>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={form.control} name={`media.${index}.headline`} render={({ field }) => (
+                                <FormItem><FormLabel>Custom Headline</FormLabel><FormControl><Input placeholder="Overrides global headline" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                             <FormField control={form.control} name={`media.${index}.subheadline`} render={({ field }) => (
+                                <FormItem><FormLabel>Custom Subheadline</FormLabel><FormControl><Input placeholder="Overrides global subheadline" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                            )}/>
                         </div>
                       </div>
                       <Button type="button" variant="destructive" size="icon" onClick={() => handleDeleteMedia(index)} className="mt-7">
@@ -250,18 +272,10 @@ export default function HeroManagementPage() {
                       <div className="w-full">
                         <div className="flex justify-between items-center mb-2">
                           <FormLabel>Preview</FormLabel>
-                          {mediaFiles[index].type === 'video' ? (
-                            <Badge variant="secondary"><Video className="mr-1.5 h-3 w-3" /> Video</Badge>
-                          ) : (
-                            <Badge variant="secondary"><ImageIcon className="mr-1.5 h-3 w-3" /> Image</Badge>
-                          )}
+                          {mediaFiles[index].type === 'video' ? (<Badge variant="secondary"><Video className="mr-1.5 h-3 w-3" /> Video</Badge>) : (<Badge variant="secondary"><ImageIcon className="mr-1.5 h-3 w-3" /> Image</Badge>)}
                         </div>
                         <div className="mt-2 p-2 border rounded-md flex justify-center items-center bg-muted/50 aspect-[16/9]">
-                          {mediaFiles[index].type === 'video' ? (
-                            <video src={mediaFiles[index].preview} className="rounded-md object-cover h-full w-full" controls />
-                          ) : (
-                            <Image src={mediaFiles[index].preview} alt={`Preview ${index + 1}`} width={1280} height={720} className="rounded-md object-cover h-full w-full" />
-                          )}
+                          {mediaFiles[index].type === 'video' ? (<video src={mediaFiles[index].preview} className="rounded-md object-cover h-full w-full" controls />) : (<Image src={mediaFiles[index].preview} alt={`Preview ${index + 1}`} width={1280} height={720} className="rounded-md object-cover h-full w-full" />)}
                         </div>
                       </div>
                     )}

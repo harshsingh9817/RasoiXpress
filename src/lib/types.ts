@@ -123,11 +123,15 @@ export interface HeroMedia {
   type: 'image' | 'video';
   src: string;
   order: number;
+  headline?: string;
+  subheadline?: string;
 }
 
 export interface HeroData {
   media: HeroMedia[];
   slideInterval: number; // in seconds
+  globalHeadline?: string;
+  globalSubheadline?: string;
 }
 
 export interface PaymentSettings {

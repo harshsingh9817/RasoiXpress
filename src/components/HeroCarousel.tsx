@@ -4,7 +4,6 @@
 import * as React from "react"
 import Autoplay from "embla-carousel-autoplay"
 
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Carousel,
   CarouselContent,
@@ -13,34 +12,40 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel"
-import type { HeroMedia } from "@/lib/types"
+import type { HeroData, HeroMedia } from "@/lib/types"
 
 interface HeroCarouselProps {
-    media: HeroMedia[];
-    slideInterval: number;
+    heroData: HeroData | null;
 }
 
-export default function HeroCarousel({ media, slideInterval }: HeroCarouselProps) {
+export default function HeroCarousel({ heroData }: HeroCarouselProps) {
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
+  const [key, setKey] = React.useState(0); // Key to force re-render for animation
+
+  const media = heroData?.media;
+  const slideInterval = heroData?.slideInterval || 5;
 
   React.useEffect(() => {
-    if (!api) {
-      return
-    }
+    if (!api) return;
 
-    setCurrent(api.selectedScrollSnap())
+    const onSelect = () => {
+      setCurrent(api.selectedScrollSnap());
+      setKey(prevKey => prevKey + 1); // Trigger re-render to restart animation
+    };
 
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap())
-    })
-  }, [api])
+    api.on("select", onSelect);
+    onSelect(); // Set initial state
+
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
   
   const plugin = React.useRef(
-    Autoplay({ delay: (slideInterval || 5) * 1000, stopOnInteraction: false, stopOnMouseEnter: true })
+    Autoplay({ delay: slideInterval * 1000, stopOnInteraction: true, stopOnMouseEnter: true })
   )
 
-  // Gracefully handle cases where media is not yet available or is empty.
   if (!media || media.length === 0) {
     return (
       <div className="relative w-full h-full flex items-center justify-center bg-muted">
@@ -58,28 +63,43 @@ export default function HeroCarousel({ media, slideInterval }: HeroCarouselProps
         opts={{ loop: true }}
       >
         <CarouselContent className="h-full">
-          {media.map((item, index) => (
-            <CarouselItem key={index}>
-              <div className="relative w-full h-full">
-                {item.type === 'video' ? (
-                  <video
-                    src={item.src}
-                    className="h-full w-full object-cover"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  <img
-                    src={item.src}
-                    alt={`Hero slide ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </div>
-            </CarouselItem>
-          ))}
+          {media.map((item, index) => {
+            const headline = item.headline || heroData?.globalHeadline;
+            const subheadline = item.subheadline || heroData?.globalSubheadline;
+
+            return (
+                <CarouselItem key={index}>
+                <div className="relative w-full h-full">
+                    {item.type === 'video' ? (
+                    <video
+                        src={item.src}
+                        className="h-full w-full object-cover"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                    />
+                    ) : (
+                    <img
+                        src={item.src}
+                        alt={`Hero slide ${index + 1}`}
+                        className="h-full w-full object-cover"
+                    />
+                    )}
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+                     {(headline || subheadline) && (
+                        <div 
+                          key={`${index}-${key}`} // Use key to force re-mount and re-trigger animation
+                          className="absolute bottom-0 left-0 p-6 md:p-12 text-center md:text-left text-white max-w-2xl"
+                        >
+                            {headline && <h1 className="text-3xl md:text-5xl font-bold font-headline drop-shadow-lg animate-fade-in-up">{headline}</h1>}
+                            {subheadline && <p className="text-lg mt-2 drop-shadow-md animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{subheadline}</p>}
+                        </div>
+                     )}
+                </div>
+                </CarouselItem>
+            );
+          })}
         </CarouselContent>
         <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
         <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />

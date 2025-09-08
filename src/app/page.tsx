@@ -128,7 +128,7 @@ export default function HomePage() {
     <div className="space-y-8">
        <section className="relative h-auto md:h-[500px] w-full rounded-lg overflow-hidden shadow-xl flex items-center">
           {heroData ? (
-            <HeroCarousel media={heroData.media} slideInterval={heroData.slideInterval} />
+            <HeroCarousel heroData={heroData} />
           ) : (
             <Skeleton className="h-full w-full" />
           )}
