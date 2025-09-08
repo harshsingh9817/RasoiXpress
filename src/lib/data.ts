@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -89,12 +88,8 @@ const defaultBanners: BannerImage[] = [
 ];
 
 const defaultHeroData: HeroData = {
-    headline: 'Home Delivery In Nagra With Rasoi Xpress',
-    subheadline: 'Browse our menu of curated dishes and get your favorites delivered to your door.',
-    orderingTime: '10:00 AM - 10:00 PM',
-    bannerImages: defaultBanners,
-    headlineColor: "#FFFFFF",
-    subheadlineColor: "#E5E7EB"
+    media: [],
+    slideInterval: 5,
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -500,8 +495,13 @@ export async function getHeroData(): Promise<HeroData> {
 
 export async function updateHeroData(data: HeroData): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    await setDoc(docRef, data, { merge: true });
+    // Sanitize data to remove undefined values before sending to Firestore
+    const cleanData = JSON.parse(JSON.stringify(data, (key, value) => {
+        return (value === undefined || value === '') ? null : value;
+    }));
+    await setDoc(docRef, cleanData, { merge: true });
 }
+
 
 // --- Payment Settings Management (Firestore) ---
 export async function getPaymentSettings(): Promise<PaymentSettings> {
