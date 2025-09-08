@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -22,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, BannerImage, Coupon, OrderStatus, Category } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, OrderStatus, Category } from './types';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
@@ -80,16 +81,11 @@ async function ensureRiderAuth() {
 // --- Initial Data ---
 const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 
-const defaultBanners: BannerImage[] = [
-    { src: 'https://placehold.co/1280x400.png', hint: 'pizza meal', order: 1 },
-    { src: 'https://placehold.co/1280x400.png', hint: 'indian thali', order: 2 },
-    { src: 'https://placehold.co/1280x400.png', hint: 'burger fries', order: 3 },
-    { src: 'https://placehold.co/1280x400.png', hint: 'chinese noodles', order: 4 },
-];
-
 const defaultHeroData: HeroData = {
     media: [],
     slideInterval: 5,
+    globalHeadline: "Welcome to Rasoi Xpress",
+    globalSubheadline: "Fresh, Fast, Delicious."
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -489,13 +485,15 @@ export async function setDefaultAddress(userId: string, addressIdToSetDefault: s
 export async function getHeroData(): Promise<HeroData> {
     const docRef = doc(db, 'globals', 'hero');
     const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return defaultHeroData;
+    if (!docSnap.exists()) {
+        await setDoc(docRef, defaultHeroData);
+        return defaultHeroData;
+    }
     return { ...defaultHeroData, ...docSnap.data() } as HeroData;
 }
 
-export async function updateHeroData(data: HeroData): Promise<void> {
+export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    // Sanitize data to remove undefined values before sending to Firestore
     const cleanData = JSON.parse(JSON.stringify(data, (key, value) => {
         return (value === undefined || value === '') ? null : value;
     }));

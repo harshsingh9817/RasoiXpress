@@ -125,6 +125,11 @@ export interface HeroMedia {
   order: number;
   headline?: string;
   subheadline?: string;
+  linkType?: 'none' | 'item' | 'category';
+  linkValue?: string; // Holds menu item ID or category name
+  textPosition?: 'bottom-left' | 'bottom-center' | 'bottom-right' | 'center-left' | 'center-center' | 'center-right' | 'top-left' | 'top-center' | 'top-right';
+  fontSize?: 'sm' | 'md' | 'lg' | 'xl';
+  fontFamily?: 'sans' | 'serif' | 'headline';
 }
 
 export interface HeroData {
