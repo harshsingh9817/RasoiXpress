@@ -333,7 +333,7 @@ export function listenToUserCart(userId: string, callback: (items: CartItem[]) =
     }
     const cartColRef = collection(db, 'users', userId, 'cart');
     return onSnapshot(cartColRef, (snapshot) => {
-        const items = snapshot.docs.map(doc => doc.data() as CartItem);
+        const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CartItem[];
         callback(items);
     }, (error) => {
         console.error("Error listening to user cart:", error);
