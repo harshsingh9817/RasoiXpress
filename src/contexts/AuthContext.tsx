@@ -51,9 +51,15 @@ const manageUserInFirestore = async (user: User, extraData: { fullName?: string,
     };
 
     if (!userDoc.exists()) {
-        await setDoc(userRef, { ...userData, createdAt: new Date(), hasCompletedFirstOrder: false });
+        await setDoc(userRef, { ...userData, createdAt: new Date(), hasCompletedFirstOrder: false, cart: [] });
     } else {
-        await setDoc(userRef, userData, { merge: true });
+        const existingData = userDoc.data();
+        const updateData = {
+            ...userData,
+            // If cart field is missing in an existing document, initialize it.
+            ...(existingData.cart === undefined && { cart: [] }),
+        };
+        await setDoc(userRef, updateData, { merge: true });
     }
 }
 
