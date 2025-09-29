@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, OrderStatus, Category } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, OrderStatus, Category, CartItem } from './types';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
@@ -323,6 +323,45 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     const snapshot = await getDocs(q);
     const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+// --- Cart Management (Firestore) ---
+export function listenToUserCart(userId: string, callback: (items: CartItem[]) => void): () => void {
+    if (!userId) {
+        callback([]);
+        return () => {};
+    }
+    const cartColRef = collection(db, 'users', userId, 'cart');
+    return onSnapshot(cartColRef, (snapshot) => {
+        const items = snapshot.docs.map(doc => doc.data() as CartItem);
+        callback(items);
+    }, (error) => {
+        console.error("Error listening to user cart:", error);
+        callback([]);
+    });
+}
+
+export async function updateUserCartItem(userId: string, item: CartItem): Promise<void> {
+    if (!userId) return;
+    const cartItemRef = doc(db, 'users', userId, 'cart', item.id);
+    await setDoc(cartItemRef, item, { merge: true });
+}
+
+export async function removeUserCartItem(userId: string, itemId: string): Promise<void> {
+    if (!userId) return;
+    const cartItemRef = doc(db, 'users', userId, 'cart', itemId);
+    await deleteDoc(cartItemRef);
+}
+
+export async function clearUserCart(userId: string): Promise<void> {
+    if (!userId) return;
+    const cartColRef = collection(db, 'users', userId, 'cart');
+    const snapshot = await getDocs(cartColRef);
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
 }
 
 // --- REAL-TIME LISTENERS (Firestore) ---

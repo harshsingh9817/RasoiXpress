@@ -1,11 +1,10 @@
 
-
 "use client";
 
 import type { MenuItem, CartItem, Coupon } from '@/lib/types';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getHeroData, checkCoupon } from '@/lib/data';
+import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +48,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthLoading } = useAuth();
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
@@ -59,17 +58,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isFreeDeliveryDialogOpen, setIsFreeDeliveryDialogOpen] = useState(false);
   const [proceedAction, setProceedAction] = useState<(() => void) | null>(null);
 
+  // Load coupon from localStorage on initial load
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedCart = localStorage.getItem('rasoiExpressCart');
-      if (storedCart) {
-        try {
-          setCartItems(JSON.parse(storedCart));
-        } catch (error) {
-          console.error("Error parsing cart from localStorage:", error);
-          localStorage.removeItem('rasoiExpressCart');
-        }
-      }
       const storedCoupon = localStorage.getItem('rasoiExpressCoupon');
       if (storedCoupon) {
         try {
@@ -80,7 +71,33 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     }
+  }, []);
 
+  // Save coupon to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        if (appliedCoupon) {
+            localStorage.setItem('rasoiExpressCoupon', JSON.stringify(appliedCoupon));
+        } else {
+            localStorage.removeItem('rasoiExpressCoupon');
+        }
+    }
+  }, [appliedCoupon]);
+
+  // Listen to Firestore for cart changes
+  useEffect(() => {
+    if (user && !isAuthLoading) {
+      const unsubscribe = listenToUserCart(user.uid, (items) => {
+        setCartItems(items);
+      });
+      return () => unsubscribe();
+    } else if (!isAuthLoading) {
+      // If user logs out, clear the cart
+      setCartItems([]);
+    }
+  }, [user, isAuthLoading]);
+
+  useEffect(() => {
     getHeroData().then(heroData => {
         if (!heroData?.orderingTime) return;
         const checkTime = () => {
@@ -128,33 +145,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('rasoiExpressCart', JSON.stringify(cartItems));
-      if (appliedCoupon) {
-        localStorage.setItem('rasoiExpressCoupon', JSON.stringify(appliedCoupon));
-      } else {
-        localStorage.removeItem('rasoiExpressCoupon');
-      }
-    }
-  }, [cartItems, appliedCoupon]);
-
   const addToCart = (item: MenuItem, quantityToAdd: number = 1): boolean => {
+    if (!user) {
+        toast({ title: "Please log in", description: "You need to be logged in to add items to the cart.", variant: "destructive" });
+        return false;
+    }
     if (!isOrderingAllowed) {
       setIsTimeGateDialogOpen(true);
       return false;
     }
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(cartItem => cartItem.id === item.id);
-      if (existingItem) {
-        return prevItems.map(cartItem =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: Math.min(cartItem.quantity + quantityToAdd, 10) }
-            : cartItem
-        );
-      }
-      return [...prevItems, { ...item, quantity: quantityToAdd }];
-    });
+    
+    const existingItem = cartItems.find(cartItem => cartItem.id === item.id);
+    const newQuantity = existingItem ? Math.min(existingItem.quantity + quantityToAdd, 10) : quantityToAdd;
+    
+    updateUserCartItem(user.uid, { ...item, quantity: newQuantity });
+
     toast({
       title: `${item.name} added to cart!`,
       variant: "default",
@@ -164,19 +169,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const buyNow = (item: MenuItem): boolean => {
+    if (!user) {
+        toast({ title: "Please log in", description: "You need to be logged in to buy items.", variant: "destructive" });
+        return false;
+    }
     if (!isOrderingAllowed) {
         setIsTimeGateDialogOpen(true);
         return false;
     }
-    // Clear the cart and add just this one item
-    setCartItems([{ ...item, quantity: 1 }]);
-    // We don't toast here because we're immediately redirecting
+    
+    clearUserCartInDb(user.uid).then(() => {
+        updateUserCartItem(user.uid, { ...item, quantity: 1 });
+    });
+    
     return true;
   };
 
   const removeFromCart = (itemId: string) => {
+    if (!user) return;
     const itemToRemove = cartItems.find(item => item.id === itemId);
-    setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    removeUserCartItem(user.uid, itemId);
     if (itemToRemove) {
       toast({
         title: `${itemToRemove.name} removed from cart.`,
@@ -187,6 +199,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateQuantity = (itemId: string, quantity: number) => {
+    if (!user) return;
     if (quantity <= 0) {
       removeFromCart(itemId);
     } else if (quantity > 10) {
@@ -195,18 +208,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             variant: "destructive",
             duration: 3000,
         });
-        setCartItems(prevItems =>
-            prevItems.map(item =>
-              item.id === itemId ? { ...item, quantity: 10 } : item
-            )
-          );
-    }
-    else {
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.id === itemId ? { ...item, quantity } : item
-        )
-      );
+        const itemToUpdate = cartItems.find(item => item.id === itemId);
+        if (itemToUpdate) {
+            updateUserCartItem(user.uid, { ...itemToUpdate, quantity: 10 });
+        }
+    } else {
+        const itemToUpdate = cartItems.find(item => item.id === itemId);
+        if (itemToUpdate) {
+            updateUserCartItem(user.uid, { ...itemToUpdate, quantity });
+        }
     }
   };
 
@@ -277,7 +287,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearCart = () => {
-    setCartItems([]);
+    if (!user) return;
+    clearUserCartInDb(user.uid);
     setAppliedCoupon(null);
     toast({
       title: "Cart cleared.",
