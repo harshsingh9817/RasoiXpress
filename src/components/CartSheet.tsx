@@ -35,6 +35,8 @@ const CartSheet = () => {
     appliedCoupon,
     isCartOpen,
     setIsCartOpen,
+    isOrderingAllowed,
+    setIsTimeGateDialogOpen,
   } = useCart();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -50,6 +52,10 @@ const CartSheet = () => {
   };
 
   const handleProceedToCheckout = () => {
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        return;
+    }
     setIsCartOpen(false);
     router.push('/checkout');
   };
