@@ -135,7 +135,15 @@ export default function HeroManagementPage() {
         linkValue: item.linkType === 'none' ? '' : item.linkValue,
       }));
 
-      await updateHeroData({ ...data, media: updatedMedia });
+      const finalDataToSave: HeroData = {
+        slideInterval: data.slideInterval,
+        orderingTime: data.orderingTime,
+        globalHeadline: data.globalHeadline,
+        globalSubheadline: data.globalSubheadline,
+        media: updatedMedia,
+      };
+
+      await updateHeroData(finalDataToSave);
       toast({
         title: "Hero Section Updated",
         description: "The homepage hero has been successfully updated.",
@@ -370,3 +378,5 @@ export default function HeroManagementPage() {
     </div>
   );
 }
+
+    
