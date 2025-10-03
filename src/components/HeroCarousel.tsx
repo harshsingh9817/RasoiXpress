@@ -113,8 +113,8 @@ export default function HeroCarousel({ heroData }: HeroCarouselProps) {
       >
         <CarouselContent className="h-full">
           {media.map((item, index) => {
-            const headline = item.headline || heroData?.globalHeadline;
-            const subheadline = item.subheadline || heroData?.globalSubheadline;
+            const headline = item.headline;
+            const subheadline = item.subheadline;
             const hasLink = item.linkType && item.linkType !== 'none' && item.linkValue;
 
             const positionClasses = getPositionClasses(item.textPosition);

@@ -39,8 +39,6 @@ const heroMediaSchema = z.object({
 const heroSchema = z.object({
   slideInterval: z.coerce.number().min(1, "Interval must be at least 1 second.").default(5),
   orderingTime: z.string().optional(),
-  globalHeadline: z.string().optional(),
-  globalSubheadline: z.string().optional(),
   media: z.array(heroMediaSchema).min(1, "You must have at least one slide."),
 });
 
@@ -62,7 +60,7 @@ export default function HeroManagementPage() {
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
-    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', globalSubheadline: '', orderingTime: '' },
+    defaultValues: { media: [], slideInterval: 5, orderingTime: '' },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -89,8 +87,6 @@ export default function HeroManagementPage() {
         form.reset({
           slideInterval: data.slideInterval || 5,
           orderingTime: data.orderingTime || '10:00 AM - 10:00 PM',
-          globalHeadline: data.globalHeadline || '',
-          globalSubheadline: data.globalSubheadline || '',
           media: data.media || [],
         });
         setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
@@ -138,8 +134,6 @@ export default function HeroManagementPage() {
       const finalDataToSave: HeroData = {
         slideInterval: data.slideInterval,
         orderingTime: data.orderingTime,
-        globalHeadline: data.globalHeadline,
-        globalSubheadline: data.globalSubheadline,
         media: updatedMedia,
       };
 
@@ -248,30 +242,6 @@ export default function HeroManagementPage() {
                </div>
               <Separator />
               <div>
-                <h3 className="text-lg font-medium flex items-center"><Text className="mr-2 h-5 w-5 text-primary"/>Global Text Overlay</h3>
-                <p className="text-sm text-muted-foreground">This text will appear on all slides unless overridden by individual slide text.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  <FormField control={form.control} name="globalHeadline" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Global Headline</FormLabel>
-                        <FormControl><Input placeholder="E.g., Welcome to Rasoi Xpress" {...field} value={field.value || ''} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField control={form.control} name="globalSubheadline" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Global Subheadline</FormLabel>
-                        <FormControl><Input placeholder="E.g., Fresh, Fast, Delicious." {...field} value={field.value || ''}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-              <div>
                 <h3 className="text-lg font-medium">Manage Slides</h3>
                 <p className="text-sm text-muted-foreground">Add or remove slides. Set order, text, links, and styles for each.</p>
               </div>
@@ -302,10 +272,10 @@ export default function HeroManagementPage() {
                           <h4 className="font-medium text-sm flex items-center"><Text className="mr-2 h-4 w-4 text-primary"/> Slide Text</h4>
                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormField control={form.control} name={`media.${index}.headline`} render={({ field }) => (
-                                  <FormItem><FormLabel>Custom Headline</FormLabel><FormControl><Input placeholder="Overrides global headline" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                  <FormItem><FormLabel>Headline</FormLabel><FormControl><Input placeholder="E.g. Special Offer!" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                               )}/>
                                <FormField control={form.control} name={`media.${index}.subheadline`} render={({ field }) => (
-                                  <FormItem><FormLabel>Custom Subheadline</FormLabel><FormControl><Input placeholder="Overrides global subheadline" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                                  <FormItem><FormLabel>Subheadline</FormLabel><FormControl><Input placeholder="E.g. 50% off on all pizzas." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
                               )}/>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

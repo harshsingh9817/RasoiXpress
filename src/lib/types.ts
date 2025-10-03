@@ -137,8 +137,6 @@ export interface HeroData {
   media: HeroMedia[];
   slideInterval: number; // in seconds
   orderingTime?: string; // e.g., '10:00 AM - 10:00 PM'
-  globalHeadline?: string;
-  globalSubheadline?: string;
 }
 
 export interface PaymentSettings {
