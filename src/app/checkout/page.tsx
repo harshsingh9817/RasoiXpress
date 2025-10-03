@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback } from 'react';
@@ -124,9 +125,8 @@ export default function CheckoutPage() {
     if (isAuthLoading) return;
     if (!isAuthenticated) { router.replace('/login'); return; }
     if (getCartItemCount() === 0) { router.replace('/'); return; }
-    if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, loadPageData]);
 
   useEffect(() => {
     if (!selectedAddressId) {
@@ -198,6 +198,10 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
+    if (!isOrderingAllowed) {
+        setIsTimeGateDialogOpen(true);
+        return;
+    }
     if (!user || !selectedAddressId) {
         toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
         return;

@@ -143,10 +143,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Please log in", description: "You need to be logged in to add items to the cart.", variant: "destructive" });
         return false;
     }
-    if (!isOrderingAllowed) {
-      setIsTimeGateDialogOpen(true);
-      return false;
-    }
     
     const existingItem = cartItems.find(cartItem => cartItem.id === item.id);
     const newQuantity = existingItem ? Math.min(existingItem.quantity + quantityToAdd, 10) : quantityToAdd;
