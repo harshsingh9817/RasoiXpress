@@ -175,7 +175,7 @@ export default function HeroManagementPage() {
   };
 
   const handleAddSlide = () => {
-    const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order)) + 1 : 1;
+    const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order || 0)) + 1 : 1;
     append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
@@ -191,9 +191,9 @@ export default function HeroManagementPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Card>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <Card>
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -330,9 +330,9 @@ export default function HeroManagementPage() {
               </Button>
               <FormMessage>{form.formState.errors.media?.message || form.formState.errors.media?.root?.message}</FormMessage>
             </CardContent>
-          </form>
-        </Form>
-      </Card>
+          </Card>
+        </form>
+      </Form>
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
