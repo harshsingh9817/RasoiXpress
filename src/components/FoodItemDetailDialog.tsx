@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import type { FC } from 'react';
+import { FC, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { MenuItem } from '@/lib/types';
@@ -28,6 +27,35 @@ interface FoodItemDetailDialogProps {
 
 const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen, onOpenChange }) => {
   const { addToCart } = useCart();
+  const router = useRouter();
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // If the dialog is open and a popstate event occurs (back button),
+      // prevent the default back navigation and just close the dialog.
+      if (isOpen) {
+        event.preventDefault();
+        onOpenChange(false);
+      }
+    };
+
+    if (isOpen) {
+      // Push a new state to the history when the dialog opens
+      window.history.pushState({ dialogOpen: true }, '');
+      window.addEventListener('popstate', handlePopState);
+    } else {
+      // If the dialog is closed by other means (e.g., clicking 'close'),
+      // we might need to go back in history if our dummy state is on top.
+      if (window.history.state?.dialogOpen) {
+        window.history.back();
+      }
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isOpen, onOpenChange]);
+
 
   if (!menuItem) return null;
 

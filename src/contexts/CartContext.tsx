@@ -17,6 +17,7 @@ import {
 import AnimatedDeliveryScooter from '@/components/icons/AnimatedDeliveryScooter';
 import { Button } from '@/components/ui/button';
 import { useAuth } from './AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -45,11 +46,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
   const { user, isAuthLoading } = useAuth();
+  const router = useRouter();
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (isCartOpen) {
+        event.preventDefault();
+        setIsCartOpen(false);
+      }
+    };
+
+    if (isCartOpen) {
+      window.history.pushState({ cartOpen: true }, '');
+      window.addEventListener('popstate', handlePopState);
+    } else {
+      if (window.history.state?.cartOpen) {
+        router.back();
+      }
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isCartOpen, router]);
 
   // Load coupon from localStorage on initial load
   useEffect(() => {
