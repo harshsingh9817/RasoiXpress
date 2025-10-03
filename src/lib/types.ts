@@ -96,9 +96,10 @@ export interface Address {
   id: string;
   fullName: string;
   type: 'Home' | 'Work' | 'Other';
-  street: string;
-  village?: string;
+  street: string; // House No, Building Name and Road Name/Area
+  village?: string; // Village, Landmark
   city: string;
+  state: string;
   pinCode: string; 
   phone: string; 
   alternatePhone?: string; 

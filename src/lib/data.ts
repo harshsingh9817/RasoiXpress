@@ -496,7 +496,7 @@ export async function addAddress(userId: string, addressData: Omit<Address, 'id'
     return { ...addressData, id: docRef.id } as Address;
 }
 
-export async function updateAddress(userId: string, updatedAddress: Address): Promise<void> {
+export async function updateAddress(userId: string, updatedAddress: Partial<Address> & { id: string }): Promise<void> {
     const { id, ...addressData } = updatedAddress;
     const docRef = doc(db, 'users', userId, 'addresses', id);
     await updateDoc(docRef, addressData);
@@ -639,7 +639,7 @@ export async function updateUserProfileData(userId: string, data: { displayName?
     await setDoc(doc(db, 'users', userId), data, { merge: true });
 }
 
-export async function sendAdminMessage(userId: string, userEmail: string, title: string, message: string): Promise<void> {
+export async function sendAdminMessage(userId: string, userEmail: string | null, title: string, message: string): Promise<void> {
     const messagesCol = collection(db, 'adminMessages');
     await addDoc(messagesCol, { userId, userEmail: userEmail || null, title, message, timestamp: serverTimestamp() });
 }

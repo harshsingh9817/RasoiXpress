@@ -17,58 +17,59 @@ import ZoomLock from '@/components/ZoomLock';
 // Configure the font
 const ptSans = PT_Sans({
   subsets: ['latin'],
-  weight: ['400', '700'], // Include weights you need
-  variable: '--font-pt-sans', // CSS variable for tailwind
-});
+    weight: ['400', '700'], // Include weights you need
+      variable: '--font-pt-sans', // CSS variable for tailwind
+      });
 
-export const metadata: Metadata = {
-  title: 'Rasoi Xpress - Fast Food Delivery',
-  description: 'Order your favorite food online with Rasoi Xpress from the best restaurants near you.',
-  manifest: '/manifest.json',
-};
+      export const metadata: Metadata = {
+        title: 'Rasoi Xpress - Fast Food Delivery',
+          description: 'Order your favorite food online with Rasoi Xpress from the best restaurants near you.',
+            manifest: '/manifest.json',
+            };
 
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false,
-  shrinkToFit: 'no',
-  themeColor: '#E64A19',
-};
+            export const viewport: Viewport = {
+              width: 'device-width',
+                initialScale: 1.0,
+                  maximumScale: 1.0,
+                    userScalable: false,
+                      shrinkToFit: 'no',
+                        themeColor: '#E64A19',
+                        };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+                        export default function RootLayout({
+                          children,
+                          }: Readonly<{
+                            children: React.ReactNode;
+                            }>) {
 
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${ptSans.variable} font-body antialiased flex flex-col min-h-screen`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <CartProvider>
-              <LayoutClientManager>
-                <ZoomLock />
-                <ServiceWorkerRegistrar />
-                <Header />
-                <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8 flex-grow">
-                  {children}
-                </main>
-                <Footer />
-                <Toaster />
-                <CartSheet />
-                <BottomNav />
-              </LayoutClientManager>
-            </CartProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
-}
+                              return (
+                                  <html lang="en" suppressHydrationWarning>
+                                        <body className={`${ptSans.variable} font-body antialiased flex flex-col min-h-screen`}>
+                                                <ThemeProvider
+                                                          attribute="class"
+                                                                    defaultTheme="system"
+                                                                              enableSystem
+                                                                                        disableTransitionOnChange
+                                                                                                >
+                                                                                                          <AuthProvider>
+                                                                                                                      <CartProvider>
+                                                                                                                                    <LayoutClientManager>
+                                                                                                                                                    <ZoomLock />
+                                                                                                                                                                    <ServiceWorkerRegistrar />
+                                                                                                                                                                                    <Header />
+                                                                                                                                                                                                    <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-24 md:pb-8 flex-grow">
+                                                                                                                                                                                                                      {children}
+                                                                                                                                                                                                                                      </main>
+                                                                                                                                                                                                                                                      <Footer />
+                                                                                                                                                                                                                                                                      <Toaster />
+                                                                                                                                                                                                                                                                                      <CartSheet />
+                                                                                                                                                                                                                                                                                                      <BottomNav />
+                                                                                                                                                                                                                                                                                                                    </LayoutClientManager>
+                                                                                                                                                                                                                                                                                                                                </CartProvider>
+                                                                                                                                                                                                                                                                                                                                          </AuthProvider>
+                                                                                                                                                                                                                                                                                                                                                  </ThemeProvider>
+                                                                                                                                                                                                                                                                                                                                                        </body>
+                                                                                                                                                                                                                                                                                                                                                            </html>
+                                                                                                                                                                                                                                                                                                                                                              );
+                                                                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                                                                              

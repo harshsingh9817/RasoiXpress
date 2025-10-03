@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,7 +19,7 @@ import { getAddresses, deleteAddress, setDefaultAddress } from '@/lib/data';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { useTheme } from 'next-themes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import LocationPicker from '@/components/LocationPicker';
+import AddressFormDialog from '@/components/AddressFormDialog';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -34,7 +33,7 @@ export default function ProfilePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
 
   const isSetupMode = searchParams.get('setup') === 'true';
@@ -101,12 +100,12 @@ export default function ProfilePage() {
 
   const handleOpenAddAddressDialog = () => {
     setAddressToEdit(null);
-    setIsMapPickerOpen(true);
+    setIsAddressFormOpen(true);
   };
 
   const handleOpenEditAddressDialog = (address: AddressType) => {
     setAddressToEdit(address);
-    setIsMapPickerOpen(true);
+    setIsAddressFormOpen(true);
   };
 
   const handleRequestNotificationPermission = () => {
@@ -260,9 +259,9 @@ export default function ProfilePage() {
         </TabsContent>
       </Tabs>
     </div>
-    <LocationPicker
-        isOpen={isMapPickerOpen}
-        onOpenChange={setIsMapPickerOpen}
+    <AddressFormDialog
+        isOpen={isAddressFormOpen}
+        onOpenChange={setIsAddressFormOpen}
         onSaveSuccess={loadUserData}
         addressToEdit={addressToEdit}
     />
