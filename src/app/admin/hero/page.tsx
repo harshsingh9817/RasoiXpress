@@ -8,19 +8,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getHeroData, updateHeroData } from "@/lib/data";
-import type { HeroData } from "@/lib/types";
+import { getHeroData, updateHeroData, getMenuItems, getCategories } from "@/lib/data";
+import type { HeroData, HeroMedia, MenuItem, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Timer, Video, Image as ImageIcon, Text } from "lucide-react";
+import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Timer, Video, Image as ImageIcon, Text, Link2, Pizza, AppWindow, MoveVertical } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { uploadImage } from "@/lib/appwrite"; // Re-using for file uploads
+import { uploadImage } from "@/lib/appwrite";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const heroMediaSchema = z.object({
   type: z.enum(["image", "video"]),
@@ -28,10 +29,16 @@ const heroMediaSchema = z.object({
   order: z.coerce.number().min(1, "Order must be at least 1."),
   headline: z.string().optional(),
   subheadline: z.string().optional(),
+  linkType: z.enum(['none', 'item', 'category']).optional().default('none'),
+  linkValue: z.string().optional(),
+  textPosition: z.enum(['bottom-left', 'bottom-center', 'bottom-right', 'center-left', 'center-center', 'center-right', 'top-left', 'top-center', 'top-right']).optional().default('bottom-left'),
+  fontSize: z.enum(['sm', 'md', 'lg', 'xl']).optional().default('md'),
+  fontFamily: z.enum(['sans', 'serif', 'headline']).optional().default('sans'),
 });
 
 const heroSchema = z.object({
   slideInterval: z.coerce.number().min(1, "Interval must be at least 1 second.").default(5),
+  orderingTime: z.string().optional(),
   globalHeadline: z.string().optional(),
   globalSubheadline: z.string().optional(),
   media: z.array(heroMediaSchema).min(1, "You must have at least one slide."),
@@ -45,13 +52,17 @@ export default function HeroManagementPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [mediaIndexToDelete, setMediaIndexToDelete] = useState<number | null>(null);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
-    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', globalSubheadline: '' },
+    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', subheadline: '', orderingTime: '' },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -66,17 +77,24 @@ export default function HeroManagementPage() {
     }
     if (isAuthenticated && isAdmin) {
       const loadData = async () => {
-        const data = await getHeroData();
+        setIsDataLoading(true);
+        const [data, items, cats] = await Promise.all([getHeroData(), getMenuItems(true), getCategories()]);
+        
+        setMenuItems(items);
+        setCategories(cats);
+
         if (data.media && Array.isArray(data.media)) {
           data.media.sort((a, b) => (a.order || 99) - (b.order || 99));
         }
         form.reset({
           slideInterval: data.slideInterval || 5,
+          orderingTime: data.orderingTime || '10:00 AM - 10:00 PM',
           globalHeadline: data.globalHeadline || '',
           globalSubheadline: data.globalSubheadline || '',
           media: data.media || [],
         });
         setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
+        setIsDataLoading(false);
       };
       loadData();
     }
@@ -113,7 +131,8 @@ export default function HeroManagementPage() {
       const updatedMedia = data.media.map((item, index) => ({
         ...item,
         src: uploadedMediaUrls[index],
-        type: mediaFiles[index].type
+        type: mediaFiles[index].type,
+        linkValue: item.linkType === 'none' ? '' : item.linkValue,
       }));
 
       await updateHeroData({ ...data, media: updatedMedia });
@@ -155,15 +174,15 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order)) + 1 : 1;
-    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '' });
+    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
-  if (isAuthLoading || (!isAuthenticated && !isAuthLoading)) {
+  if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-        <p className="text-xl text-muted-foreground mt-4">Verifying access...</p>
+        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Verifying access..." : "Loading settings..."}</p>
       </div>
     );
   }
@@ -180,7 +199,7 @@ export default function HeroManagementPage() {
                     <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
                   </CardTitle>
                   <CardDescription>
-                    Manage slides, text overlays, and autoplay speed for the homepage carousel.
+                    Manage slides, text overlays, ordering times, and autoplay speed for the homepage carousel.
                   </CardDescription>
                 </div>
                 <Button type="submit" disabled={isSubmitting} className="shrink-0">
@@ -189,20 +208,36 @@ export default function HeroManagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-8">
-              <FormField
-                control={form.control}
-                name="slideInterval"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center"><Timer className="mr-2 h-4 w-4 text-primary" /> Slide Change Time</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="5" {...field} />
-                    </FormControl>
-                    <FormDescription>Time in seconds before the carousel automatically moves to the next slide.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="slideInterval"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Timer className="mr-2 h-4 w-4 text-primary" /> Slide Change Time</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="5" {...field} />
+                        </FormControl>
+                        <FormDescription>Time in seconds before the carousel automatically moves to the next slide.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="orderingTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Timer className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
+                        <FormControl>
+                          <Input placeholder="10:00 AM - 10:00 PM" {...field} value={field.value || ''} />
+                        </FormControl>
+                        <FormDescription>The time window when users can place orders.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+               </div>
               <Separator />
               <div>
                 <h3 className="text-lg font-medium flex items-center"><Text className="mr-2 h-5 w-5 text-primary"/>Global Text Overlay</h3>
@@ -230,7 +265,7 @@ export default function HeroManagementPage() {
               <Separator />
               <div>
                 <h3 className="text-lg font-medium">Manage Slides</h3>
-                <p className="text-sm text-muted-foreground">Add or remove slides. Set a display order and optional custom text for each.</p>
+                <p className="text-sm text-muted-foreground">Add or remove slides. Set order, text, links, and styles for each.</p>
               </div>
               <div className="space-y-4">
                 {fields.map((field, index) => (
@@ -255,13 +290,43 @@ export default function HeroManagementPage() {
                             <FormMessage>{form.formState.errors.media?.[index]?.src?.message}</FormMessage>
                           </FormItem>
                         </div>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormField control={form.control} name={`media.${index}.headline`} render={({ field }) => (
-                                <FormItem><FormLabel>Custom Headline</FormLabel><FormControl><Input placeholder="Overrides global headline" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        <div className="p-3 border rounded-md space-y-4">
+                          <h4 className="font-medium text-sm flex items-center"><Text className="mr-2 h-4 w-4 text-primary"/> Slide Text</h4>
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <FormField control={form.control} name={`media.${index}.headline`} render={({ field }) => (
+                                  <FormItem><FormLabel>Custom Headline</FormLabel><FormControl><Input placeholder="Overrides global headline" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                               <FormField control={form.control} name={`media.${index}.subheadline`} render={({ field }) => (
+                                  <FormItem><FormLabel>Custom Subheadline</FormLabel><FormControl><Input placeholder="Overrides global subheadline" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                              )}/>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <FormField control={form.control} name={`media.${index}.textPosition`} render={({ field }) => (
+                                <FormItem><FormLabel><MoveVertical className="inline mr-1 h-4"/> Position</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['top-left', 'top-center', 'top-right', 'center-left', 'center-center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'].map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                             )}/>
-                             <FormField control={form.control} name={`media.${index}.subheadline`} render={({ field }) => (
-                                <FormItem><FormLabel>Custom Subheadline</FormLabel><FormControl><Input placeholder="Overrides global subheadline" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                             <FormField control={form.control} name={`media.${index}.fontSize`} render={({ field }) => (
+                                <FormItem><FormLabel><Text className="inline mr-1 h-4"/> Size</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sm', 'md', 'lg', 'xl'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                             )}/>
+                            <FormField control={form.control} name={`media.${index}.fontFamily`} render={({ field }) => (
+                                <FormItem><FormLabel>Font</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sans', 'serif', 'headline'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                            )}/>
+                          </div>
+                        </div>
+                         <div className="p-3 border rounded-md space-y-4">
+                            <h4 className="font-medium text-sm flex items-center"><Link2 className="mr-2 h-4 w-4 text-primary"/> Slide Link</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                <FormField control={form.control} name={`media.${index}.linkType`} render={({ field }) => (
+                                    <FormItem><FormLabel>Link To</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="item">Menu Item</SelectItem><SelectItem value="category">Category</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                )}/>
+                                {form.watch(`media.${index}.linkType`) !== 'none' && (
+                                     <FormField control={form.control} name={`media.${index}.linkValue`} render={({ field }) => (
+                                        <FormItem><FormLabel>Select {form.watch(`media.${index}.linkType`)}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl><SelectContent>
+                                        {form.watch(`media.${index}.linkType`) === 'item' && menuItems.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                                        {form.watch(`media.${index}.linkType`) === 'category' && categories.map(cat => <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>)}
+                                        </SelectContent></Select><FormMessage /></FormItem>
+                                    )}/>
+                                )}
+                            </div>
                         </div>
                       </div>
                       <Button type="button" variant="destructive" size="icon" onClick={() => handleDeleteMedia(index)} className="mt-7">

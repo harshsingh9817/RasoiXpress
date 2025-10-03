@@ -8,7 +8,6 @@ import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeU
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -36,9 +35,6 @@ interface CartContextType {
   setIsCartOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isOrderingAllowed: boolean;
   setIsTimeGateDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  isFreeDeliveryDialogOpen: boolean;
-  setIsFreeDeliveryDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setProceedAction: React.Dispatch<React.SetStateAction<(() => void) | null>>;
   appliedCoupon: Coupon | null;
 }
 
@@ -54,9 +50,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
-
-  const [isFreeDeliveryDialogOpen, setIsFreeDeliveryDialogOpen] = useState(false);
-  const [proceedAction, setProceedAction] = useState<(() => void) | null>(null);
 
   // Load coupon from localStorage on initial load
   useEffect(() => {
@@ -297,19 +290,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const handleProceed = () => {
-    if (proceedAction) {
-      proceedAction();
-    }
-    setIsFreeDeliveryDialogOpen(false);
-    setProceedAction(null);
-  };
-
-  const handleContinueShopping = () => {
-    setIsFreeDeliveryDialogOpen(false);
-    setProceedAction(null);
-  }
-
   return (
     <CartContext.Provider
       value={{
@@ -329,9 +309,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setIsCartOpen,
         isOrderingAllowed,
         setIsTimeGateDialogOpen,
-        isFreeDeliveryDialogOpen,
-        setIsFreeDeliveryDialogOpen,
-        setProceedAction,
         appliedCoupon,
       }}
     >
@@ -349,27 +326,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                   <AlertDialogAction onClick={() => setIsTimeGateDialogOpen(false)}>OK</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={isFreeDeliveryDialogOpen} onOpenChange={setIsFreeDeliveryDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="w-24 h-24 mx-auto text-primary mb-2">
-                <AnimatedDeliveryScooter />
-            </div>
-            <AlertDialogTitle className="text-center">Get Free Delivery!</AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              Your order is under ₹300. Add more items to your cart to unlock free delivery, or proceed with a small delivery fee.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center gap-2">
-            <Button variant="outline" onClick={handleContinueShopping}>
-              Continue Shopping
-            </Button>
-            <Button onClick={handleProceed}>
-              Proceed Anyway
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
       </AlertDialog>
     </CartContext.Provider>
   );

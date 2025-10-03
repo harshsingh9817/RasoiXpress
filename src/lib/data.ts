@@ -84,6 +84,7 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 const defaultHeroData: HeroData = {
     media: [],
     slideInterval: 5,
+    orderingTime: "10:00 AM - 10:00 PM",
     globalHeadline: "Welcome to Rasoi Xpress",
     globalSubheadline: "Fresh, Fast, Delicious."
 };
