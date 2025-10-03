@@ -11,17 +11,18 @@ import {
 } from 'lucide-react';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import type { AppNotification } from '@/lib/types';
 
 const adminNavItems = [
-  { href: '/admin/orders', label: 'Orders', icon: ClipboardList },
+  { href: '/admin/orders', label: 'Orders', icon: ClipboardList, notificationType: 'admin_new_order' },
   { href: '/admin/menu', label: 'Menu', icon: Utensils },
   { href: '/admin/categories', label: 'Categories', icon: LayoutGrid },
   { href: '/admin/coupons', label: 'Coupons', icon: Tag },
   { href: '/admin/hero', label: 'Hero', icon: LayoutTemplate },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/admin/messaging', label: 'Messages', icon: MessageSquare },
-  { href: '/admin/support', label: 'Support', icon: LifeBuoy },
+  { href: '/admin/support', label: 'Support', icon: LifeBuoy, notificationType: 'admin_new_support_ticket' },
   { href: '/admin/payment', label: 'Settings', icon: CreditCard },
 ];
 
@@ -29,12 +30,30 @@ export default function AdminPage() {
   const { user, isAdmin, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
       router.replace('/');
     }
   }, [isAdmin, isLoading, isAuthenticated, router]);
+  
+  useEffect(() => {
+    const storageKey = 'rasoiExpressAdminNotifications';
+    const syncNotifications = () => {
+      const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      setNotifications(stored);
+    };
+
+    syncNotifications(); // Initial sync
+    window.addEventListener('notificationsUpdated', syncNotifications);
+    return () => window.removeEventListener('notificationsUpdated', syncNotifications);
+  }, []);
+
+  const hasUnread = (notificationType?: string) => {
+    if (!notificationType) return false;
+    return notifications.some(n => !n.read && n.type === notificationType);
+  }
 
   if (isLoading || !isAuthenticated || !isAdmin) {
     return (
@@ -68,7 +87,7 @@ export default function AdminPage() {
               key={item.label}
               href={item.href}
               className={cn(
-                'group inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-3 text-sm font-medium',
+                'group relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-3 text-sm font-medium',
                 pathname === item.href
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -76,6 +95,12 @@ export default function AdminPage() {
             >
               <item.icon className="h-5 w-5" />
               {item.label}
+              {hasUnread(item.notificationType) && (
+                <span className="absolute top-1.5 right-0.5 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span>
+                </span>
+              )}
             </Link>
           ))}
         </nav>
