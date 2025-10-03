@@ -62,7 +62,7 @@ export default function HeroManagementPage() {
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
-    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', subheadline: '', orderingTime: '' },
+    defaultValues: { media: [], slideInterval: 5, globalHeadline: '', globalSubheadline: '', orderingTime: '' },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -182,7 +182,7 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order)) + 1 : 1;
-    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '' });
+    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
@@ -378,5 +378,3 @@ export default function HeroManagementPage() {
     </div>
   );
 }
-
-    
