@@ -19,7 +19,6 @@ interface MenuItemCardProps {
 
 const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
   const { addToCart, buyNow } = useCart();
-  const router = useRouter();
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -28,9 +27,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (buyNow(menuItem)) {
-      router.push('/checkout');
-    }
+    buyNow(menuItem);
   };
 
   return (

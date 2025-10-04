@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: MenuItem, quantity?: number) => boolean;
-  buyNow: (item: MenuItem) => boolean;
+  buyNow: (item: MenuItem) => Promise<void>;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   applyCoupon: (couponCode: string) => void;
@@ -181,21 +181,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
-  const buyNow = (item: MenuItem): boolean => {
+  const buyNow = async (item: MenuItem): Promise<void> => {
     if (!user) {
         toast({ title: "Please log in", description: "You need to be logged in to buy items.", variant: "destructive" });
-        return false;
+        return;
     }
     if (!isOrderingAllowed) {
         setIsTimeGateDialogOpen(true);
-        return false;
+        return;
     }
     
-    clearUserCartInDb(user.uid).then(() => {
-        updateUserCartItem(user.uid, { ...item, quantity: 1 });
-    });
-    
-    return true;
+    await clearUserCartInDb(user.uid);
+    await updateUserCartItem(user.uid, { ...item, quantity: 1 });
+    router.push('/checkout');
   };
 
   const removeFromCart = (itemId: string) => {
