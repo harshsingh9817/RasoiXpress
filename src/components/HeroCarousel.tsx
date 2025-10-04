@@ -14,11 +14,13 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel"
-import type { HeroData, HeroMedia } from "@/lib/types"
+import type { HeroData, HeroMedia, MenuItem } from "@/lib/types"
 import { cn } from "@/lib/utils";
 
 interface HeroCarouselProps {
     heroData: HeroData | null;
+    menuItems: MenuItem[];
+    onOpenItemDetail: (item: MenuItem) => void;
 }
 
 const getPositionClasses = (position: HeroMedia['textPosition']) => {
@@ -55,7 +57,7 @@ const getFontFamilyClass = (family: HeroMedia['fontFamily']) => {
     }
 }
 
-export default function HeroCarousel({ heroData }: HeroCarouselProps) {
+export default function HeroCarousel({ heroData, menuItems, onOpenItemDetail }: HeroCarouselProps) {
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
   const [key, setKey] = React.useState(0);
@@ -86,10 +88,10 @@ export default function HeroCarousel({ heroData }: HeroCarouselProps) {
   
   const handleSlideClick = (item: HeroMedia) => {
     if (item.linkType === 'item' && item.linkValue) {
-      // Logic to open item detail dialog - this part is tricky as dialog state is outside
-      // For now, we'll just log it. A better implementation would use a global state (like Zustand or Redux)
-      // or pass a function down to open the dialog. A simpler approach for now is to navigate.
-      console.log(`Navigate to item ID: ${item.linkValue}`);
+      const linkedItem = menuItems.find(mi => mi.id === item.linkValue);
+      if (linkedItem) {
+        onOpenItemDetail(linkedItem);
+      }
     } else if (item.linkType === 'category' && item.linkValue) {
       router.push(`/categories/${encodeURIComponent(item.linkValue)}`);
     }

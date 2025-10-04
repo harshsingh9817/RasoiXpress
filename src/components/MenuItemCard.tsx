@@ -3,7 +3,6 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { MenuItem } from '@/lib/types';
@@ -12,16 +11,15 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Leaf, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { Badge } from './ui/badge';
-import FoodItemDetailDialog from './FoodItemDetailDialog';
 
 interface MenuItemCardProps {
   menuItem: MenuItem;
+  onImageClick: (item: MenuItem) => void;
 }
 
-const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
+const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
   const { addToCart, buyNow } = useCart();
   const router = useRouter();
-  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,7 +37,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
     <>
       <Card 
         className="h-full overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary group flex flex-col cursor-pointer"
-        onClick={() => setIsDetailViewOpen(true)}
+        onClick={() => onImageClick(menuItem)}
       >
         <CardHeader className="p-0">
           <div className="relative h-48 w-full">
@@ -86,11 +84,6 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem }) => {
           </div>
         </CardContent>
       </Card>
-      <FoodItemDetailDialog 
-        isOpen={isDetailViewOpen}
-        onOpenChange={setIsDetailViewOpen}
-        menuItem={menuItem}
-      />
     </>
   );
 };
