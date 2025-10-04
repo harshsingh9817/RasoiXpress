@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,7 +16,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Timer, Video, Image as ImageIcon, Text, Link2, Pizza, AppWindow, MoveVertical } from "lucide-react";
+import { LayoutTemplate, Save, PlusCircle, Trash2, Upload, Video, Image as ImageIcon, Text, Link2, MoveVertical } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { uploadImage } from "@/lib/appwrite";
@@ -64,7 +64,7 @@ export default function HeroManagementPage() {
     defaultValues: { media: [], slideInterval: 5, orderingTime: '' },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, move } = useFieldArray({
     control: form.control,
     name: "media",
   });
@@ -105,7 +105,8 @@ export default function HeroManagementPage() {
       };
       loadData();
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, form.reset, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
 
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -117,7 +118,6 @@ export default function HeroManagementPage() {
         const result = reader.result as string;
         newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        // This is crucial: set a valid placeholder URL to pass Zod's URL validation
         form.setValue(`media.${index}.src`, 'https://upload.placeholder.com', { shouldValidate: true });
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
@@ -129,13 +129,15 @@ export default function HeroManagementPage() {
     setIsSubmitting(true);
     try {
       const uploadedMediaUrls = await Promise.all(
-        mediaFiles.map(async (mediaFile, index) => {
-          if (mediaFile.file) {
+        data.media.map(async (slide, index) => {
+          const mediaFile = mediaFiles[index];
+          if (mediaFile?.file) {
             return await uploadImage(mediaFile.file);
           }
-          // If no new file, find the corresponding original slide and return its src
-          const originalSlide = initialHeroData?.media?.find(m => m.order === data.media[index].order);
-          return originalSlide?.src || data.media[index].src;
+          // If no new file, find the original slide by order and return its src
+          const originalSlide = initialHeroData?.media.find(m => m.order === slide.order);
+          // Fallback to the current field's src if not found (e.g., for newly added but unchanged slides)
+          return originalSlide?.src || slide.src;
         })
       );
 
@@ -193,12 +195,6 @@ export default function HeroManagementPage() {
       newMediaFiles.splice(mediaIndexToDelete, 1);
       setMediaFiles(newMediaFiles);
       
-      if (initialHeroData && initialHeroData.media) {
-        const newInitialMedia = [...initialHeroData.media];
-        newInitialMedia.splice(mediaIndexToDelete, 1);
-        setInitialHeroData({ ...initialHeroData, media: newInitialMedia });
-      }
-
       toast({
         title: "Slide Removed",
         description: "The slide has been removed. Click 'Save All Changes' to make it permanent.",
@@ -250,7 +246,7 @@ export default function HeroManagementPage() {
                     name="slideInterval"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><Timer className="mr-2 h-4 w-4 text-primary" /> Slide Change Time</FormLabel>
+                        <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Slide Change Time</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="5" {...field} />
                         </FormControl>
@@ -264,7 +260,7 @@ export default function HeroManagementPage() {
                     name="orderingTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><Timer className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
+                        <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
                         <FormControl>
                           <Input placeholder="10:00 AM - 10:00 PM" {...field} value={field.value || ''} />
                         </FormControl>
@@ -382,3 +378,5 @@ export default function HeroManagementPage() {
     </div>
   );
 }
+
+    
