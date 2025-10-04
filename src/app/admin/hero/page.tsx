@@ -115,7 +115,7 @@ export default function HeroManagementPage() {
         const result = reader.result as string;
         newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        form.setValue(`media.${index}.src`, 'https://placehold.co/1.png', { shouldValidate: true });
+        form.setValue(`media.${index}.src`, 'https://placehold.co/1.png', { shouldValidate: true }); // Use placeholder to pass validation
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
       reader.readAsDataURL(file);
@@ -126,12 +126,13 @@ export default function HeroManagementPage() {
     setIsSubmitting(true);
     try {
       const uploadedMediaUrls = await Promise.all(
-        mediaFiles.map(async (mediaFile) => {
+        mediaFiles.map(async (mediaFile, index) => {
           if (mediaFile.file) {
             return await uploadImage(mediaFile.file);
           }
-          // If no new file, return the existing preview URL which should be the original URL
-          return mediaFile.preview;
+          // If no new file, return the existing URL from the initial data.
+          // Fallback to the current form value if somehow initial data is out of sync.
+          return initialHeroData?.media?.[index]?.src || data.media?.[index]?.src;
         })
       );
 
@@ -153,7 +154,7 @@ export default function HeroManagementPage() {
         title: "Hero Section Updated",
         description: "The homepage hero has been successfully updated.",
       });
-      // After successful save, we should reload the data to sync the state
+      
       const reloadedData = await getHeroData();
       if (reloadedData.media && Array.isArray(reloadedData.media)) {
         reloadedData.media.sort((a, b) => (a.order || 99) - (b.order || 99));
@@ -308,13 +309,13 @@ export default function HeroManagementPage() {
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <FormField control={form.control} name={`media.${index}.textPosition`} render={({ field }) => (
-                                <FormItem><FormLabel><MoveVertical className="inline mr-1 h-4"/> Position</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['top-left', 'top-center', 'top-right', 'center-left', 'center-center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'].map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                                <FormItem><FormLabel><MoveVertical className="inline mr-1 h-4"/> Position</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['top-left', 'top-center', 'top-right', 'center-left', 'center-center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'].map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                              <FormField control={form.control} name={`media.${index}.fontSize`} render={({ field }) => (
-                                <FormItem><FormLabel><Text className="inline mr-1 h-4"/> Size</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sm', 'md', 'lg', 'xl'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                                <FormItem><FormLabel><Text className="inline mr-1 h-4"/> Size</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sm', 'md', 'lg', 'xl'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name={`media.${index}.fontFamily`} render={({ field }) => (
-                                <FormItem><FormLabel>Font</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sans', 'serif', 'headline'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Font</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{['sans', 'serif', 'headline'].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                           </div>
                         </div>
@@ -376,3 +377,5 @@ export default function HeroManagementPage() {
     </div>
   );
 }
+
+    
