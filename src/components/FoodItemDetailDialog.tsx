@@ -31,8 +31,6 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      // If the dialog is open and a popstate event occurs (back button),
-      // prevent the default back navigation and just close the dialog.
       if (isOpen) {
         event.preventDefault();
         onOpenChange(false);
@@ -40,12 +38,9 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
     };
 
     if (isOpen) {
-      // Push a new state to the history when the dialog opens
       window.history.pushState({ dialogOpen: true }, '');
       window.addEventListener('popstate', handlePopState);
     } else {
-      // If the dialog is closed by other means (e.g., clicking 'close'),
-      // we might need to go back in history if our dummy state is on top.
       if (window.history.state?.dialogOpen) {
         window.history.back();
       }
@@ -66,34 +61,34 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0">
-        <div className="relative h-60 w-full overflow-hidden">
-          <Image
-            src={menuItem.imageUrl}
-            alt={menuItem.name}
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint={`${menuItem.name.split(" ")[0].toLowerCase()} ${menuItem.category.toLowerCase()}`}
-          />
-           {menuItem.isPopular && (
-            <Badge variant="destructive" className="absolute top-3 right-3 text-sm px-3 py-1 bg-accent text-accent-foreground border-accent-foreground shadow-md">
-              <Tag className="mr-1.5 h-4 w-4" /> Popular
-            </Badge>
-          )}
-          {menuItem.isVegetarian && (
-             <Badge variant="secondary" className="absolute top-3 left-3 text-sm px-3 py-1 bg-green-600 text-white border-green-700 shadow-md">
-                <Leaf className="mr-1.5 h-4 w-4" /> Vegetarian
-             </Badge>
-          )}
-        </div>
+      <DialogContent className="sm:max-w-lg p-0 grid grid-rows-[auto_1fr_auto] max-h-[90vh]">
         <DialogHeader className="p-6 pb-2">
+           <div className="relative h-60 w-full overflow-hidden rounded-md mb-4">
+            <Image
+              src={menuItem.imageUrl}
+              alt={menuItem.name}
+              layout="fill"
+              objectFit="cover"
+              data-ai-hint={`${menuItem.name.split(" ")[0].toLowerCase()} ${menuItem.category.toLowerCase()}`}
+            />
+            {menuItem.isPopular && (
+              <Badge variant="destructive" className="absolute top-3 right-3 text-sm px-3 py-1 bg-accent text-accent-foreground border-accent-foreground shadow-md">
+                <Tag className="mr-1.5 h-4 w-4" /> Popular
+              </Badge>
+            )}
+            {menuItem.isVegetarian && (
+               <Badge variant="secondary" className="absolute top-3 left-3 text-sm px-3 py-1 bg-green-600 text-white border-green-700 shadow-md">
+                  <Leaf className="mr-1.5 h-4 w-4" /> Vegetarian
+               </Badge>
+            )}
+          </div>
           <DialogTitle className="text-3xl font-headline text-primary">{menuItem.name}</DialogTitle>
           <DialogDescription className="text-md text-muted-foreground pt-1">
             {menuItem.description}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 space-y-3 max-h-[calc(100vh-20rem)] overflow-y-auto">
+        <div className="px-6 space-y-4 overflow-y-auto">
           <div className="flex justify-between items-center">
             <p className="text-2xl font-semibold text-accent">Rs.{menuItem.price.toFixed(2)}</p>
             <Badge variant="outline" className="text-base">{menuItem.category}</Badge>
