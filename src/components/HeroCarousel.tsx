@@ -94,6 +94,10 @@ export default function HeroCarousel({ heroData, menuItems, onOpenItemDetail }: 
       }
     } else if (item.linkType === 'category' && item.linkValue) {
       router.push(`/categories/${encodeURIComponent(item.linkValue)}`);
+    } else if (item.linkType === 'menu') {
+      router.push('/');
+    } else if (item.linkType === 'categories') {
+      router.push('/categories');
     }
   }
 
@@ -117,7 +121,7 @@ export default function HeroCarousel({ heroData, menuItems, onOpenItemDetail }: 
           {media.map((item, index) => {
             const headline = item.headline;
             const subheadline = item.subheadline;
-            const hasLink = item.linkType && item.linkType !== 'none' && item.linkValue;
+            const hasLink = item.linkType && item.linkType !== 'none';
 
             const positionClasses = getPositionClasses(item.textPosition);
             const fontSizeClasses = getFontSizeClasses(item.fontSize);

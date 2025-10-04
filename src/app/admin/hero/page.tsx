@@ -29,7 +29,7 @@ const heroMediaSchema = z.object({
   order: z.coerce.number().min(1, "Order must be at least 1."),
   headline: z.string().optional(),
   subheadline: z.string().optional(),
-  linkType: z.enum(['none', 'item', 'category']).optional().default('none'),
+  linkType: z.enum(['none', 'item', 'category', 'menu', 'categories']).optional().default('none'),
   linkValue: z.string().optional(),
   textPosition: z.enum(['bottom-left', 'bottom-center', 'bottom-right', 'center-left', 'center-center', 'center-right', 'top-left', 'top-center', 'top-right']).optional().default('bottom-left'),
   fontSize: z.enum(['sm', 'md', 'lg', 'xl']).optional().default('md'),
@@ -310,9 +310,9 @@ export default function HeroManagementPage() {
                             <h4 className="font-medium text-sm flex items-center"><Link2 className="mr-2 h-4 w-4 text-primary"/> Slide Link</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                                 <FormField control={form.control} name={`media.${index}.linkType`} render={({ field }) => (
-                                    <FormItem><FormLabel>Link To</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="item">Menu Item</SelectItem><SelectItem value="category">Category</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Link To</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="menu">Menu Page</SelectItem><SelectItem value="categories">Categories Page</SelectItem><SelectItem value="item">Menu Item</SelectItem><SelectItem value="category">Specific Category</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                                 )}/>
-                                {form.watch(`media.${index}.linkType`) !== 'none' && (
+                                {['item', 'category'].includes(form.watch(`media.${index}.linkType`) || 'none') && (
                                      <FormField control={form.control} name={`media.${index}.linkValue`} render={({ field }) => (
                                         <FormItem><FormLabel>Select {form.watch(`media.${index}.linkType`)}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl><SelectContent>
                                         {form.watch(`media.${index}.linkType`) === 'item' && menuItems.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
