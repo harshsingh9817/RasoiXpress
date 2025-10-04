@@ -57,7 +57,6 @@ import { useToast } from "@/hooks/use-toast";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import DirectionsMap from "@/components/DirectionsMap";
 import { cn } from "@/lib/utils";
 
 const ORDER_PROGRESS_STEPS: OrderStatus[] = [
@@ -479,23 +478,6 @@ export default function AdminOrdersPage() {
                             Message Customer
                         </Button>
                     </div>
-                    {paymentSettings && (
-                        <>
-                           <Separator />
-                            <div>
-                                <h4 className="font-semibold mb-2 text-sm">Directions to Customer</h4>
-                                <DirectionsMap
-                                    destinationCoords={
-                                        selectedOrder.shippingLat && selectedOrder.shippingLng
-                                        ? { lat: selectedOrder.shippingLat, lng: selectedOrder.shippingLng }
-                                        : undefined
-                                    }
-                                    destinationAddress={selectedOrder.shippingAddress}
-                                    apiUrl={paymentSettings.mapApiUrl}
-                                />
-                            </div>
-                        </>
-                    )}
                 </div>
                 </>
             )}
