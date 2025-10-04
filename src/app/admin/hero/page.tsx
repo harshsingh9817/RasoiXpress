@@ -77,26 +77,33 @@ export default function HeroManagementPage() {
     if (isAuthenticated && isAdmin) {
       const loadData = async () => {
         setIsDataLoading(true);
-        const [data, items, cats] = await Promise.all([getHeroData(), getMenuItems(true), getCategories()]);
-        
-        setInitialHeroData(data); // Store initial data
-        setMenuItems(items);
-        setCategories(cats);
+        try {
+            const [data, items, cats] = await Promise.all([getHeroData(), getMenuItems(true), getCategories()]);
+            
+            if (data.media && Array.isArray(data.media)) {
+              data.media.sort((a, b) => (a.order || 99) - (b.order || 99));
+            }
+            
+            setInitialHeroData(data); // Store initial data
+            setMenuItems(items);
+            setCategories(cats);
 
-        if (data.media && Array.isArray(data.media)) {
-          data.media.sort((a, b) => (a.order || 99) - (b.order || 99));
+            form.reset({
+              slideInterval: data.slideInterval || 5,
+              orderingTime: data.orderingTime || '10:00 AM - 10:00 PM',
+              media: data.media || [],
+            });
+            setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
+        } catch (error) {
+            console.error("Error loading hero data:", error);
+            toast({ title: "Error", description: "Could not load hero settings.", variant: "destructive" });
+        } finally {
+            setIsDataLoading(false);
         }
-        form.reset({
-          slideInterval: data.slideInterval || 5,
-          orderingTime: data.orderingTime || '10:00 AM - 10:00 PM',
-          media: data.media || [],
-        });
-        setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
-        setIsDataLoading(false);
       };
       loadData();
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, form, toast]);
 
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,9 +115,6 @@ export default function HeroManagementPage() {
         const result = reader.result as string;
         newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        // Important: We only set the data URI for preview. The final URL will be from upload.
-        // We set a valid placeholder URL here to pass Zod validation during interaction.
-        // The real URL is handled during submission.
         form.setValue(`media.${index}.src`, 'https://placehold.co/1.png', { shouldValidate: true });
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
@@ -122,13 +126,12 @@ export default function HeroManagementPage() {
     setIsSubmitting(true);
     try {
       const uploadedMediaUrls = await Promise.all(
-        mediaFiles.map(async (mediaFile, index) => {
+        mediaFiles.map(async (mediaFile) => {
           if (mediaFile.file) {
-            // If there's a new file, upload it and return the new URL
             return await uploadImage(mediaFile.file);
           }
-          // If no new file, return the original URL from the initial data
-          return initialHeroData?.media[index]?.src || data.media[index].src;
+          // If no new file, return the existing preview URL which should be the original URL
+          return mediaFile.preview;
         })
       );
 
@@ -150,6 +153,15 @@ export default function HeroManagementPage() {
         title: "Hero Section Updated",
         description: "The homepage hero has been successfully updated.",
       });
+      // After successful save, we should reload the data to sync the state
+      const reloadedData = await getHeroData();
+      if (reloadedData.media && Array.isArray(reloadedData.media)) {
+        reloadedData.media.sort((a, b) => (a.order || 99) - (b.order || 99));
+      }
+      setInitialHeroData(reloadedData);
+      form.reset(reloadedData);
+      setMediaFiles(reloadedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
+
     } catch (error) {
       console.error("Failed to save hero data", error);
       toast({
@@ -162,7 +174,6 @@ export default function HeroManagementPage() {
     }
   };
 
-
   const handleDeleteMedia = (index: number) => {
     setMediaIndexToDelete(index);
     setIsDeleteDialogOpen(true);
@@ -171,13 +182,14 @@ export default function HeroManagementPage() {
   const confirmDelete = () => {
     if (mediaIndexToDelete !== null) {
       remove(mediaIndexToDelete);
+      
       const newMediaFiles = [...mediaFiles];
       newMediaFiles.splice(mediaIndexToDelete, 1);
       setMediaFiles(newMediaFiles);
       
-      const newInitialMedia = [...(initialHeroData?.media || [])];
-      newInitialMedia.splice(mediaIndexToDelete, 1);
-      if (initialHeroData) {
+      if (initialHeroData && initialHeroData.media) {
+        const newInitialMedia = [...initialHeroData.media];
+        newInitialMedia.splice(mediaIndexToDelete, 1);
         setInitialHeroData({ ...initialHeroData, media: newInitialMedia });
       }
 
@@ -364,5 +376,3 @@ export default function HeroManagementPage() {
     </div>
   );
 }
-
-    
