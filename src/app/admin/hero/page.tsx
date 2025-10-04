@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -80,20 +80,22 @@ export default function HeroManagementPage() {
         try {
             const [data, items, cats] = await Promise.all([getHeroData(), getMenuItems(true), getCategories()]);
             
-            if (data.media && Array.isArray(data.media)) {
-              data.media.sort((a, b) => (a.order || 99) - (b.order || 99));
-            }
+            const sortedMedia = data.media && Array.isArray(data.media)
+              ? [...data.media].sort((a, b) => (a.order || 99) - (b.order || 99))
+              : [];
             
-            setInitialHeroData(data); // Store initial data
+            const sortedData = {...data, media: sortedMedia };
+
+            setInitialHeroData(sortedData);
             setMenuItems(items);
             setCategories(cats);
 
             form.reset({
-              slideInterval: data.slideInterval || 5,
-              orderingTime: data.orderingTime || '10:00 AM - 10:00 PM',
-              media: data.media || [],
+              slideInterval: sortedData.slideInterval || 5,
+              orderingTime: sortedData.orderingTime || '10:00 AM - 10:00 PM',
+              media: sortedData.media || [],
             });
-            setMediaFiles(data.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
+            setMediaFiles(sortedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
         } catch (error) {
             console.error("Error loading hero data:", error);
             toast({ title: "Error", description: "Could not load hero settings.", variant: "destructive" });
@@ -115,7 +117,8 @@ export default function HeroManagementPage() {
         const result = reader.result as string;
         newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        form.setValue(`media.${index}.src`, 'https://placehold.co/1.png', { shouldValidate: true }); // Use placeholder to pass validation
+        // This is crucial: set a valid placeholder URL to pass Zod's URL validation
+        form.setValue(`media.${index}.src`, 'https://upload.placeholder.com', { shouldValidate: true });
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
       reader.readAsDataURL(file);
@@ -130,16 +133,16 @@ export default function HeroManagementPage() {
           if (mediaFile.file) {
             return await uploadImage(mediaFile.file);
           }
-          // If no new file, return the existing URL from the initial data.
-          // Fallback to the current form value if somehow initial data is out of sync.
-          return initialHeroData?.media?.[index]?.src || data.media?.[index]?.src;
+          // If no new file, find the corresponding original slide and return its src
+          const originalSlide = initialHeroData?.media?.find(m => m.order === data.media[index].order);
+          return originalSlide?.src || data.media[index].src;
         })
       );
 
       const updatedMedia = data.media.map((item, index) => ({
         ...item,
         src: uploadedMediaUrls[index],
-        type: mediaFiles[index].type,
+        type: mediaFiles[index]?.type || item.type,
         linkValue: item.linkType === 'none' ? '' : item.linkValue,
       }));
 
@@ -156,12 +159,14 @@ export default function HeroManagementPage() {
       });
       
       const reloadedData = await getHeroData();
-      if (reloadedData.media && Array.isArray(reloadedData.media)) {
-        reloadedData.media.sort((a, b) => (a.order || 99) - (b.order || 99));
-      }
-      setInitialHeroData(reloadedData);
-      form.reset(reloadedData);
-      setMediaFiles(reloadedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
+       const sortedMedia = reloadedData.media && Array.isArray(reloadedData.media)
+            ? [...reloadedData.media].sort((a, b) => (a.order || 99) - (b.order || 99))
+            : [];
+        const sortedReloadedData = {...reloadedData, media: sortedMedia };
+
+      setInitialHeroData(sortedReloadedData);
+      form.reset(sortedReloadedData);
+      setMediaFiles(sortedReloadedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
 
     } catch (error) {
       console.error("Failed to save hero data", error);
@@ -205,7 +210,7 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order || 0)) + 1 : 1;
-    append({ type: 'image', src: 'https://placehold.co/1280x720.png', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
+    append({ type: 'image', src: 'https://upload.placeholder.com', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
@@ -279,7 +284,7 @@ export default function HeroManagementPage() {
                   <div key={field.id} className="flex flex-col gap-4 p-4 border rounded-lg">
                     <div className="flex items-start gap-4">
                       <div className="flex-1 space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-4 items-end">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-4 items-start">
                           <FormField control={form.control} name={`media.${index}.order`} render={({ field }) => (
                               <FormItem><FormLabel>Order</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
                             )}
@@ -377,5 +382,3 @@ export default function HeroManagementPage() {
     </div>
   );
 }
-
-    
