@@ -57,6 +57,7 @@ export default function HeroManagementPage() {
   
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [initialHeroData, setInitialHeroData] = useState<HeroData | null>(null);
 
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
@@ -78,6 +79,7 @@ export default function HeroManagementPage() {
         setIsDataLoading(true);
         const [data, items, cats] = await Promise.all([getHeroData(), getMenuItems(true), getCategories()]);
         
+        setInitialHeroData(data); // Store initial data
         setMenuItems(items);
         setCategories(cats);
 
@@ -103,9 +105,13 @@ export default function HeroManagementPage() {
       const reader = new FileReader();
       const fileType = file.type.startsWith('video/') ? 'video' : 'image';
       reader.onloadend = () => {
-        newMediaFiles[index] = { file, preview: reader.result as string, type: fileType };
+        const result = reader.result as string;
+        newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        form.setValue(`media.${index}.src`, reader.result as string, { shouldValidate: true });
+        // Important: We only set the data URI for preview. The final URL will be from upload.
+        // We set a valid placeholder URL here to pass Zod validation during interaction.
+        // The real URL is handled during submission.
+        form.setValue(`media.${index}.src`, 'https://placehold.co/1.png', { shouldValidate: true });
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
       reader.readAsDataURL(file);
@@ -116,11 +122,13 @@ export default function HeroManagementPage() {
     setIsSubmitting(true);
     try {
       const uploadedMediaUrls = await Promise.all(
-        mediaFiles.map(async (media, index) => {
-          if (media.file) {
-            return await uploadImage(media.file); // Appwrite function handles both images/videos
+        mediaFiles.map(async (mediaFile, index) => {
+          if (mediaFile.file) {
+            // If there's a new file, upload it and return the new URL
+            return await uploadImage(mediaFile.file);
           }
-          return data.media[index].src;
+          // If no new file, return the original URL from the initial data
+          return initialHeroData?.media[index]?.src || data.media[index].src;
         })
       );
 
@@ -154,6 +162,7 @@ export default function HeroManagementPage() {
     }
   };
 
+
   const handleDeleteMedia = (index: number) => {
     setMediaIndexToDelete(index);
     setIsDeleteDialogOpen(true);
@@ -165,6 +174,13 @@ export default function HeroManagementPage() {
       const newMediaFiles = [...mediaFiles];
       newMediaFiles.splice(mediaIndexToDelete, 1);
       setMediaFiles(newMediaFiles);
+      
+      const newInitialMedia = [...(initialHeroData?.media || [])];
+      newInitialMedia.splice(mediaIndexToDelete, 1);
+      if (initialHeroData) {
+        setInitialHeroData({ ...initialHeroData, media: newInitialMedia });
+      }
+
       toast({
         title: "Slide Removed",
         description: "The slide has been removed. Click 'Save All Changes' to make it permanent.",
@@ -176,7 +192,7 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order || 0)) + 1 : 1;
-    append({ type: 'image', src: '', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
+    append({ type: 'image', src: 'https://placehold.co/1280x720.png', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
@@ -348,3 +364,5 @@ export default function HeroManagementPage() {
     </div>
   );
 }
+
+    
