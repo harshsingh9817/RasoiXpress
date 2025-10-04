@@ -105,7 +105,7 @@ export default function HeroManagementPage() {
       };
       loadData();
     }
-  }, [isAdmin, isAuthLoading, isAuthenticated, router, form, toast]);
+  }, [isAdmin, isAuthLoading, isAuthenticated, router, form.reset, toast]);
 
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
