@@ -635,6 +635,11 @@ export async function getUserProfile(userId: string): Promise<DocumentData | nul
 
 export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
     if (!auth.currentUser || auth.currentUser.uid !== userId) throw new Error("Unauthorized.");
+    
+    if(data.displayName && data.displayName !== auth.currentUser.displayName) {
+        await auth.currentUser.updateProfile({ displayName: data.displayName });
+    }
+    
     await setDoc(doc(db, 'users', userId), data, { merge: true });
 }
 

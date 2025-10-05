@@ -54,10 +54,14 @@ export async function POST(request: Request) {
       // Update the order with the confirmed payment ID and ensure status is 'Confirmed'.
       const batch = writeBatch(db);
       querySnapshot.forEach(doc => {
-          batch.update(doc.ref, { 
-              razorpayPaymentId: razorpayPaymentId,
-              status: 'Confirmed',
-          });
+          const orderData = doc.data();
+          // Only update if the status isn't already a final one like 'Delivered' or 'Cancelled'.
+          if (orderData.status === 'Order Placed' || orderData.status === 'Confirmed') {
+            batch.update(doc.ref, { 
+                razorpayPaymentId: razorpayPaymentId,
+                status: 'Confirmed',
+            });
+          }
       });
       await batch.commit();
       

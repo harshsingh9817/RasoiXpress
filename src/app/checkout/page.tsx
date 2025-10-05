@@ -311,7 +311,7 @@ export default function CheckoutPage() {
         userEmail: user.email || 'N/A',
         customerName: selectedAddress.fullName,
         date: new Date().toISOString(),
-        status: 'Order Placed', // This will be updated after payment
+        status: 'Order Placed', // This will be updated to Confirmed after payment
         total: grandTotal,
         items: cartItems.map(item => ({ ...item })),
         shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
@@ -376,15 +376,26 @@ export default function CheckoutPage() {
     );
   }
 
-  if (currentStep === 'success') {
+  if (currentStep === 'success' && orderDetails) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
         <CheckCircle className="h-24 w-24 text-green-500 mb-6" />
-        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order Confirmed!</h1>
-        <p className="text-lg text-muted-foreground max-w-md">You can track your order on the "My Orders" page.</p>
-        {orderDetails?.deliveryConfirmationCode && (
-           <Card className="mt-6 text-center p-4 border-dashed"><CardHeader className="p-2"><CardTitle className="text-lg text-primary"><ShieldCheck className="mr-2 h-5 w-5 inline"/>Delivery Code</CardTitle></CardHeader><CardContent className="p-2"><p className="text-4xl font-bold tracking-widest">{orderDetails.deliveryConfirmationCode}</p><p className="text-xs text-muted-foreground mt-2">Share this with the delivery partner.</p></CardContent></Card>
-        )}
+        <h1 className="text-4xl font-headline font-bold text-primary mb-2">Order is Placed!</h1>
+        <p className="text-lg text-muted-foreground max-w-md">Your payment was successful. You can track your order on the "My Orders" page.</p>
+        
+        <Card className="mt-6 text-center p-4 border-dashed">
+            <CardHeader className="p-2">
+                <CardTitle className="text-lg text-primary">
+                    <ShieldCheck className="mr-2 h-5 w-5 inline"/>
+                    Your Order Code
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+                <p className="text-4xl font-bold tracking-widest">#{orderDetails.id.slice(-6)}</p>
+                <p className="text-xs text-muted-foreground mt-2">Use this code for any inquiries about your order.</p>
+            </CardContent>
+        </Card>
+
         <div className="mt-8 flex gap-4">
             <Button onClick={() => router.push(`/my-orders?track=${orderDetails?.id}`)} size="lg">Track My Order</Button>
             <Button onClick={() => router.push('/')} variant="outline" size="lg">Continue Shopping</Button>
