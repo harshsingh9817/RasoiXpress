@@ -1,10 +1,10 @@
 
 "use client";
 
-import type { MenuItem, CartItem, Coupon } from '@/lib/types';
+import type { MenuItem, CartItem, Coupon, Order, Address } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb } from '@/lib/data';
+import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb, placeOrder, getAddresses, getPaymentSettings, getUserProfile } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,9 +37,30 @@ interface CartContextType {
   isOrderingAllowed: boolean;
   setIsTimeGateDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   appliedCoupon: Coupon | null;
+  handleInstantCheckout: () => void;
+  isProcessingPayment: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
+
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    if (lat1 === 0 && lon1 === 0) return 0;
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+};
+
+
+declare global { interface Window { Razorpay: any; } }
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -52,6 +73,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isOrderingAllowed, setIsOrderingAllowed] = useState(true);
   const [orderingTimeMessage, setOrderingTimeMessage] = useState('');
   const [isTimeGateDialogOpen, setIsTimeGateDialogOpen] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -64,10 +86,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (isCartOpen) {
       window.history.pushState({ cartOpen: true }, '');
       window.addEventListener('popstate', handlePopState);
-    } else {
-      if (window.history.state?.cartOpen) {
-        router.back();
-      }
     }
 
     return () => {
@@ -75,7 +93,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [isCartOpen, router]);
 
-  // Load coupon from localStorage on initial load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedCoupon = localStorage.getItem('rasoiExpressCoupon');
@@ -90,7 +107,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Save coupon to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
         if (appliedCoupon) {
@@ -101,7 +117,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [appliedCoupon]);
 
-  // Listen to Firestore for cart changes
   useEffect(() => {
     if (user && !isAuthLoading) {
       const unsubscribe = listenToUserCart(user.uid, (items) => {
@@ -109,7 +124,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
       return () => unsubscribe();
     } else if (!isAuthLoading) {
-      // If user logs out, clear the cart
       setCartItems([]);
     }
   }, [user, isAuthLoading]);
@@ -190,10 +204,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setIsTimeGateDialogOpen(true);
         return;
     }
-    
-    await clearUserCartInDb(user.uid);
+    await clearUserCart(user.uid);
     await updateUserCartItem(user.uid, { ...item, quantity: 1 });
-    router.push('/checkout');
+    handleInstantCheckout();
   };
 
   const removeFromCart = (itemId: string) => {
@@ -308,6 +321,158 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-checkout-js')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'razorpay-checkout-js';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleInstantCheckout = async () => {
+    if (!user) {
+        toast({ title: "Login Required", description: "Please log in to place an order.", variant: "destructive" });
+        return;
+    }
+    if (cartItems.length === 0) {
+        toast({ title: "Cart is Empty", description: "Add items to your cart before checking out.", variant: "destructive" });
+        return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+        const [addresses, paymentSettings, userProfile] = await Promise.all([
+            getAddresses(user.uid),
+            getPaymentSettings(),
+            getUserProfile(user.uid)
+        ]);
+
+        if (addresses.length === 0) {
+            toast({ title: "Address Required", description: "Please add a delivery address in your profile.", variant: "destructive" });
+            router.push('/profile?setup=true');
+            setIsProcessingPayment(false);
+            return;
+        }
+
+        const selectedAddress = addresses.find(a => a.isDefault) || addresses[0];
+        if (!selectedAddress) {
+          throw new Error("No address could be selected.");
+        }
+
+        // Calculate delivery fee
+        const dist = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, selectedAddress.lat, selectedAddress.lng);
+        let deliveryFee = 0;
+        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+        
+        if (paymentSettings.isDeliveryFeeEnabled && !isFirstOrder) {
+          if (dist <= paymentSettings.deliveryRadiusKm) {
+              if(getCartSubtotal() < 300) {
+                  deliveryFee = Math.round(dist * 25);
+              }
+          } else {
+              toast({ title: "Out of Delivery Area", description: "The selected address is outside our delivery radius.", variant: "destructive" });
+              setIsProcessingPayment(false);
+              return;
+          }
+        }
+        
+        const totalTax = cartItems.reduce((acc, item) => acc + (item.price * (item.taxRate || 0) * item.quantity), 0);
+        const grandTotal = getCartTotal() + deliveryFee + totalTax;
+
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
+          throw new Error("Razorpay client key is not configured.");
+        }
+    
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          throw new Error("Could not load payment gateway.");
+        }
+
+        const orderResponse = await fetch('/api/razorpay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: grandTotal }),
+        });
+    
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json();
+          throw new Error(errorData.error || 'Failed to create Razorpay order');
+        }
+        const razorpayOrder = await orderResponse.json();
+
+        const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
+
+        const newOrderData: Omit<Order, 'id'> = {
+          userId: user.uid,
+          userEmail: user.email || 'N/A',
+          customerName: selectedAddress.fullName,
+          date: new Date().toISOString(),
+          status: 'Confirmed',
+          total: grandTotal,
+          items: cartItems.map(item => ({ ...item })),
+          shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
+          shippingLat: selectedAddress.lat,
+          shippingLng: selectedAddress.lng,
+          paymentMethod: 'Razorpay',
+          customerPhone: selectedAddress.phone,
+          deliveryFee: deliveryFee,
+          totalTax: totalTax,
+          couponCode: appliedCoupon?.code,
+          discountAmount: getDiscountAmount(),
+          razorpayOrderId: razorpayOrder.id,
+        };
+
+        const paymentObject = new window.Razorpay({
+          key: keyId,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          name: paymentSettings.merchantName || "Rasoi Xpress",
+          description: "Order Payment",
+          order_id: razorpayOrder.id,
+          handler: async (response: any) => {
+            const finalOrderData = {
+              ...newOrderData,
+              razorpayPaymentId: response.razorpay_payment_id,
+            };
+            try {
+              const placedOrder = await placeOrder(finalOrderData);
+              clearCart();
+              toast({ title: "Order Confirmed!", description: "Your payment was successful." });
+              router.push(`/my-orders?track=${placedOrder.id}`);
+            } catch (dbError) {
+              console.error("Failed to save order after payment:", dbError);
+              toast({ title: "Order Placement Failed", description: "Your payment was successful, but we failed to save your order. Please contact support immediately.", variant: "destructive", duration: 10000 });
+            } finally {
+              setIsProcessingPayment(false);
+            }
+          },
+          prefill: { name: selectedAddress.fullName, email: user.email, contact: selectedAddress.phone },
+          theme: { color: "#E64A19" },
+          modal: {
+            ondismiss: () => {
+              setIsProcessingPayment(false);
+              toast({ title: "Payment Cancelled", variant: "destructive" });
+            }
+          }
+        });
+        paymentObject.open();
+
+    } catch (error: any) {
+        console.error("Checkout process failed:", error);
+        toast({ title: "Checkout Error", description: error.message, variant: "destructive" });
+        setIsProcessingPayment(false);
+    }
+  }
+
   return (
     <CartContext.Provider
       value={{
@@ -328,6 +493,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         isOrderingAllowed,
         setIsTimeGateDialogOpen,
         appliedCoupon,
+        handleInstantCheckout,
+        isProcessingPayment,
       }}
     >
       {children}

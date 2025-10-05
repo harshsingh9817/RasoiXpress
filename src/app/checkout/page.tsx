@@ -53,16 +53,12 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 declare global { interface Window { Razorpay: any; } }
 
 export default function CheckoutPage() {
-  const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon } = useCart();
+  const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon, handleInstantCheckout, isProcessingPayment } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -72,38 +68,13 @@ export default function CheckoutPage() {
   
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
-  
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [distance, setDistance] = useState<number | null>(null);
-  const [isServiceable, setIsServiceable] = useState(true);
-  const [userProfile, setUserProfile] = useState<any | null>(null);
-
-
-  const subTotal = getCartSubtotal();
-  const discountAmount = getDiscountAmount();
-  const totalAfterDiscount = getCartTotal();
-
-  const totalTax = cartItems.reduce((acc, item) => {
-    const itemTax = item.price * (item.taxRate || 0);
-    return acc + (itemTax * item.quantity);
-  }, 0);
-  
-  const grandTotal = totalAfterDiscount + deliveryFee + totalTax;
 
   const loadPageData = useCallback(async () => {
     if (!user) return;
     setIsDataLoading(true);
     try {
-        const settings = await getPaymentSettings();
-        setPaymentSettings(settings);
-
-        const [userAddresses, profile] = await Promise.all([
-            getAddresses(user.uid),
-            getUserProfile(user.uid)
-        ]);
+        const userAddresses = await getAddresses(user.uid);
         
-        setUserProfile(profile);
-
         const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
         setAddresses(sortedAddresses);
 
@@ -115,7 +86,7 @@ export default function CheckoutPage() {
         }
     } catch (error) {
         console.error("Failed to load checkout data", error);
-        toast({ title: "Error", description: "Could not load checkout data.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not load your addresses.", variant: "destructive" });
     } finally {
         setIsDataLoading(false);
     }
@@ -128,189 +99,6 @@ export default function CheckoutPage() {
     loadPageData();
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, loadPageData]);
 
-  useEffect(() => {
-    if (!selectedAddressId) {
-        setDistance(null);
-        setDeliveryFee(0);
-        setIsServiceable(true);
-        return;
-    }
-
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    
-    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number' && selectedAddress.lat !== 0) {
-        const dist = getDistance(
-            RESTAURANT_COORDS.lat,
-            RESTAURANT_COORDS.lng,
-            selectedAddress.lat,
-            selectedAddress.lng
-        );
-        setDistance(dist);
-        
-        const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
-
-        if (dist > maxDistance) {
-            setIsServiceable(false);
-            setDeliveryFee(0);
-            return;
-        }
-
-        setIsServiceable(true);
-        
-        if (paymentSettings?.isDeliveryFeeEnabled === false) {
-            setDeliveryFee(0);
-            return;
-        }
-
-        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
-        if (isFirstOrder) {
-            setDeliveryFee(0);
-            return;
-        }
-
-        if (subTotal > 0 && subTotal < 300) {
-            const fee = Math.round(dist * 25);
-            setDeliveryFee(fee);
-        } else {
-            setDeliveryFee(0);
-        }
-    } else { // Handle manually entered addresses where lat/lng might be 0
-        setDistance(null);
-        setDeliveryFee(20); // Assign a default flat fee
-        setIsServiceable(true);
-    }
-  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
-
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (document.getElementById('razorpay-checkout-js')) {
-        resolve(true);
-        return;
-      }
-      const script = document.createElement('script');
-      script.id = 'razorpay-checkout-js';
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  const handlePlaceOrder = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!isOrderingAllowed) {
-        setIsTimeGateDialogOpen(true);
-        return;
-    }
-    if (!user || !selectedAddressId) {
-        toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
-        return;
-    }
-    
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    if (!selectedAddress) {
-        toast({ title: "Address Error", description: "Could not find the selected address. Please try again.", variant: "destructive" });
-        return;
-    }
-    
-    setIsProcessingPayment(true);
-    
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
-      toast({
-        title: "Configuration Error",
-        description: "Razorpay client key (NEXT_PUBLIC_RAZORPAY_KEY_ID) is not set. Please contact support.",
-        variant: "destructive",
-      });
-      setIsProcessingPayment(false);
-      return;
-    }
-
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
-      setIsProcessingPayment(false);
-      return;
-    }
-
-    try {
-      const orderResponse = await fetch('/api/razorpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: grandTotal }),
-      });
-
-      if (!orderResponse.ok) {
-        const errorData = await orderResponse.json();
-        throw new Error(errorData.error || 'Failed to create Razorpay order');
-      }
-      const razorpayOrder = await orderResponse.json();
-      
-      const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
-      
-      const orderDataForDb: Omit<Order, 'id'> = {
-          userId: user.uid,
-          userEmail: user.email || 'N/A',
-          customerName: selectedAddress.fullName,
-          date: new Date().toISOString(),
-          status: 'Order Placed', // Order is now directly placed
-          total: grandTotal,
-          items: cartItems.map(item => ({ ...item })),
-          shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
-          shippingLat: selectedAddress.lat,
-          shippingLng: selectedAddress.lng,
-          paymentMethod: 'Razorpay',
-          customerPhone: selectedAddress.phone,
-          deliveryFee: deliveryFee,
-          totalTax: totalTax,
-          razorpayOrderId: razorpayOrder.id,
-          ...(appliedCoupon && { couponCode: appliedCoupon.code }),
-          ...(appliedCoupon && { discountAmount: discountAmount }),
-      };
-
-      const options = {
-        key: keyId,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        name: paymentSettings?.merchantName || "Rasoi Xpress",
-        description: "Order Payment",
-        image: "https://firebasestorage.googleapis.com/v0/b/rasoi-xpress.appspot.com/o/app-images%2Frasoi-xpress-logo.png?alt=media&token=26223b20-5627-46f9-813c-1b70273a340b",
-        order_id: razorpayOrder.id,
-        handler: async (response: any) => {
-          // On successful payment, the webhook will handle the verification.
-          // We can now place the order in our DB with 'Order Placed' status.
-          const finalOrderData = {
-            ...orderDataForDb,
-            razorpayPaymentId: response.razorpay_payment_id,
-          };
-          
-          try {
-            const newOrder = await placeOrder(finalOrderData);
-            clearCart();
-            router.push(`/my-orders?track=${newOrder.id}`);
-          } catch(dbError) {
-             console.error("Failed to save order after payment:", dbError);
-             toast({ title: "Order Placement Failed", description: "Your payment was successful, but we failed to save your order. Please contact support immediately.", variant: "destructive", duration: 10000 });
-          }
-        },
-        prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
-        theme: { color: "#E64A19" },
-      };
-
-      const paymentObject = new window.Razorpay(options);
-      paymentObject.on('payment.failed', (response: any) => {
-        console.error('Razorpay payment failed:', response.error);
-        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred. Your order was not placed.', variant: "destructive" });
-        setIsProcessingPayment(false);
-      });
-      paymentObject.open();
-
-    } catch (error: any) {
-      console.error("Error during Razorpay process:", error);
-      toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
-      setIsProcessingPayment(false);
-    }
-  };
 
   const handleSetDefault = async (addressId: string) => {
       if (!user) return;
@@ -354,135 +142,70 @@ export default function CheckoutPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading..." : "Getting ready..."}</p>
+        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading..." : "Getting your addresses..."}</p>
       </div>
     );
   }
 
-  const isProcessing = isLoading || isProcessingPayment;
-  const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
     <>
-    <div className="grid md:grid-cols-2 gap-8 items-start">
-      <div className="space-y-8">
-        <h1 className="text-3xl md:text-4xl font-headline font-bold text-left">Checkout</h1>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Shipping Address</CardTitle>
-                <CardDescription>Select an address or add a new one.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={handleOpenAddDialog}>
-                    <MapPin className="mr-2 h-5 w-5" />
-                    Add a New Address
-                </Button>
-
-                <Separator className="my-6" />
-                
-                <RadioGroup value={selectedAddressId || ''} onValueChange={setSelectedAddressId} className="space-y-4">
-                    {addresses.length > 0 ? (
-                        addresses.map(address => (
-                            <Label key={address.id} htmlFor={address.id} className={cn("flex flex-col p-4 border rounded-lg cursor-pointer transition-all", selectedAddressId === address.id && "border-primary ring-2 ring-primary")}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <RadioGroupItem value={address.id} id={address.id} />
-                                        <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">{address.type}</div>
-                                </div>
-                                <div className="pl-8 pt-2 text-sm text-muted-foreground">
-                                    <p>{address.street}, {address.village}</p>
-                                    <p>{address.city}, {address.pinCode}</p>
-                                    <p className="flex items-center mt-1"><Phone className="mr-2 h-3 w-3" /> {address.phone}</p>
-                                </div>
-                                <div className="pl-8 pt-3 flex gap-2 items-center">
-                                    {!address.isDefault && (
-                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary" onClick={(e) => {e.preventDefault(); handleSetDefault(address.id)}}>Set as Default</Button>
-                                    )}
-                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={(e) => {e.preventDefault(); handleOpenEditDialog(address)}}>Edit</Button>
-                                    {!address.isDefault && (
-                                        <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={(e) => {e.preventDefault(); handleOpenDeleteDialog(address)}}>Delete</Button>
-                                    )}
-                                </div>
-                            </Label>
-                        ))
-                    ) : (
-                        <p className="text-muted-foreground text-center py-4">No addresses found. Please add one to continue.</p>
-                    )}
-                </RadioGroup>
-            </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-8">
+      <h1 className="text-3xl md:text-4xl font-headline font-bold text-left">Checkout</h1>
+      <p className="text-muted-foreground">Confirm your address and proceed to payment directly from the cart.</p>
       
-      <div className="space-y-6 sticky top-24">
-         <Card>
-            <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                 {!isServiceable && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Out of Delivery Area</AlertTitle>
-                      <AlertDescription>
-                        Sorry, this location is more than {paymentSettings?.deliveryRadiusKm || 5}km away. We cannot deliver to this address.
-                      </AlertDescription>
-                    </Alert>
-                )}
-                {isServiceable && paymentSettings?.isDeliveryFeeEnabled === false && (
-                    <Alert>
-                        <Gift className="h-4 w-4" />
-                        <AlertTitle>Free Delivery Unlocked!</AlertTitle>
-                        <AlertDescription>
-                            All delivery fees are currently waived as part of a special promotion.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                {isServiceable && paymentSettings?.isDeliveryFeeEnabled !== false && isFirstOrder && (
-                    <Alert>
-                        <Gift className="h-4 w-4" />
-                        <AlertTitle>First Order Bonus!</AlertTitle>
-                        <AlertDescription>
-                            Congratulations! Your first delivery is on the house.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <div className="space-y-2 text-lg">
-                    <div className="flex justify-between"><span>Subtotal:</span><span>Rs.{subTotal.toFixed(2)}</span></div>
-                    {appliedCoupon && discountAmount > 0 && (
-                        <div className="flex justify-between items-center text-sm text-green-600">
-                          <span className='flex items-center gap-1'><Tag className="h-4 w-4" />Coupon '{appliedCoupon.code}'</span>
-                          <span>- Rs.{discountAmount.toFixed(2)}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-sm">
-                        <span>Delivery Fee:</span>
-                        <span>
-                            {isServiceable ? (
-                                deliveryFee > 0 ? (
-                                    `Rs.${deliveryFee.toFixed(2)}`
-                                ) : (
-                                    <span className="font-semibold text-green-600">FREE</span>
-                                )
-                            ) : (
-                                'Not available'
-                            )}
-                        </span>
-                    </div>
-                     {distance !== null && <p className="text-xs text-muted-foreground text-right">Distance: {distance.toFixed(2)} km</p>}
+      <Card>
+          <CardHeader>
+              <CardTitle>Shipping Address</CardTitle>
+              <CardDescription>Select an address or add a new one. The default address will be used for payment.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+               <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={handleOpenAddDialog}>
+                  <MapPin className="mr-2 h-5 w-5" />
+                  Add a New Address
+              </Button>
 
-                    <Separator />
-                    <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
-                </div>
-                 <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId || !isServiceable} className="w-full">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <PackageCheck className="mr-2" />} 
-                    {isProcessing ? 'Processing...' : `Place Order`}
-                </Button>
-            </CardContent>
-         </Card>
+              <Separator className="my-6" />
+              
+              <RadioGroup value={selectedAddressId || ''} onValueChange={setSelectedAddressId} className="space-y-4">
+                  {addresses.length > 0 ? (
+                      addresses.map(address => (
+                          <Label key={address.id} htmlFor={address.id} className={cn("flex flex-col p-4 border rounded-lg cursor-pointer transition-all", selectedAddressId === address.id && "border-primary ring-2 ring-primary")}>
+                              <div className="flex items-start justify-between">
+                                  <div className="flex items-center space-x-3">
+                                      <RadioGroupItem value={address.id} id={address.id} />
+                                      <div className="font-semibold">{address.fullName} {address.isDefault && <Badge variant="secondary" className="ml-2">Default</Badge>}</div>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">{address.type}</div>
+                              </div>
+                              <div className="pl-8 pt-2 text-sm text-muted-foreground">
+                                  <p>{address.street}, {address.village}</p>
+                                  <p>{address.city}, {address.pinCode}</p>
+                                  <p className="flex items-center mt-1"><Phone className="mr-2 h-3 w-3" /> {address.phone}</p>
+                              </div>
+                              <div className="pl-8 pt-3 flex gap-2 items-center">
+                                  {!address.isDefault && (
+                                      <Button variant="link" size="sm" className="p-0 h-auto text-primary" onClick={(e) => {e.preventDefault(); handleSetDefault(address.id)}}>Set as Default</Button>
+                                  )}
+                                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={(e) => {e.preventDefault(); handleOpenEditDialog(address)}}>Edit</Button>
+                                  {!address.isDefault && (
+                                      <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={(e) => {e.preventDefault(); handleOpenDeleteDialog(address)}}>Delete</Button>
+                                  )}
+                              </div>
+                          </Label>
+                      ))
+                  ) : (
+                      <p className="text-muted-foreground text-center py-4">No addresses found. Please add one to continue.</p>
+                  )}
+              </RadioGroup>
+          </CardContent>
+      </Card>
+      <div className="text-center mt-6">
+        <Button onClick={() => handleInstantCheckout()} disabled={isProcessingPayment || !selectedAddressId}>
+          {isProcessingPayment ? <Loader2 className="animate-spin mr-2"/> : <ArrowLeft className="mr-2"/>}
+          {isProcessingPayment ? 'Processing...' : 'Back to Cart & Pay'}
+        </Button>
       </div>
-
     </div>
     <AddressFormDialog 
         isOpen={isAddressFormOpen} 
