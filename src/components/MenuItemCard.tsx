@@ -40,7 +40,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
         onClick={() => onImageClick(menuItem)}
       >
         <CardHeader className="p-0">
-          <div className="relative h-52 w-full">
+          <div className="relative h-48 w-full">
             <Image
               src={menuItem.imageUrl}
               alt={menuItem.name}
@@ -57,15 +57,16 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
           </div>
         </CardHeader>
         <CardContent className="p-4 flex flex-col flex-grow">
-          <div className="flex-grow">
+          <div className="flex-grow mb-3">
             <CardTitle className="text-xl font-headline mb-1 group-hover:text-primary flex items-center justify-between">
               <span className="truncate">{menuItem.name}</span>
                {menuItem.isVegetarian && <Leaf className="h-5 w-5 text-green-600 shrink-0" title="Vegetarian" />}
             </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            <CardDescription className="text-sm text-muted-foreground line-clamp-2">
               {menuItem.description}
             </CardDescription>
-            <div className="flex items-center justify-between mb-3">
+          </div>
+          <div className="flex items-center justify-between mb-4">
               <div className="flex items-baseline gap-2">
                 <p className="text-lg font-semibold text-primary">Rs.{menuItem.price.toFixed(2)}</p>
                 {hasDiscount && (
@@ -74,7 +75,6 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
               </div>
               {menuItem.isPopular && <Badge variant="outline" className="text-accent border-accent">Popular</Badge>}
             </div>
-          </div>
           <div className="flex items-center gap-2 mt-auto">
              <Button
               onClick={handleBuyNow}
