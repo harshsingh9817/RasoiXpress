@@ -41,23 +41,23 @@ export async function POST(request: Request) {
       const razorpayOrderId = paymentEntity.order_id;
       const razorpayPaymentId = paymentEntity.id;
 
-      // Find the corresponding order in our database that is pending payment.
+      // Find the corresponding order in our database. Since 'Pending Payment' is removed,
+      // the order should already be 'Order Placed'. We just confirm the payment ID.
       const ordersRef = collection(db, 'orders');
-      const q = query(ordersRef, where('razorpayOrderId', '==', razorpayOrderId), where('status', '==', 'Pending Payment'));
+      const q = query(ordersRef, where('razorpayOrderId', '==', razorpayOrderId), where('status', '==', 'Order Placed'));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         // This can happen if the webhook is faster than our DB write, or if it's a duplicate webhook.
         // It's not necessarily an error, but we should log it.
-        console.log(`Webhook received for order ${razorpayOrderId}, but no matching pending order found in Firestore.`);
-        return NextResponse.json({ success: true, message: 'No pending order found, but webhook acknowledged.' });
+        console.log(`Webhook received for order ${razorpayOrderId}, but no matching placed order found in Firestore. This might be a race condition or a duplicate webhook.`);
+        return NextResponse.json({ success: true, message: 'No matching order found, but webhook acknowledged.' });
       }
 
-      // Update the order status to 'Order Placed'
+      // Update the order with the confirmed payment ID. The status is already 'Order Placed'.
       const batch = writeBatch(db);
       querySnapshot.forEach(doc => {
           batch.update(doc.ref, { 
-              status: 'Order Placed',
               razorpayPaymentId: razorpayPaymentId,
           });
       });

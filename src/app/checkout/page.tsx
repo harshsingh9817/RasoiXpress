@@ -253,7 +253,7 @@ export default function CheckoutPage() {
           userEmail: user.email || 'N/A',
           customerName: selectedAddress.fullName,
           date: new Date().toISOString(),
-          status: 'Pending Payment',
+          status: 'Order Placed', // Order is now directly placed
           total: grandTotal,
           items: cartItems.map(item => ({ ...item })),
           shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
@@ -268,9 +268,6 @@ export default function CheckoutPage() {
           ...(appliedCoupon && { discountAmount: discountAmount }),
       };
 
-      // Place the order in our DB with 'Pending Payment' status BEFORE opening Razorpay
-      const pendingOrder = await placeOrder(orderDataForDb);
-
       const options = {
         key: keyId,
         amount: razorpayOrder.amount,
@@ -280,10 +277,21 @@ export default function CheckoutPage() {
         image: "https://firebasestorage.googleapis.com/v0/b/rasoi-xpress.appspot.com/o/app-images%2Frasoi-xpress-logo.png?alt=media&token=26223b20-5627-46f9-813c-1b70273a340b",
         order_id: razorpayOrder.id,
         handler: async (response: any) => {
-          // On successful payment, the webhook will handle the verification and status update.
-          // We just need to clear the cart and redirect the user.
-          clearCart();
-          router.push(`/my-orders?track=${pendingOrder.id}`);
+          // On successful payment, the webhook will handle the verification.
+          // We can now place the order in our DB with 'Order Placed' status.
+          const finalOrderData = {
+            ...orderDataForDb,
+            razorpayPaymentId: response.razorpay_payment_id,
+          };
+          
+          try {
+            const newOrder = await placeOrder(finalOrderData);
+            clearCart();
+            router.push(`/my-orders?track=${newOrder.id}`);
+          } catch(dbError) {
+             console.error("Failed to save order after payment:", dbError);
+             toast({ title: "Order Placement Failed", description: "Your payment was successful, but we failed to save your order. Please contact support immediately.", variant: "destructive", duration: 10000 });
+          }
         },
         prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
         theme: { color: "#E64A19" },
@@ -294,9 +302,6 @@ export default function CheckoutPage() {
         console.error('Razorpay payment failed:', response.error);
         toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred. Your order was not placed.', variant: "destructive" });
         setIsProcessingPayment(false);
-        // User is redirected to My Orders to see the 'Pending Payment' order and can retry.
-        clearCart();
-        router.push(`/my-orders?track=${pendingOrder.id}`);
       });
       paymentObject.open();
 

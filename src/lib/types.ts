@@ -41,7 +41,6 @@ export interface CartItem extends MenuItem {
 }
 
 export type OrderStatus =
-  | 'Pending Payment'
   | 'Order Placed'
   | 'Confirmed'
   | 'Preparing'
