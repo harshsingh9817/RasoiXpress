@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import CartItemCard from './CartItemCard';
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle, Loader2 } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,8 +37,6 @@ const CartSheet = () => {
     setIsCartOpen,
     isOrderingAllowed,
     setIsTimeGateDialogOpen,
-    handleInstantCheckout, 
-    isProcessingPayment,
   } = useCart();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -58,8 +56,8 @@ const CartSheet = () => {
         setIsTimeGateDialogOpen(true);
         return;
     }
-    // New logic: Directly start checkout from cart
-    handleInstantCheckout();
+    setIsCartOpen(false); // Close the cart sheet
+    router.push('/checkout');
   };
 
   const subtotal = getCartSubtotal();
@@ -183,10 +181,9 @@ const CartSheet = () => {
                     className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                     aria-label="Proceed to checkout"
                     onClick={handleProceedToCheckout}
-                    disabled={isProcessingPayment}
                   >
-                    {isProcessingPayment ? <Loader2 className="animate-spin mr-2"/> : <ArrowRight className="mr-2 h-4 w-4" />}
-                    {isProcessingPayment ? 'Processing...' : 'Pay Now'}
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    Proceed to Checkout
                   </Button>
                 </div>
               </SheetFooter>
