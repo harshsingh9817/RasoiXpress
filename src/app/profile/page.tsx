@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,11 +12,11 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Bell, BellOff, Sun, Moon, Laptop, AlertCircle } from 'lucide-react';
+import { MapPin, Settings, User, Edit3, Trash2, PlusCircle, LogOut, HomeIcon as AddressHomeIcon, Phone, Bell, BellOff, Sun, Moon, Laptop, AlertCircle, Save } from 'lucide-react';
 import type { Address as AddressType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { getAddresses, deleteAddress, setDefaultAddress } from '@/lib/data';
+import { getAddresses, deleteAddress, setDefaultAddress, updateUserProfileData } from '@/lib/data';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import { useTheme } from 'next-themes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -36,6 +37,10 @@ export default function ProfilePage() {
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
 
+  const [displayName, setDisplayName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+
+
   const isSetupMode = searchParams.get('setup') === 'true';
 
   const loadUserData = useCallback(async () => {
@@ -45,6 +50,7 @@ export default function ProfilePage() {
         const userAddresses = await getAddresses(firebaseUser.uid);
         const sortedAddresses = userAddresses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
         setAddresses(sortedAddresses);
+        setDisplayName(firebaseUser.displayName || '');
 
         if (isSetupMode && sortedAddresses.length > 0) {
             router.replace('/profile', { scroll: false });
@@ -118,6 +124,24 @@ export default function ProfilePage() {
       if (permission === 'granted') toast({ title: 'Notifications Enabled!' });
       else if (permission === 'denied') toast({ title: 'Notifications Blocked', description: 'Please update your browser settings.', variant: 'destructive' });
     });
+  };
+  
+  const handleNameChange = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!firebaseUser || !displayName.trim()) {
+        toast({ title: 'Name cannot be empty.', variant: 'destructive' });
+        return;
+    }
+    setIsSavingName(true);
+    try {
+        await updateUserProfileData(firebaseUser.uid, { displayName });
+        await firebaseUser.reload(); // Reload user to get fresh data
+        toast({ title: 'Name updated successfully!' });
+    } catch (error: any) {
+        toast({ title: 'Update Failed', description: error.message, variant: 'destructive' });
+    } finally {
+        setIsSavingName(false);
+    }
   };
 
   if (isAuthLoading || (isDataLoading && !addresses.length && !isSetupMode)) {
@@ -198,8 +222,20 @@ export default function ProfilePage() {
           <Card className="shadow-lg">
             <CardHeader><CardTitle>Account Settings</CardTitle><CardDescription>Manage your account preferences.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2"><Label>Email</Label><Input value={firebaseUser?.email || ''} disabled /></div>
-              <div className="space-y-2"><Label>Full Name</Label><Input value={firebaseUser?.displayName || 'N/A'} disabled /></div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={firebaseUser?.email || ''} disabled />
+              </div>
+              <form onSubmit={handleNameChange} className="space-y-2">
+                  <Label htmlFor="displayName">Full Name</Label>
+                  <div className="flex gap-2">
+                    <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                    <Button type="submit" disabled={isSavingName || displayName === firebaseUser?.displayName}>
+                        {isSavingName ? <AnimatedPlateSpinner className="h-5 w-5" /> : <Save className="h-5 w-5" />}
+                        <span className="sr-only">Save Name</span>
+                    </Button>
+                  </div>
+              </form>
               <Separator />
               <div>
                 <h4 className="font-medium mb-2">Push Notifications</h4>
