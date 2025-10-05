@@ -117,7 +117,7 @@ export default function HeroManagementPage() {
         const result = reader.result as string;
         newMediaFiles[index] = { file, preview: result, type: fileType };
         setMediaFiles(newMediaFiles);
-        form.setValue(`media.${index}.src`, 'https://upload.placeholder.com', { shouldValidate: true });
+        form.setValue(`media.${index}.src`, 'https://placehold.co/1280x720.png', { shouldValidate: true });
         form.setValue(`media.${index}.type`, fileType, { shouldValidate: true });
       };
       reader.readAsDataURL(file);
@@ -194,7 +194,7 @@ export default function HeroManagementPage() {
 
   const handleAddSlide = () => {
     const newOrder = fields.length > 0 ? Math.max(...fields.map(f => f.order || 0)) + 1 : 1;
-    append({ type: 'image', src: 'https://upload.placeholder.com', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
+    append({ type: 'image', src: 'https://placehold.co/1280x720.png', order: newOrder, headline: '', subheadline: '', linkType: 'none', linkValue: '', textPosition: 'bottom-left', fontSize: 'md', fontFamily: 'sans' });
     setMediaFiles([...mediaFiles, { file: null, preview: 'https://placehold.co/1280x720.png', type: 'image' }]);
   };
 
@@ -366,5 +366,3 @@ export default function HeroManagementPage() {
     </div>
   );
 }
-
-    
