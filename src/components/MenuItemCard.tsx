@@ -40,7 +40,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
         onClick={() => onImageClick(menuItem)}
       >
         <CardHeader className="p-0">
-          <div className="relative h-48 w-full">
+          <div className="relative h-52 w-full">
             <Image
               src={menuItem.imageUrl}
               alt={menuItem.name}
@@ -62,7 +62,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
               <span className="truncate">{menuItem.name}</span>
                {menuItem.isVegetarian && <Leaf className="h-5 w-5 text-green-600 shrink-0" title="Vegetarian" />}
             </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mb-3 min-h-[40px] line-clamp-2">
+            <CardDescription className="text-sm text-muted-foreground mb-3 line-clamp-2">
               {menuItem.description}
             </CardDescription>
             <div className="flex items-center justify-between mb-3">
@@ -79,6 +79,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
              <Button
               onClick={handleBuyNow}
               variant="outline"
+              size="sm"
               className="w-full"
               aria-label={`Buy ${menuItem.name} now`}
             >
@@ -86,6 +87,7 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
             </Button>
             <Button
               onClick={handleAddToCart}
+              size="sm"
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               aria-label={`Add ${menuItem.name} to cart`}
             >
