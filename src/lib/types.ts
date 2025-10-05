@@ -24,6 +24,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number; // The new field for the original price before discount
   costPrice?: number;
   imageUrl: string;
   category: string;

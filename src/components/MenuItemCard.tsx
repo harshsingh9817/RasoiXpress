@@ -29,6 +29,9 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
     e.stopPropagation();
     buyNow(menuItem);
   };
+  
+  const hasDiscount = menuItem.originalPrice && menuItem.originalPrice > menuItem.price;
+  const discountPercentage = hasDiscount ? Math.round(((menuItem.originalPrice! - menuItem.price) / menuItem.originalPrice!) * 100) : 0;
 
   return (
     <>
@@ -46,6 +49,11 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
               className="transition-transform duration-300 group-hover:scale-105"
               data-ai-hint={`${menuItem.name.split(" ")[0].toLowerCase()} ${menuItem.category?.toLowerCase() || 'food'}`}
             />
+             {hasDiscount && (
+              <Badge variant="destructive" className="absolute top-2 left-2 text-sm px-2 py-1 shadow-lg">
+                {discountPercentage}% OFF
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-4 flex flex-col flex-grow">
@@ -58,7 +66,12 @@ const MenuItemCard: FC<MenuItemCardProps> = ({ menuItem, onImageClick }) => {
               {menuItem.description}
             </CardDescription>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-lg font-semibold text-primary">Rs.{menuItem.price.toFixed(2)}</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-lg font-semibold text-primary">Rs.{menuItem.price.toFixed(2)}</p>
+                {hasDiscount && (
+                    <p className="text-sm text-muted-foreground line-through">Rs.{menuItem.originalPrice!.toFixed(2)}</p>
+                )}
+              </div>
               {menuItem.isPopular && <Badge variant="outline" className="text-accent border-accent">Popular</Badge>}
             </div>
           </div>

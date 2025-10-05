@@ -58,10 +58,13 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
     addToCart(menuItem);
     onOpenChange(false);
   };
+  
+  const hasDiscount = menuItem.originalPrice && menuItem.originalPrice > menuItem.price;
+  const discountPercentage = hasDiscount ? Math.round(((menuItem.originalPrice! - menuItem.price) / menuItem.originalPrice!) * 100) : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 grid grid-rows-[auto_1fr_auto] max-h-[90vh]">
+      <DialogContent className="p-0 grid grid-rows-[auto_1fr_auto] max-h-[90vh] sm:max-w-lg">
         <DialogHeader className="p-6 pb-2">
            <div className="relative h-60 w-full overflow-hidden rounded-md mb-4">
             <Image
@@ -71,13 +74,18 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
               objectFit="cover"
               data-ai-hint={`${menuItem.name.split(" ")[0].toLowerCase()} ${menuItem.category.toLowerCase()}`}
             />
+            {hasDiscount && (
+                <Badge variant="destructive" className="absolute top-3 left-3 text-sm px-3 py-1 shadow-lg">
+                    {discountPercentage}% OFF
+                </Badge>
+            )}
             {menuItem.isPopular && (
               <Badge variant="destructive" className="absolute top-3 right-3 text-sm px-3 py-1 bg-accent text-accent-foreground border-accent-foreground shadow-md">
                 <Tag className="mr-1.5 h-4 w-4" /> Popular
               </Badge>
             )}
             {menuItem.isVegetarian && (
-               <Badge variant="secondary" className="absolute top-3 left-3 text-sm px-3 py-1 bg-green-600 text-white border-green-700 shadow-md">
+               <Badge variant="secondary" className="absolute bottom-3 left-3 text-sm px-3 py-1 bg-green-600 text-white border-green-700 shadow-md">
                   <Leaf className="mr-1.5 h-4 w-4" /> Vegetarian
                </Badge>
             )}
@@ -90,7 +98,12 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
 
         <div className="px-6 space-y-4 overflow-y-auto">
           <div className="flex justify-between items-center">
-            <p className="text-2xl font-semibold text-accent">Rs.{menuItem.price.toFixed(2)}</p>
+            <div className="flex items-baseline gap-3">
+                <p className="text-2xl font-semibold text-primary">Rs.{menuItem.price.toFixed(2)}</p>
+                {hasDiscount && (
+                    <p className="text-lg text-muted-foreground line-through">Rs.{menuItem.originalPrice!.toFixed(2)}</p>
+                )}
+            </div>
             <Badge variant="outline" className="text-base">{menuItem.category}</Badge>
           </div>
 
@@ -117,7 +130,7 @@ const FoodItemDetailDialog: FC<FoodItemDetailDialogProps> = ({ menuItem, isOpen,
         </div>
 
         <DialogFooter className="p-6 pt-4 border-t gap-2 sm:justify-start">
-          <Button onClick={handleAddToCart} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Button onClick={handleAddToCart} className="w-full bg-primary hover:bg-primary/90">
             <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
           </Button>
         </DialogFooter>

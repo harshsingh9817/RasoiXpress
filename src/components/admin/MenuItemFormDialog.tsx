@@ -44,6 +44,7 @@ const menuItemSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   price: z.coerce.number().min(0, "Price must be a positive number."),
+  originalPrice: z.coerce.number().min(0, "Original price must be a positive number.").optional(),
   costPrice: z.coerce.number().min(0, "Cost price must be a positive number.").optional(),
   category: z.string().min(1, "Category is required."),
   imageUrl: z.string().url("A valid image URL is required."),
@@ -105,6 +106,7 @@ export default function MenuItemFormDialog({
         if (menuItem) {
           reset({
             ...menuItem,
+            originalPrice: menuItem.originalPrice || undefined,
             costPrice: menuItem.costPrice || undefined,
             taxRate: menuItem.taxRate || undefined,
             isVisible: menuItem.isVisible !== false,
@@ -115,6 +117,7 @@ export default function MenuItemFormDialog({
             name: "",
             description: "",
             price: 0,
+            originalPrice: undefined,
             costPrice: undefined,
             category: "",
             imageUrl: "https://placehold.co/300x200.png",
@@ -217,15 +220,31 @@ export default function MenuItemFormDialog({
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (in Rs.)</FormLabel>
+                      <FormLabel>Sale Price (in Rs.)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" {...field} />
+                        <Input type="number" step="0.01" {...field} placeholder="e.g. 100.00" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                  <FormField
+                  control={form.control}
+                  name="originalPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Original Price (Optional)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 120.00" />
+                      </FormControl>
+                       <FormDescription className="text-xs">If set, this will appear crossed out.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
@@ -247,8 +266,6 @@ export default function MenuItemFormDialog({
                         </FormItem>
                     )}
                     />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name="costPrice"
@@ -262,21 +279,21 @@ export default function MenuItemFormDialog({
                         </FormItem>
                     )}
                     />
-                <FormField
-                  control={form.control}
-                  name="taxRate"
-                  render={({ field }) => (
-                      <FormItem>
-                      <FormLabel>Tax Rate (Optional)</FormLabel>
-                      <FormControl>
-                          <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
-                      </FormControl>
-                      <FormDescription className="text-xs">Decimal (e.g., 0.05 for 5%)</FormDescription>
-                      <FormMessage />
-                      </FormItem>
-                  )}
-                />
             </div>
+             <FormField
+              control={form.control}
+              name="taxRate"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Tax Rate (Optional)</FormLabel>
+                  <FormControl>
+                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.05"/>
+                  </FormControl>
+                  <FormDescription className="text-xs">Decimal (e.g., 0.05 for 5%)</FormDescription>
+                  <FormMessage />
+                  </FormItem>
+              )}
+            />
 
             <FormItem>
               <FormLabel>Item Image</FormLabel>
