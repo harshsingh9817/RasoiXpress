@@ -188,10 +188,16 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 // --- Order Management (Firebase & Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     const ordersCol = collection(db, 'orders');
-    const docRef = await addDoc(ordersCol, {
+    
+    // Ensure couponCode and discountAmount are not undefined before saving
+    const dataToSave = {
         ...orderData,
+        couponCode: orderData.couponCode || null,
+        discountAmount: orderData.discountAmount || 0,
         createdAt: serverTimestamp(),
-    });
+    };
+
+    const docRef = await addDoc(ordersCol, dataToSave);
 
     let newOrder = { ...orderData, id: docRef.id } as Order;
 

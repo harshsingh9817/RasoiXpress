@@ -194,9 +194,9 @@ export default function CheckoutPage() {
         clearCart();
         setCurrentStep('success');
         setTimeout(() => { router.push(`/my-orders?track=${placedOrder.id}`); }, 8000);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to place order:", error);
-        toast({ title: "Order Failed", description: "Could not place your order. Please try again.", variant: "destructive" });
+        toast({ title: "Order Failed", description: error.message || "Could not place your order. Please try again.", variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -261,7 +261,7 @@ export default function CheckoutPage() {
         handler: async (response: any) => {
             const finalOrderData = {
               ...orderData,
-              // Keep initial status as 'Order Placed'
+              status: 'Order Placed', // Set initial status to Order Placed
               razorpayPaymentId: response.razorpay_payment_id,
               razorpayOrderId: response.razorpay_order_id,
             };
@@ -322,8 +322,8 @@ export default function CheckoutPage() {
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
         deliveryFee: deliveryFee,
         totalTax: totalTax,
-        couponCode: appliedCoupon?.code,
-        discountAmount: discountAmount
+        couponCode: appliedCoupon?.code || null,
+        discountAmount: discountAmount || 0,
     };
     
     handleRazorpayPayment(newOrderData, selectedAddress);
@@ -552,5 +552,3 @@ export default function CheckoutPage() {
     </>
   );
 }
-
-    
