@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -689,7 +690,7 @@ export async function sendAdminMessage(
             dataToSend.link = options.link;
         }
 
-    // This block maintains compatibility with the old, 3-argument signature
+    // This block maintains compatibility with the old, 3-argument signature for support tickets
     } else {
         const userId = typeOrUserId;
         const userEmail = titleOrUserEmail;
