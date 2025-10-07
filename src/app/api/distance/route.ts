@@ -11,21 +11,41 @@ const PRESET = {
 // 🔹 Your OpenRouteService API key is read from environment variables
 const ORS_KEY = process.env.ORS_API_KEY;
 
-// Utility: Geocoding helper using OpenStreetMap's Nominatim service
+// Utility: Geocoding helper with fallback
 async function geocodeAddress(address: string) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+  const query = encodeURIComponent(address);
+
+  // 1. Try Nominatim
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'RasoiXpress/1.0 (support@example.com)' } // A unique user-agent is polite
+    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=in`;
+    const res1 = await fetch(nomUrl, {
+      headers: { 'User-Agent': 'RasoiXpress/1.0 (support@example.com)' }
     });
-    if (!res.ok) return null;
-    const j = await res.json();
-    if (!j || !j.length) return null;
-    return { lat: parseFloat(j[0].lat), lon: parseFloat(j[0].lon) };
-  } catch (error) {
-    console.error("Geocoding fetch error:", error);
-    return null;
+    if (res1.ok) {
+        const j1 = await res1.json();
+        if (j1.length) return { lat: parseFloat(j1[0].lat), lon: parseFloat(j1[0].lon), source: 'nominatim' };
+    }
+  } catch (e) {
+      console.error("Nominatim geocoding failed:", e);
   }
+
+  // 2. Fallback → Photon (also OSM-based, very good for Indian villages)
+  try {
+    const phoUrl = `https://photon.komoot.io/api/?q=${query}&limit=1&lat=${PRESET.lat}&lon=${PRESET.lon}`; // Bias search towards restaurant
+    const res2 = await fetch(phoUrl);
+     if (res2.ok) {
+        const j2 = await res2.json();
+        if (j2.features && j2.features.length) {
+            const c = j2.features[0].geometry.coordinates;
+            return { lon: c[0], lat: c[1], source: 'photon' };
+        }
+    }
+  } catch(e) {
+      console.error("Photon geocoding failed:", e);
+  }
+
+  // 3. If both fail → null
+  return null;
 }
 
 // Main route handler for POST requests
