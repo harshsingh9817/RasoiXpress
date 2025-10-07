@@ -166,13 +166,15 @@ export interface AnalyticsData {
 
 export interface AdminMessage {
   id: string;
-  userId: string;
-  userEmail: string;
+  type: 'broadcast' | 'individual';
+  userId?: string;
+  userEmail?: string;
   title: string;
   message: string;
   timestamp: number;
   link?: string;
 }
+
 
 export interface UserRef {
   id: string;

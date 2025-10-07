@@ -389,14 +389,46 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
 
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
     if (!userId) return () => {};
-    const messagesCol = collection(db, 'adminMessages');
-    const q = query(messagesCol, where('userId', '==', userId));
-    return onSnapshot(q, (snapshot) => {
-        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
-        messages.sort((a, b) => b.timestamp - a.timestamp);
-        callback(messages);
+
+    const individualQuery = query(collection(db, 'adminMessages'), where('type', '==', 'individual'), where('userId', '==', userId));
+    const broadcastQuery = query(collection(db, 'adminMessages'), where('type', '==', 'broadcast'));
+
+    const individualUnsub = onSnapshot(individualQuery, () => {
+        // We will refetch both in a combined way to ensure proper ordering
+        fetchAllMessages();
     });
+
+    const broadcastUnsub = onSnapshot(broadcastQuery, () => {
+        fetchAllMessages();
+    });
+
+    const fetchAllMessages = async () => {
+        try {
+            const [individualSnapshot, broadcastSnapshot] = await Promise.all([
+                getDocs(individualQuery),
+                getDocs(broadcastQuery)
+            ]);
+            
+            const individualMessages = individualSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
+            const broadcastMessages = broadcastSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
+            
+            const allMessages = [...individualMessages, ...broadcastMessages];
+            allMessages.sort((a, b) => b.timestamp - a.timestamp);
+            
+            callback(allMessages);
+        } catch (error) {
+            console.error("Error fetching admin messages:", error);
+        }
+    };
+
+    fetchAllMessages(); // Initial fetch
+
+    return () => {
+        individualUnsub();
+        broadcastUnsub();
+    };
 }
+
 
 export function listenToSupportTickets(callback: (tickets: SupportTicket[]) => void): () => void {
     const ticketsCol = collection(db, 'supportTickets');
@@ -626,20 +658,36 @@ export async function updateUserProfileData(userId: string, data: { displayName?
     await setDoc(doc(db, 'users', userId), data, { merge: true });
 }
 
-export async function sendAdminMessage(userId: string, userEmail: string | null, title: string, message: string, link?: string): Promise<void> {
-    const messagesCol = collection(db, 'adminMessages');
-    const dataToSend: { [key: string]: any } = {
-        userId,
-        userEmail: userEmail || null,
-        title,
-        message,
-        timestamp: serverTimestamp()
-    };
-    if (link) {
-        dataToSend.link = link;
+export async function sendAdminMessage(
+  type: 'broadcast' | 'individual',
+  title: string,
+  message: string,
+  options?: { userId?: string; userEmail?: string | null; link?: string }
+): Promise<void> {
+  const messagesCol = collection(db, 'adminMessages');
+  
+  const dataToSend: { [key: string]: any } = {
+    type,
+    title,
+    message,
+    timestamp: serverTimestamp(),
+  };
+
+  if (type === 'individual') {
+    if (!options?.userId) {
+      throw new Error("userId is required for individual messages.");
     }
-    await addDoc(messagesCol, dataToSend);
+    dataToSend.userId = options.userId;
+    dataToSend.userEmail = options.userEmail || null;
+  }
+  
+  if (options?.link) {
+    dataToSend.link = options.link;
+  }
+
+  await addDoc(messagesCol, dataToSend);
 }
+
 
 // --- Support Ticket Management (Firestore) ---
 export async function sendSupportMessage(messageData: Omit<SupportTicket, 'id' | 'timestamp' | 'status'>): Promise<void> {
@@ -657,7 +705,7 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
 export async function replyToSupportTicket(ticketId: string, userId: string, userEmail: string, replyText: string): Promise<void> {
     const ticketRef = doc(db, 'supportTickets', ticketId);
     await updateDoc(ticketRef, { status: 'Replied', reply: replyText, repliedAt: serverTimestamp() });
-    await sendAdminMessage(userId, userEmail, `Re: Your Support Ticket #${ticketId.slice(-6)}`, replyText);
+    await sendAdminMessage('individual', `Re: Your Support Ticket #${ticketId.slice(-6)}`, replyText, { userId, userEmail });
 }
 
 export async function resolveSupportTicket(ticketId: string): Promise<void> {
@@ -785,5 +833,3 @@ export function listenToCategories(callback: (categories: Category[]) => void): 
         console.error("Error listening to categories:", error);
     });
 }
-
-    

@@ -127,13 +127,10 @@ export default function MessagingPage() {
     setIsSubmitting(true);
     try {
       const link = constructLink(data);
-      const allPromises = users.map(user => 
-          sendAdminMessage(user.id, user.email, data.title, data.message, link)
-      );
-      await Promise.all(allPromises);
+      await sendAdminMessage('broadcast', data.title, data.message, { link });
       toast({
         title: "Message Broadcast!",
-        description: `Your message has been sent to all ${users.length} users.`,
+        description: `Your message has been sent to all users.`,
       });
       broadcastForm.reset();
     } catch (error) {
@@ -154,7 +151,11 @@ export default function MessagingPage() {
 
     try {
         const link = constructLink(data);
-        await sendAdminMessage(targetUser.id, targetUser.email, data.title, data.message, link);
+        await sendAdminMessage('individual', data.title, data.message, {
+            userId: targetUser.id,
+            userEmail: targetUser.email,
+            link
+        });
         toast({
             title: "Message Sent!",
             description: `Your message has been sent to ${targetUser.email}.`,
@@ -255,7 +256,7 @@ export default function MessagingPage() {
                             )} />
                             {renderLinkFormFields(broadcastForm)}
                             <Button type="submit" disabled={isSubmitting || users.length === 0} className="w-full">
-                                {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send to All Users ({users.length})</>)}
+                                {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send to All Users</>)}
                             </Button>
                         </form>
                     </Form>
@@ -322,5 +323,3 @@ export default function MessagingPage() {
     </div>
   );
 }
-
-    
