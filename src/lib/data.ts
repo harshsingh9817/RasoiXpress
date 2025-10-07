@@ -540,10 +540,14 @@ export async function getHeroData(): Promise<HeroData> {
 
 export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    const cleanData = JSON.parse(JSON.stringify(data, (key, value) => {
-        return (value === undefined || value === '') ? null : value;
-    }));
-    await setDoc(docRef, cleanData, { merge: true });
+    // A more careful approach to handle potentially empty/null values from the form.
+    const dataToSave = {
+        slideInterval: data.slideInterval,
+        media: data.media || [],
+        // Save orderingTime even if it's an empty string, or use the default if undefined.
+        orderingTime: data.orderingTime !== undefined ? data.orderingTime : defaultHeroData.orderingTime,
+    };
+    await setDoc(docRef, dataToSave, { merge: true });
 }
 
 
