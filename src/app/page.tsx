@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { MenuItem, HeroData, Category } from '@/lib/types';
-import { listenToMenuItems, getHeroData, getCategories, listenToCategories } from '@/lib/data';
+import { listenToMenuItems, getHeroData, listenToCategories } from '@/lib/data';
 import MenuItemCard from '@/components/MenuItemCard';
 import SearchBar from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
         } from "@/components/ui/tooltip";
         import { Card, CardContent, CardHeader } from '@/components/ui/card';
         import { useAuth } from '@/contexts/AuthContext';
-        import { useRouter } from 'next/navigation';
+        import { useRouter, useSearchParams } from 'next/navigation';
         import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
         import HeroCarousel from '@/components/HeroCarousel';
 import FoodItemDetailDialog from '@/components/FoodItemDetailDialog';
@@ -44,6 +44,7 @@ const shuffleArray = (array: any[]) => {
         export default function HomePage() {
           const { isAuthenticated, isAuthLoading, isAdmin } = useAuth();
             const router = useRouter();
+            const searchParams = useSearchParams();
 
               const [searchTerm, setSearchTerm] = useState('');
                 const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +79,14 @@ const shuffleArray = (array: any[]) => {
                                                                                                                   const unsubscribeMenu = listenToMenuItems((items) => {
                                                                                                                         setMenuItems(items);
                                                                                                                         setShuffledItems(shuffleArray([...items]));
+                                                                                                                        
+                                                                                                                         const itemIdFromUrl = searchParams.get('item');
+                                                                                                                          if (itemIdFromUrl) {
+                                                                                                                            const itemToShow = items.find(i => i.id === itemIdFromUrl);
+                                                                                                                            if (itemToShow) {
+                                                                                                                              setSelectedItemForDetail(itemToShow);
+                                                                                                                            }
+                                                                                                                          }
                                                                                                                               menuItemsLoaded = true;
                                                                                                                                     checkLoadingDone();
                                                                                                                                         }, isAdmin);
@@ -101,7 +110,7 @@ const shuffleArray = (array: any[]) => {
                                                                                                                                                                                                                                                 unsubscribeMenu();
                                                                                                                                                                                                                                                         unsubscribeCategories();
                                                                                                                                                                                                                                                             };
-                                                                                                                                                                                                                                                              }, [isAuthenticated, isAuthLoading, router, isAdmin]);
+                                                                                                                                                                                                                                                              }, [isAuthenticated, isAuthLoading, router, isAdmin, searchParams]);
 
                                                                                                                                                                                                                                                                 const filteredAndSortedMenu = useMemo(() => {
                                                                                                                                                                                                                                                                     const sourceItems = sortOption === 'random' ? shuffledItems : menuItems;
@@ -237,6 +246,10 @@ const shuffleArray = (array: any[]) => {
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setSelectedItemForDetail(null);
+               // Clear the 'item' query param from URL without reloading the page
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.delete('item');
+              router.push(newUrl.toString(), { scroll: false });
             }
           }}
           menuItem={selectedItemForDetail}
@@ -245,6 +258,5 @@ const shuffleArray = (array: any[]) => {
     </>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                              );
                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 
     

@@ -7,8 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAllUsers, sendAdminMessage } from "@/lib/data";
-import type { UserRef } from "@/lib/types";
+import { getAllUsers, sendAdminMessage, getMenuItems, getCategories } from "@/lib/data";
+import type { UserRef, MenuItem, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,13 +40,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
 
 const messageSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters.").max(50, "Title cannot exceed 50 characters."),
   message: z.string().min(10, "Message must be at least 10 characters.").max(500, "Message cannot exceed 500 characters."),
-  link: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  linkType: z.enum(['none', 'item', 'category', 'menu', 'categories', 'custom']).optional().default('none'),
+  linkValue: z.string().optional(),
 });
 type MessageFormValues = z.infer<typeof messageSchema>;
 
@@ -63,14 +64,17 @@ export default function MessagingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
   const broadcastForm = useForm<MessageFormValues>({
     resolver: zodResolver(messageSchema),
-    defaultValues: { title: "", message: "", link: "" },
+    defaultValues: { title: "", message: "", linkType: "none", linkValue: "" },
   });
 
   const individualForm = useForm<IndividualMessageFormValues>({
     resolver: zodResolver(individualMessageSchema),
-    defaultValues: { title: "", message: "", link: "" },
+    defaultValues: { title: "", message: "", linkType: "none", linkValue: "" },
   });
 
   useEffect(() => {
@@ -79,26 +83,52 @@ export default function MessagingPage() {
       return;
     }
     if (isAuthenticated && isAdmin) {
-      const loadUsers = async () => {
+      const loadData = async () => {
         setIsDataLoading(true);
         try {
-            const allUsers = await getAllUsers();
+            const [allUsers, allItems, allCats] = await Promise.all([
+                getAllUsers(),
+                getMenuItems(true),
+                getCategories()
+            ]);
             setUsers(allUsers);
+            setMenuItems(allItems);
+            setCategories(allCats);
         } catch (error) {
-            toast({ title: "Error", description: "Could not load users.", variant: "destructive" });
+            toast({ title: "Error", description: "Could not load required data.", variant: "destructive" });
         } finally {
             setIsDataLoading(false);
         }
       }
-      loadUsers();
+      loadData();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, toast]);
+
+  const constructLink = (data: MessageFormValues): string | undefined => {
+    switch (data.linkType) {
+        case 'menu':
+            return '/';
+        case 'categories':
+            return '/categories';
+        case 'category':
+            return data.linkValue ? `/categories/${encodeURIComponent(data.linkValue)}` : undefined;
+        case 'item':
+            // The detail dialog is opened from the homepage, so we link there with a param.
+            return data.linkValue ? `/?item=${data.linkValue}` : undefined;
+        case 'custom':
+            return data.linkValue;
+        case 'none':
+        default:
+            return undefined;
+    }
+  };
 
   const onBroadcastSubmit = async (data: MessageFormValues) => {
     setIsSubmitting(true);
     try {
+      const link = constructLink(data);
       const allPromises = users.map(user => 
-          sendAdminMessage(user.id, user.email, data.title, data.message, data.link)
+          sendAdminMessage(user.id, user.email, data.title, data.message, link)
       );
       await Promise.all(allPromises);
       toast({
@@ -123,7 +153,8 @@ export default function MessagingPage() {
     }
 
     try {
-        await sendAdminMessage(targetUser.id, targetUser.email, data.title, data.message, data.link);
+        const link = constructLink(data);
+        await sendAdminMessage(targetUser.id, targetUser.email, data.title, data.message, link);
         toast({
             title: "Message Sent!",
             description: `Your message has been sent to ${targetUser.email}.`,
@@ -149,10 +180,52 @@ export default function MessagingPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Verifying access..." : "Loading users..."}</p>
+        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Verifying access..." : "Loading data..."}</p>
       </div>
     );
   }
+
+  const renderLinkFormFields = (form: any) => (
+    <div className="p-3 border rounded-md space-y-4">
+        <h4 className="font-medium text-sm flex items-center"><Link2 className="mr-2 h-4 w-4 text-primary"/> Add a Link (Optional)</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+            <FormField
+                control={form.control}
+                name="linkType"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Link To</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="menu">Menu Page</SelectItem>
+                        <SelectItem value="categories">Categories Page</SelectItem>
+                        <SelectItem value="category">Specific Category</SelectItem>
+                        <SelectItem value="item">Specific Menu Item</SelectItem>
+                        <SelectItem value="custom">Custom URL</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            {form.watch('linkType') === 'custom' && (
+                <FormField control={form.control} name="linkValue" render={({ field }) => (
+                    <FormItem><FormLabel>Custom URL</FormLabel><FormControl><Input placeholder="/my-orders" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+            )}
+            {['item', 'category'].includes(form.watch('linkType') || 'none') && (
+                <FormField control={form.control} name="linkValue" render={({ field }) => (
+                    <FormItem><FormLabel>Select {form.watch('linkType')}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl><SelectContent>
+                    {form.watch('linkType') === 'item' && menuItems.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                    {form.watch('linkType') === 'category' && categories.map(cat => <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>)}
+                    </SelectContent></Select><FormMessage /></FormItem>
+                )}/>
+            )}
+        </div>
+    </div>
+  );
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -180,9 +253,7 @@ export default function MessagingPage() {
                             <FormField control={broadcastForm.control} name="message" render={({ field }) => (
                                 <FormItem><FormLabel>Broadcast Message</FormLabel><FormControl><Textarea placeholder="Enter the full message content here..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <FormField control={broadcastForm.control} name="link" render={({ field }) => (
-                                <FormItem><FormLabel className="flex items-center"><Link2 className="mr-2 h-4 w-4"/>Link (Optional)</FormLabel><FormControl><Input placeholder="e.g., /categories/Pizza" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                            {renderLinkFormFields(broadcastForm)}
                             <Button type="submit" disabled={isSubmitting || users.length === 0} className="w-full">
                                 {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send to All Users ({users.length})</>)}
                             </Button>
@@ -238,9 +309,7 @@ export default function MessagingPage() {
                             <FormField control={individualForm.control} name="message" render={({ field }) => (
                                 <FormItem><FormLabel>Message Content</FormLabel><FormControl><Textarea placeholder="Enter the personal message content here..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                             )} />
-                             <FormField control={individualForm.control} name="link" render={({ field }) => (
-                                <FormItem><FormLabel className="flex items-center"><Link2 className="mr-2 h-4 w-4"/>Link (Optional)</FormLabel><FormControl><Input placeholder="e.g., /my-orders?track=..." {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                             {renderLinkFormFields(individualForm)}
                             <Button type="submit" disabled={isSubmitting} className="w-full">
                                 {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send Direct Message</>)}
                             </Button>

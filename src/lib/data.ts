@@ -785,3 +785,5 @@ export function listenToCategories(callback: (categories: Category[]) => void): 
         console.error("Error listening to categories:", error);
     });
 }
+
+    

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bell, ArrowLeft, Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle } from "lucide-react";
+import { Bell, ArrowLeft, Package, MessageSquare, PackagePlus, ClipboardCheck, ChefHat, Bike, PackageCheck as DeliveredIcon, XCircle, LifeBuoy } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
@@ -18,6 +18,7 @@ const getNotificationIcon = (notification: AppNotification) => {
     switch (notification.type) {
         case 'admin_new_order': return <Package className={iconClass} />;
         case 'admin_order_delivered': return <DeliveredIcon className={iconClass} />;
+        case 'admin_new_support_ticket': return <LifeBuoy className={iconClass} />;
         case 'admin_message': return <MessageSquare className={iconClass} />;
         case 'delivery_available': return <Bike className={iconClass} />;
         case 'order_update':
@@ -36,7 +37,7 @@ const getNotificationIcon = (notification: AppNotification) => {
 };
 
 export default function NotificationsPage() {
-    const { user, isAuthenticated, isLoading: isAuthLoading, isAdmin, isDelivery } = useAuth();
+    const { user, isAuthenticated, isLoading: isAuthLoading, isAdmin } = useAuth();
     const router = useRouter();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -45,8 +46,6 @@ export default function NotificationsPage() {
 
     const storageKey = isAdmin 
         ? 'rasoiExpressAdminNotifications' 
-        : isDelivery 
-        ? 'rasoiExpressDeliveryNotifications' 
         : `rasoiExpressUserNotifications_${user?.uid}`;
 
     useEffect(() => {
@@ -73,7 +72,6 @@ export default function NotificationsPage() {
 
     }, [isAuthLoading, isAuthenticated, router, storageKey]);
     
-    // Mark notifications as read after they have been rendered
     useEffect(() => {
         if (initialLoadComplete && notifications.length > 0) {
             const hasUnread = notifications.some(n => !n.read);
@@ -82,9 +80,7 @@ export default function NotificationsPage() {
                     const updatedNotifications = notifications.map((n: AppNotification) => ({...n, read: true}));
                     localStorage.setItem(storageKey, JSON.stringify(updatedNotifications));
                     window.dispatchEvent(new Event('notificationsUpdated'));
-                    // We don't need to call setNotifications here because the visual change is handled by CSS
-                    // and the badge count is updated globally. The next time the component loads, it will get the new state.
-                }, 1500); // Wait 1.5s before marking as read
+                }, 1500); 
 
                 return () => clearTimeout(timer);
             }
@@ -93,7 +89,11 @@ export default function NotificationsPage() {
     
     const handleNotificationClick = (notification: AppNotification) => {
       if (notification.type === 'admin_message') {
-        setViewingMessage(notification);
+        if (notification.link) {
+            router.push(notification.link);
+        } else {
+            setViewingMessage(notification);
+        }
       } else if (notification.link) {
         router.push(notification.link);
       }
@@ -101,9 +101,7 @@ export default function NotificationsPage() {
 
     const handleGoBack = () => {
         if (isAdmin) {
-            router.push('/admin');
-        } else if (isDelivery) {
-            router.push('/delivery/dashboard');
+            router.push('/admin/orders');
         } else {
             router.push('/');
         }
@@ -168,3 +166,5 @@ export default function NotificationsPage() {
         </div>
     );
 }
+
+    
