@@ -390,39 +390,32 @@ export function listenToUserOrders(userId: string, callback: (orders: Order[]) =
 export function listenToUserAdminMessages(userId: string, callback: (messages: AdminMessage[]) => void): () => void {
     if (!userId) return () => {};
 
-    const individualQuery = query(collection(db, 'adminMessages'), where('type', '==', 'individual'), where('userId', '==', userId));
-    const broadcastQuery = query(collection(db, 'adminMessages'), where('type', '==', 'broadcast'));
+    const messagesCol = collection(db, 'adminMessages');
+    const individualQuery = query(messagesCol, where('type', '==', 'individual'), where('userId', '==', userId));
+    const broadcastQuery = query(messagesCol, where('type', '==', 'broadcast'));
 
-    const individualUnsub = onSnapshot(individualQuery, () => {
-        // We will refetch both in a combined way to ensure proper ordering
-        fetchAllMessages();
-    });
-
-    const broadcastUnsub = onSnapshot(broadcastQuery, () => {
-        fetchAllMessages();
-    });
-
-    const fetchAllMessages = async () => {
+    const fetchAndCallback = async () => {
         try {
             const [individualSnapshot, broadcastSnapshot] = await Promise.all([
                 getDocs(individualQuery),
-                getDocs(broadcastQuery)
+                getDocs(broadcastQuery),
             ]);
+
+            const individualMessages = individualSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
+            const broadcastMessages = broadcastSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
             
-            const individualMessages = individualSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
-            const broadcastMessages = broadcastSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toMillis() || Date.now() })) as AdminMessage[];
-            
-            const allMessages = [...individualMessages, ...broadcastMessages];
-            allMessages.sort((a, b) => b.timestamp - a.timestamp);
-            
+            const allMessages = [...individualMessages, ...broadcastMessages].sort((a, b) => b.timestamp - a.timestamp);
             callback(allMessages);
         } catch (error) {
-            console.error("Error fetching admin messages:", error);
+            console.error("Error fetching all admin messages:", error);
         }
     };
+    
+    fetchAndCallback(); // Initial fetch
 
-    fetchAllMessages(); // Initial fetch
-
+    const individualUnsub = onSnapshot(individualQuery, fetchAndCallback);
+    const broadcastUnsub = onSnapshot(broadcastQuery, fetchAndCallback);
+    
     return () => {
         individualUnsub();
         broadcastUnsub();
