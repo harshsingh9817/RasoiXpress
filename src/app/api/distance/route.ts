@@ -11,19 +11,28 @@ const PRESET = {
 // 🔹 Your OpenRouteService API key is read from environment variables
 const ORS_KEY = process.env.ORS_API_KEY;
 
+// 🔹 Default location context to improve geocoding for local village names
+const DEFAULT_LOCATION_CONTEXT = "Nagra, Ballia, Uttar Pradesh";
+
 // Utility: Geocoding helper with fallback
 async function geocodeAddress(address: string) {
-  const query = encodeURIComponent(address);
+  // Append the default city/district context to make the search more specific
+  const fullAddress = `${address}, ${DEFAULT_LOCATION_CONTEXT}`;
+  const query = encodeURIComponent(fullAddress);
 
   // 1. Try Nominatim
   try {
+    // The countrycodes=in parameter helps restrict searches to India
     const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=in`;
     const res1 = await fetch(nomUrl, {
       headers: { 'User-Agent': 'RasoiXpress/1.0 (support@example.com)' }
     });
     if (res1.ok) {
         const j1 = await res1.json();
-        if (j1.length) return { lat: parseFloat(j1[0].lat), lon: parseFloat(j1[0].lon), source: 'nominatim' };
+        if (j1.length) {
+            console.log("Geocoded via Nominatim:", j1[0]);
+            return { lat: parseFloat(j1[0].lat), lon: parseFloat(j1[0].lon), source: 'nominatim' };
+        }
     }
   } catch (e) {
       console.error("Nominatim geocoding failed:", e);
@@ -31,12 +40,14 @@ async function geocodeAddress(address: string) {
 
   // 2. Fallback → Photon (also OSM-based, very good for Indian villages)
   try {
-    const phoUrl = `https://photon.komoot.io/api/?q=${query}&limit=1&lat=${PRESET.lat}&lon=${PRESET.lon}`; // Bias search towards restaurant
+    // Bias the search towards the restaurant's location for better relevance
+    const phoUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1&lat=${PRESET.lat}&lon=${PRESET.lon}`;
     const res2 = await fetch(phoUrl);
      if (res2.ok) {
         const j2 = await res2.json();
         if (j2.features && j2.features.length) {
             const c = j2.features[0].geometry.coordinates;
+            console.log("Geocoded via Photon fallback:", j2.features[0]);
             return { lon: c[0], lat: c[1], source: 'photon' };
         }
     }
@@ -58,17 +69,20 @@ export async function POST(request: Request) {
   try {
     let { address, lat, lon } = await request.json();
 
-    // If coordinates are not provided, try to geocode the address
-    if ((!lat || !lon) && address) {
-      const g = await geocodeAddress(address);
-      if (!g) {
-        return NextResponse.json({ error: "Address could not be found." }, { status: 404 });
+    // If coordinates are provided, use them directly. This is the most reliable method.
+    if (!lat || !lon) {
+      // If coordinates are not provided, try to geocode the address string.
+      if (address) {
+          const g = await geocodeAddress(address);
+          if (!g) {
+            return NextResponse.json({ error: "Address could not be found." }, { status: 404 });
+          }
+          lat = g.lat;
+          lon = g.lon;
+      } else {
+        // If we have neither coordinates nor an address, it's a bad request.
+        return NextResponse.json({ error: "Please provide 'address' or both 'lat' and 'lon'." }, { status: 400 });
       }
-      lat = g.lat;
-      lon = g.lon;
-    } else if (!lat || !lon) {
-      // If we have neither coordinates nor an address, it's a bad request.
-      return NextResponse.json({ error: "Please provide 'address' or both 'lat' and 'lon'." }, { status: 400 });
     }
 
     // Call the OpenRouteService API to get driving directions
@@ -77,7 +91,7 @@ export async function POST(request: Request) {
     const orsResponse = await fetch(orsUrl, {
       headers: {
         'Authorization': ORS_KEY,
-        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-ar'
+        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8'
       }
     });
 
