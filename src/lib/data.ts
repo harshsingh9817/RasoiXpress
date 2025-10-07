@@ -111,23 +111,6 @@ async function initializeCollection(collectionName: string, initialData: any[]) 
     }
 }
 
-// Haversine distance calculation function
-const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-};
-
-const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
-
-
 // --- Menu Item Management (Firestore) ---
 export async function getMenuItems(includeHidden: boolean = false): Promise<MenuItem[]> {
     const menuItemsCol = collection(db, 'menuItems');
@@ -203,11 +186,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
 
     if (supabase) {
         try {
-            let distance = 0;
-            if (newOrder.shippingLat && newOrder.shippingLng) {
-                distance = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, newOrder.shippingLat, newOrder.shippingLng);
-            }
-
             const supabaseOrderData = {
                 customer_name: newOrder.customerName,
                 customer_phone: newOrder.customerPhone,
@@ -222,7 +200,6 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
                 delivery_confirmation_code: newOrder.deliveryConfirmationCode,
                 date: newOrder.date,
                 items: newOrder.items,
-                distance_km: distance,
             };
 
             const { data: supabaseData, error: supabaseError } = await supabase

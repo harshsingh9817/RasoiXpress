@@ -32,24 +32,6 @@ import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogCo
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
-
-const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
-
-const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    if (lat1 === 0 && lon1 === 0) return 0; // Don't calculate distance for manually entered addresses without coords
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-};
-
-
 declare global { interface Window { Razorpay: any; } }
 
 export default function CheckoutPage() {
@@ -132,59 +114,60 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
-    if (!selectedAddressId) {
-        setDistance(null);
-        setDeliveryFee(0);
-        setIsServiceable(true);
-        return;
-    }
+    const calculateDeliveryDetails = async () => {
+      if (!selectedAddressId) {
+          setDistance(null);
+          setDeliveryFee(0);
+          setIsServiceable(true);
+          return;
+      }
+      const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+      if (!selectedAddress || !paymentSettings) {
+          return;
+      }
 
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    
-    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number' && selectedAddress.lat !== 0) {
-        const dist = getDistance(
-            RESTAURANT_COORDS.lat,
-            RESTAURANT_COORDS.lng,
-            selectedAddress.lat,
-            selectedAddress.lng
-        );
-        setDistance(dist);
-        
-        const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
+      try {
+          const response = await fetch('/api/distance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat: selectedAddress.lat, lon: selectedAddress.lng, address: selectedAddress.street })
+          });
+          if (!response.ok) {
+              const errorData = await response.json();
+              setIsServiceable(false);
+              setDistance(null);
+              setDeliveryFee(0);
+              toast({ title: "Delivery Error", description: errorData.error || "Could not calculate distance.", variant: "destructive" });
+              return;
+          }
+          const { distance_km } = await response.json();
+          setDistance(distance_km);
 
-        if (dist > maxDistance) {
-            setIsServiceable(false);
-            setDeliveryFee(0);
-            return;
-        }
+          const maxDistance = paymentSettings.deliveryRadiusKm || 5;
+          if (distance_km > maxDistance) {
+              setIsServiceable(false);
+              setDeliveryFee(0);
+              return;
+          }
 
-        setIsServiceable(true);
-        
-        if (paymentSettings?.isDeliveryFeeEnabled === false) {
-            setDeliveryFee(0);
-            return;
-        }
+          setIsServiceable(true);
+          
+          if (paymentSettings.isDeliveryFeeEnabled === false || userProfile?.hasCompletedFirstOrder === false || subTotal >= 300) {
+              setDeliveryFee(0);
+          } else {
+              const fee = Math.round(distance_km * 25); // Example calculation: Rs.25 per km
+              setDeliveryFee(fee);
+          }
 
-        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
-        if (isFirstOrder) {
-            setDeliveryFee(0);
-            return;
-        }
-
-        if (subTotal > 0 && subTotal < 300) {
-            const fee = Math.round(dist * 25);
-            setDeliveryFee(fee);
-        } else {
-            setDeliveryFee(0);
-        }
-
-    } else {
-        // If address has no lat/lng, assume it's a manual entry and likely out of area.
-        setDistance(null);
-        setDeliveryFee(0);
-        setIsServiceable(false);
-    }
-  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
+      } catch (error) {
+          setIsServiceable(false);
+          setDistance(null);
+          setDeliveryFee(0);
+          toast({ title: "Network Error", description: "Failed to connect to the distance service.", variant: "destructive" });
+      }
+    };
+    calculateDeliveryDetails();
+  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
