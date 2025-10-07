@@ -535,24 +535,14 @@ export async function getHeroData(): Promise<HeroData> {
         await setDoc(docRef, defaultHeroData);
         return defaultHeroData;
     }
-    return { ...defaultHeroData, ...docSnap.data() } as HeroData;
+    const data = docSnap.data();
+    // Correctly merge defaults with saved data
+    return { ...defaultHeroData, ...data } as HeroData;
 }
 
 export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    const dataToSave: { [key: string]: any } = {};
-
-    if (data.slideInterval !== undefined) {
-        dataToSave.slideInterval = data.slideInterval;
-    }
-    if (data.orderingTime !== undefined) {
-        dataToSave.orderingTime = data.orderingTime;
-    }
-    if (data.media !== undefined) {
-        dataToSave.media = data.media;
-    }
-    
-    await setDoc(docRef, dataToSave, { merge: true });
+    await setDoc(docRef, data, { merge: true });
 }
 
 

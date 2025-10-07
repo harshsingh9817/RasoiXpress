@@ -244,19 +244,19 @@ export default function HeroManagementPage() {
                     )}
                   />
                    <FormField
-                    control={form.control}
-                    name="orderingTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
-                        <FormControl>
-                          <Input placeholder="10:00 AM - 10:00 PM" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormDescription>The time window when users can place orders.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      control={form.control}
+                      name="orderingTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
+                          <FormControl>
+                            <Input placeholder="10:00 AM - 10:00 PM" {...field} />
+                          </FormControl>
+                          <FormDescription>The time window when users can place orders.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                </div>
               <Separator />
               <div>
