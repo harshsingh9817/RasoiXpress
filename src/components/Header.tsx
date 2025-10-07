@@ -107,7 +107,7 @@ const Header = () => {
                 const msg = item as AdminMessage;
                 id = `notif-message-${msg.id}`;
                 if (!allStoredNotifications.some(n => n.id === id)) {
-                    notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message' };
+                    notif = { id, timestamp: msg.timestamp, title: msg.title, message: msg.message, read: false, type: 'admin_message', link: msg.link };
                 }
             } else if (type === 'support_ticket' && 'message' in item) {
                 const ticket = item as SupportTicket;

@@ -171,6 +171,7 @@ export interface AdminMessage {
   title: string;
   message: string;
   timestamp: number;
+  link?: string;
 }
 
 export interface UserRef {

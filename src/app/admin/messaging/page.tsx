@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Users, User, Check, ChevronsUpDown } from "lucide-react";
+import { MessageSquare, Send, Users, User, Check, ChevronsUpDown, Link2 } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 const messageSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters.").max(50, "Title cannot exceed 50 characters."),
   message: z.string().min(10, "Message must be at least 10 characters.").max(500, "Message cannot exceed 500 characters."),
+  link: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
 });
 type MessageFormValues = z.infer<typeof messageSchema>;
 
@@ -64,12 +65,12 @@ export default function MessagingPage() {
 
   const broadcastForm = useForm<MessageFormValues>({
     resolver: zodResolver(messageSchema),
-    defaultValues: { title: "", message: "" },
+    defaultValues: { title: "", message: "", link: "" },
   });
 
   const individualForm = useForm<IndividualMessageFormValues>({
     resolver: zodResolver(individualMessageSchema),
-    defaultValues: { title: "", message: "" },
+    defaultValues: { title: "", message: "", link: "" },
   });
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function MessagingPage() {
     setIsSubmitting(true);
     try {
       const allPromises = users.map(user => 
-          sendAdminMessage(user.id, user.email, data.title, data.message)
+          sendAdminMessage(user.id, user.email, data.title, data.message, data.link)
       );
       await Promise.all(allPromises);
       toast({
@@ -122,7 +123,7 @@ export default function MessagingPage() {
     }
 
     try {
-        await sendAdminMessage(targetUser.id, targetUser.email, data.title, data.message);
+        await sendAdminMessage(targetUser.id, targetUser.email, data.title, data.message, data.link);
         toast({
             title: "Message Sent!",
             description: `Your message has been sent to ${targetUser.email}.`,
@@ -161,7 +162,7 @@ export default function MessagingPage() {
             <MessageSquare className="mr-3 h-6 w-6 text-primary" /> Send a Notification
           </CardTitle>
           <CardDescription>
-            Send a notification for announcements, offers, or direct communication.
+            Send a notification for announcements, offers, or direct communication. Add an optional link to redirect users.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,6 +179,9 @@ export default function MessagingPage() {
                             )} />
                             <FormField control={broadcastForm.control} name="message" render={({ field }) => (
                                 <FormItem><FormLabel>Broadcast Message</FormLabel><FormControl><Textarea placeholder="Enter the full message content here..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={broadcastForm.control} name="link" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center"><Link2 className="mr-2 h-4 w-4"/>Link (Optional)</FormLabel><FormControl><Input placeholder="e.g., /categories/Pizza" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <Button type="submit" disabled={isSubmitting || users.length === 0} className="w-full">
                                 {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send to All Users ({users.length})</>)}
@@ -233,6 +237,9 @@ export default function MessagingPage() {
                             )} />
                             <FormField control={individualForm.control} name="message" render={({ field }) => (
                                 <FormItem><FormLabel>Message Content</FormLabel><FormControl><Textarea placeholder="Enter the personal message content here..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={individualForm.control} name="link" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center"><Link2 className="mr-2 h-4 w-4"/>Link (Optional)</FormLabel><FormControl><Input placeholder="e.g., /my-orders?track=..." {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <Button type="submit" disabled={isSubmitting} className="w-full">
                                 {isSubmitting ? (<><div className="w-6 h-6 mr-2"><AnimatedPlateSpinner /></div> Sending...</>) : (<><Send className="mr-2 h-4 w-4" /> Send Direct Message</>)}

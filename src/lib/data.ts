@@ -626,9 +626,19 @@ export async function updateUserProfileData(userId: string, data: { displayName?
     await setDoc(doc(db, 'users', userId), data, { merge: true });
 }
 
-export async function sendAdminMessage(userId: string, userEmail: string | null, title: string, message: string): Promise<void> {
+export async function sendAdminMessage(userId: string, userEmail: string | null, title: string, message: string, link?: string): Promise<void> {
     const messagesCol = collection(db, 'adminMessages');
-    await addDoc(messagesCol, { userId, userEmail: userEmail || null, title, message, timestamp: serverTimestamp() });
+    const dataToSend: { [key: string]: any } = {
+        userId,
+        userEmail: userEmail || null,
+        title,
+        message,
+        timestamp: serverTimestamp()
+    };
+    if (link) {
+        dataToSend.link = link;
+    }
+    await addDoc(messagesCol, dataToSend);
 }
 
 // --- Support Ticket Management (Firestore) ---
