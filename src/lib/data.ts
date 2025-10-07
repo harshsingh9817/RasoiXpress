@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -540,13 +539,18 @@ export async function getHeroData(): Promise<HeroData> {
 
 export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    // A more careful approach to handle potentially empty/null values from the form.
-    const dataToSave = {
-        slideInterval: data.slideInterval,
-        media: data.media || [],
-        // Save orderingTime even if it's an empty string, or use the default if undefined.
-        orderingTime: data.orderingTime !== undefined ? data.orderingTime : defaultHeroData.orderingTime,
-    };
+    const dataToSave: { [key: string]: any } = {};
+
+    if (data.slideInterval !== undefined) {
+        dataToSave.slideInterval = data.slideInterval;
+    }
+    if (data.orderingTime !== undefined) {
+        dataToSave.orderingTime = data.orderingTime;
+    }
+    if (data.media !== undefined) {
+        dataToSave.media = data.media;
+    }
+    
     await setDoc(docRef, dataToSave, { merge: true });
 }
 
@@ -656,34 +660,59 @@ export async function updateUserProfileData(userId: string, data: { displayName?
 }
 
 export async function sendAdminMessage(
-  type: 'broadcast' | 'individual',
-  title: string,
-  message: string,
-  options?: { userId?: string; userEmail?: string | null; link?: string }
+  typeOrUserId: 'broadcast' | string,
+  titleOrUserEmail: string,
+  messageOrTitle: string,
+  optionsOrMessage?: { userId?: string; userEmail?: string | null; link?: string } | string
 ): Promise<void> {
-  const messagesCol = collection(db, 'adminMessages');
-  
-  const dataToSend: { [key: string]: any } = {
-    type,
-    title,
-    message,
-    timestamp: serverTimestamp(),
-  };
+    const messagesCol = collection(db, 'adminMessages');
+    let dataToSend: { [key: string]: any } = { timestamp: serverTimestamp() };
 
-  if (type === 'individual') {
-    if (!options?.userId) {
-      throw new Error("userId is required for individual messages.");
+    // This block handles the new, cleaner function signature
+    if (typeof optionsOrMessage === 'object' || optionsOrMessage === undefined) {
+        const type = typeOrUserId;
+        const title = titleOrUserEmail;
+        const message = messageOrTitle;
+        const options = optionsOrMessage;
+
+        dataToSend = { ...dataToSend, type, title, message };
+
+        if (type === 'individual') {
+            if (!options?.userId) {
+                throw new Error("userId is required for individual messages.");
+            }
+            dataToSend.userId = options.userId;
+            dataToSend.userEmail = options.userEmail || null;
+        }
+
+        if (options?.link) {
+            dataToSend.link = options.link;
+        }
+
+    // This block maintains compatibility with the old, 3-argument signature
+    } else {
+        const userId = typeOrUserId;
+        const userEmail = titleOrUserEmail;
+        const title = messageOrTitle;
+        const message = optionsOrMessage;
+
+        dataToSend = {
+            ...dataToSend,
+            type: 'individual',
+            userId,
+            userEmail: userEmail || null,
+            title,
+            message,
+        };
     }
-    dataToSend.userId = options.userId;
-    dataToSend.userEmail = options.userEmail || null;
-  }
-  
-  if (options?.link) {
-    dataToSend.link = options.link;
-  }
+    
+    if (dataToSend.link && typeof dataToSend.link === 'string' && dataToSend.link.trim() === '') {
+        delete dataToSend.link;
+    }
 
-  await addDoc(messagesCol, dataToSend);
+    await addDoc(messagesCol, dataToSend);
 }
+
 
 
 // --- Support Ticket Management (Firestore) ---
