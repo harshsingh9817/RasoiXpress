@@ -4,7 +4,7 @@
 import type { MenuItem, CartItem, Coupon, Order, Address } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb, placeOrder, getAddresses, getPaymentSettings, getUserProfile } from '@/lib/data';
+import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb, placeOrder, getAddresses, getPaymentSettings, getUserProfile, listenToMenuItems } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,9 +43,10 @@ declare global { interface Window { Razorpay: any; } }
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { toast } = useToast();
-  const { user, isAuthLoading } = useAuth();
+  const { user, isAuthLoading, isAdmin } = useAuth();
   const router = useRouter();
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -105,6 +106,38 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setCartItems([]);
     }
   }, [user, isAuthLoading]);
+  
+  useEffect(() => {
+      const unsubscribeMenu = listenToMenuItems((items) => {
+        setMenuItems(items);
+      }, isAdmin); // Fetch all items for admin, visible for users
+    
+      return () => unsubscribeMenu();
+  }, [isAdmin]);
+
+  useEffect(() => {
+      if (cartItems.length > 0 && menuItems.length > 0 && user) {
+          cartItems.forEach(cartItem => {
+              const menuItem = menuItems.find(mi => mi.id === cartItem.id);
+              if (menuItem) {
+                  const hasChanged = cartItem.name !== menuItem.name || cartItem.price !== menuItem.price || cartItem.imageUrl !== menuItem.imageUrl;
+                  if (hasChanged) {
+                      const updatedCartItem = {
+                          ...cartItem,
+                          name: menuItem.name,
+                          price: menuItem.price,
+                          imageUrl: menuItem.imageUrl,
+                      };
+                      updateUserCartItem(user.uid, updatedCartItem);
+                  }
+              } else {
+                  // If menu item no longer exists, remove it from the cart
+                  removeUserCartItem(user.uid, cartItem.id);
+              }
+          });
+      }
+  }, [cartItems, menuItems, user]);
+
 
   useEffect(() => {
     getHeroData().then(heroData => {
