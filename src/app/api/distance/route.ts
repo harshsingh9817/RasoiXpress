@@ -39,16 +39,16 @@ export async function POST(request: Request) {
     let { address, lat, lon } = await request.json();
 
     // If coordinates are not provided, try to geocode the address
-    if (!lat || !lon) {
-      if (!address) {
-        return NextResponse.json({ error: "Please provide 'address' or both 'lat' and 'lon'." }, { status: 400 });
-      }
+    if ((!lat || !lon) && address) {
       const g = await geocodeAddress(address);
       if (!g) {
         return NextResponse.json({ error: "Address could not be found." }, { status: 404 });
       }
       lat = g.lat;
       lon = g.lon;
+    } else if (!lat || !lon) {
+      // If we have neither coordinates nor an address, it's a bad request.
+      return NextResponse.json({ error: "Please provide 'address' or both 'lat' and 'lon'." }, { status: 400 });
     }
 
     // Call the OpenRouteService API to get driving directions
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const orsResponse = await fetch(orsUrl, {
       headers: {
         'Authorization': ORS_KEY,
-        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8'
+        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-ar'
       }
     });
 
