@@ -542,7 +542,18 @@ export async function getHeroData(): Promise<HeroData> {
 
 export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    await setDoc(docRef, data, { merge: true });
+    // Create a clean object with only the fields that are being updated.
+    const dataToUpdate: Partial<HeroData> = {};
+    if (data.slideInterval !== undefined) {
+        dataToUpdate.slideInterval = data.slideInterval;
+    }
+    if (data.orderingTime !== undefined) {
+        dataToUpdate.orderingTime = data.orderingTime;
+    }
+    if (data.media !== undefined) {
+        dataToUpdate.media = data.media;
+    }
+    await setDoc(docRef, dataToUpdate, { merge: true });
 }
 
 
