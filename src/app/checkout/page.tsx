@@ -32,7 +32,7 @@ import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogCo
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
-const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
+const RESTAURANT_COORDS = { lat: 25.970951, lng: 83.873747 };
 
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Radius of the earth in km

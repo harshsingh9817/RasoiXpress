@@ -21,7 +21,7 @@ const containerStyle: React.CSSProperties = {
   borderRadius: '0.5rem',
 };
 
-const RESTAURANT_COORDS = { lat: 25.970963, lng: 83.873754 };
+const RESTAURANT_COORDS = { lat: 25.970951, lng: 83.873747 };
 const MAP_SCRIPT_ID = "mappls-sdk-script";
 
 const loadScript = (apiKey: string): Promise<void> => {
@@ -67,11 +67,11 @@ interface DirectionsMapProps {
     destinationCoords?: { lat: number; lng: number };
     riderCoords?: { lat: number; lng: number } | null;
     view?: 'default' | 'satellite';
-    apiKey?: string | null;
+    apiUrl?: string | null;
 }
 
 
-export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default', apiKey }: DirectionsMapProps) {
+export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default', apiUrl }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<any | null>(null);
     const riderMarker = useRef<any | null>(null);
@@ -80,6 +80,18 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     const [error, setError] = useState<string | null>(null);
     const [distance, setDistance] = useState<string | null>(null);
     const { toast } = useToast();
+
+    const apiKey = React.useMemo(() => {
+        if (apiUrl) {
+          try {
+            const url = new URL(apiUrl);
+            return url.pathname.split('/')[3] || null;
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      }, [apiUrl]);
 
     const initMap = useCallback(() => {
         if (!mapRef.current || !window.mappls) return;
@@ -123,9 +135,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     useEffect(() => {
       let isMounted = true;
       
-      const effectiveApiKey = apiKey || process.env.NEXT_PUBLIC_MAPPLS_API_KEY;
-
-      if (!effectiveApiKey) {
+      if (!apiKey) {
         setError("Mappls API Key is not configured.");
         setIsLoading(false);
         return;
@@ -134,7 +144,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       setIsLoading(true);
       setError(null);
   
-      loadScript(effectiveApiKey)
+      loadScript(apiKey)
         .then(() => {
           if (isMounted) {
             initMap();

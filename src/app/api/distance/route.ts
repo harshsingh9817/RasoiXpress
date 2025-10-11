@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 
 const PRESET = {
   name: "Rasoi Xpress Kitchen",
-  lat: 25.970957,
-  lon: 83.873759
+  lat: 25.970951,
+  lon: 83.873747
 };
 
 const ORS_API_KEY = "5b3ce3597851110001cf62487ee37f06934d4cb4a89624a112bec501";
