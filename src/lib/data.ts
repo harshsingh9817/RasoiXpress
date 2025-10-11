@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, OrderStatus, Category, CartItem } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, Category, CartItem } from './types';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
@@ -84,7 +84,7 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 const defaultHeroData: HeroData = {
     media: [],
     slideInterval: 5,
-    orderingTime: "10:00 AM - 10:00 PM",
+    orderingTime: "7:30 AM - 9:00 PM",
 };
 
 const defaultPaymentSettings: PaymentSettings = {
@@ -542,21 +542,7 @@ export async function getHeroData(): Promise<HeroData> {
 
 export async function updateHeroData(data: Partial<HeroData>): Promise<void> {
     const docRef = doc(db, 'globals', 'hero');
-    const dataToUpdate: { [key: string]: any } = {};
-
-    if (data.slideInterval !== undefined) {
-        dataToUpdate.slideInterval = data.slideInterval;
-    }
-    if (data.orderingTime !== undefined) {
-        dataToUpdate.orderingTime = data.orderingTime;
-    }
-    if (data.media !== undefined) {
-        dataToUpdate.media = data.media;
-    }
-
-    if (Object.keys(dataToUpdate).length > 0) {
-        await setDoc(docRef, dataToUpdate, { merge: true });
-    }
+    await setDoc(docRef, data, { merge: true });
 }
 
 

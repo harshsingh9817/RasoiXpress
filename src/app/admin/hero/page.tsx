@@ -84,7 +84,7 @@ export default function HeroManagementPage() {
 
       form.reset({
         slideInterval: sortedData.slideInterval || 5,
-        orderingTime: sortedData.orderingTime || '10:00 AM - 10:00 PM',
+        orderingTime: sortedData.orderingTime || '7:30 AM - 9:00 PM',
         media: sortedData.media || [],
       });
       setMediaFiles(sortedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
@@ -250,7 +250,7 @@ export default function HeroManagementPage() {
                         <FormItem>
                           <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
                           <FormControl>
-                            <Input placeholder="10:00 AM - 10:00 PM" {...field} />
+                            <Input placeholder="7:30 AM - 9:00 PM" {...field} />
                           </FormControl>
                           <FormDescription>The time window when users can place orders.</FormDescription>
                           <FormMessage />
