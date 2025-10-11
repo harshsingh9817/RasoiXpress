@@ -14,7 +14,7 @@ import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types
 import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
-import AddressFormDialog from '@/components/AddressFormDialog';
+import LocationPicker from '@/components/LocationPicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import {
@@ -27,10 +27,26 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle as AlertTitleElement } from '@/components/ui/alert';
 import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogContent, DialogHeader as EditDialogHeader, DialogTitle as EditDialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+
+const RESTAURANT_COORDS = { lat: 25.970960, lng: 83.873773 };
+
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+};
+
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -50,9 +66,11 @@ export default function CheckoutPage() {
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
   
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
+  const [isEditAddressDialogOpen, setIsEditAddressDialogOpen] = useState(false);
+  const [editAddressFormData, setEditAddressFormData] = useState<Partial<AddressType>>({});
   
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
@@ -114,60 +132,58 @@ export default function CheckoutPage() {
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
-    const calculateDeliveryDetails = async () => {
-      if (!selectedAddressId) {
-          setDistance(null);
-          setDeliveryFee(0);
-          setIsServiceable(true);
-          return;
-      }
-      const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-      if (!selectedAddress || !paymentSettings) {
-          return;
-      }
+    if (!selectedAddressId) {
+        setDistance(null);
+        setDeliveryFee(0);
+        setIsServiceable(true);
+        return;
+    }
 
-      try {
-          const response = await fetch('/api/distance', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ lat: selectedAddress.lat, lon: selectedAddress.lng, address: selectedAddress.street })
-          });
-          if (!response.ok) {
-              const errorData = await response.json();
-              setIsServiceable(false);
-              setDistance(null);
-              setDeliveryFee(0);
-              toast({ title: "Delivery Error", description: errorData.error || "Could not calculate distance.", variant: "destructive" });
-              return;
-          }
-          const { distance_km } = await response.json();
-          setDistance(distance_km);
+    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+    
+    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number') {
+        const dist = getDistance(
+            RESTAURANT_COORDS.lat,
+            RESTAURANT_COORDS.lng,
+            selectedAddress.lat,
+            selectedAddress.lng
+        );
+        setDistance(dist);
+        
+        const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
 
-          const maxDistance = paymentSettings.deliveryRadiusKm || 5;
-          if (distance_km > maxDistance) {
-              setIsServiceable(false);
-              setDeliveryFee(0);
-              return;
-          }
+        if (dist > maxDistance) {
+            setIsServiceable(false);
+            setDeliveryFee(0);
+            return;
+        }
 
-          setIsServiceable(true);
-          
-          if (paymentSettings.isDeliveryFeeEnabled === false || userProfile?.hasCompletedFirstOrder === false || subTotal >= 300) {
-              setDeliveryFee(0);
-          } else {
-              const fee = Math.round(distance_km * 25); // Example calculation: Rs.25 per km
-              setDeliveryFee(fee);
-          }
+        setIsServiceable(true);
+        
+        if (paymentSettings?.isDeliveryFeeEnabled === false) {
+            setDeliveryFee(0);
+            return;
+        }
 
-      } catch (error) {
-          setIsServiceable(false);
-          setDistance(null);
-          setDeliveryFee(0);
-          toast({ title: "Network Error", description: "Failed to connect to the distance service.", variant: "destructive" });
-      }
-    };
-    calculateDeliveryDetails();
-  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
+        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+        if (isFirstOrder) {
+            setDeliveryFee(0);
+            return;
+        }
+
+        if (subTotal > 0 && subTotal < 300) {
+            const fee = Math.round(dist * 25);
+            setDeliveryFee(fee);
+        } else {
+            setDeliveryFee(0);
+        }
+
+    } else {
+        setDistance(null);
+        setDeliveryFee(0);
+        setIsServiceable(false);
+    }
+  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -321,7 +337,21 @@ export default function CheckoutPage() {
   
   const handleOpenEditDialog = (address: AddressType) => {
       setAddressToEdit(address);
-      setIsAddressFormOpen(true);
+      setEditAddressFormData(address);
+      setIsEditAddressDialogOpen(true);
+  };
+  
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEditAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleUpdateAddress = async (e: FormEvent) => {
+      e.preventDefault();
+      if (!user || !addressToEdit) return;
+      await updateAddress(user.uid, { ...addressToEdit, ...editAddressFormData } as AddressType);
+      await loadPageData();
+      setIsEditAddressDialogOpen(false);
+      toast({ title: "Address updated successfully!" });
   };
 
   const handleOpenDeleteDialog = (address: AddressType) => {
@@ -337,24 +367,17 @@ export default function CheckoutPage() {
     toast({ title: "Address removed." });
   };
 
-  const handleOpenAddDialog = () => {
-    setAddressToEdit(null);
-    setIsAddressFormOpen(true);
-  }
-
-  const handleSaveSuccess = (newAddressId?: string) => {
+  const handleNewAddressAdded = (newAddressId: string) => {
     loadPageData().then(() => {
-      if (newAddressId) {
-        setSelectedAddressId(newAddressId);
-      }
+      setSelectedAddressId(newAddressId);
     });
-  }
+  };
 
   if (isAuthLoading || !isAuthenticated || isDataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
-        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading..." : "Getting your addresses..."}</p>
+        <p className="text-xl text-muted-foreground mt-4">{isAuthLoading ? "Loading..." : "Getting ready..."}</p>
       </div>
     );
   }
@@ -400,12 +423,12 @@ export default function CheckoutPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Shipping Address</CardTitle>
-                <CardDescription>Select an address or add a new one. Manual addresses may not be serviceable.</CardDescription>
+                <CardDescription>Select an address or add a new one using the map.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={handleOpenAddDialog}>
+                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsMapOpen(true)}>
                     <MapPin className="mr-2 h-5 w-5" />
-                    Add a New Address
+                    Add New Address via Map
                 </Button>
 
                 <Separator className="my-6" />
@@ -452,7 +475,7 @@ export default function CheckoutPage() {
                  {!isServiceable && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Out of Delivery Area</AlertTitle>
+                      <AlertTitleElement>Out of Delivery Area</AlertTitleElement>
                       <AlertDescription>
                         This location is too far. Please select another address or add one within {paymentSettings?.deliveryRadiusKm || 5}km.
                       </AlertDescription>
@@ -461,7 +484,7 @@ export default function CheckoutPage() {
                  {isServiceable && !paymentSettings?.isDeliveryFeeEnabled && (
                     <Alert>
                         <Gift className="h-4 w-4" />
-                        <AlertTitle>Free Delivery Unlocked!</AlertTitle>
+                        <AlertTitleElement>Free Delivery Unlocked!</AlertTitleElement>
                         <AlertDescription>
                             All delivery fees are currently waived as part of a special promotion.
                         </AlertDescription>
@@ -470,7 +493,7 @@ export default function CheckoutPage() {
                 {isServiceable && paymentSettings?.isDeliveryFeeEnabled && isFirstOrder && (
                     <Alert>
                         <Gift className="h-4 w-4" />
-                        <AlertTitle>First Order Bonus!</AlertTitle>
+                        <AlertTitleElement>First Order Bonus!</AlertTitleElement>
                         <AlertDescription>
                             Congratulations! Your first delivery is on the house.
                         </AlertDescription>
@@ -513,13 +536,33 @@ export default function CheckoutPage() {
       </div>
 
     </div>
-    <AddressFormDialog 
-        isOpen={isAddressFormOpen} 
-        onOpenChange={setIsAddressFormOpen} 
-        onSaveSuccess={handleSaveSuccess}
-        addressToEdit={addressToEdit}
+    <LocationPicker 
+        isOpen={isMapOpen} 
+        onOpenChange={setIsMapOpen} 
+        onSaveSuccess={handleNewAddressAdded}
+        apiKey={process.env.NEXT_PUBLIC_MAPPLS_API_KEY}
      />
      
+    <Dialog open={isEditAddressDialogOpen} onOpenChange={setIsEditAddressDialogOpen}>
+      <EditDialogContent>
+        <EditDialogHeader>
+          <EditDialogTitle>Edit Address</EditDialogTitle>
+        </EditDialogHeader>
+        <form onSubmit={handleUpdateAddress} className="space-y-4">
+          <Input name="fullName" value={editAddressFormData.fullName || ''} onChange={handleEditFormChange} placeholder="Full Name" />
+          <Input name="street" value={editAddressFormData.street || ''} onChange={handleEditFormChange} placeholder="House / Street" />
+          <Input name="village" value={editAddressFormData.village || ''} onChange={handleEditFormChange} placeholder="Village / Area" />
+          <Input name="city" value={editAddressFormData.city || ''} onChange={handleEditFormChange} placeholder="City" />
+          <Input name="pinCode" value={editAddressFormData.pinCode || ''} onChange={handleEditFormChange} placeholder="Pin Code" />
+          <Input name="phone" value={editAddressFormData.phone || ''} onChange={handleEditFormChange} placeholder="Phone" />
+          <EditDialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEditAddressDialogOpen(false)}>Cancel</Button>
+            <Button type="submit">Save Changes</Button>
+          </EditDialogFooter>
+        </form>
+      </EditDialogContent>
+    </Dialog>
+
     <AlertDialog open={isDeleteAddressDialogOpen} onOpenChange={setIsDeleteAddressDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>

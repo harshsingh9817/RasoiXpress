@@ -9,44 +9,43 @@ import { Badge } from './ui/badge';
 import { Route, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 
-const containerStyle = {
+declare global {
+  interface Window {
+    mappls: any;
+  }
+}
+
+const containerStyle: React.CSSProperties = {
   width: '100%',
   height: '400px',
   borderRadius: '0.5rem',
 };
 
 const RESTAURANT_COORDS = { lat: 25.970963, lng: 83.873754 };
-const MAP_SCRIPT_ID = "gomaps-pro-api-script";
+const MAP_SCRIPT_ID = "mappls-sdk-script";
 
-// This function now ALWAYS assumes the input is a key and builds the URL.
-const buildScriptUrl = (apiKey: string): string => {
-    if (!apiKey) return "";
-    if (apiKey.startsWith('http')) {
-        return apiKey;
-    }
-    return `https://maps.gomaps.pro/maps/api/js?key=${apiKey}&libraries=places`;
-};
-
-const loadScript = (src: string, id: string): Promise<void> => {
+const loadScript = (apiKey: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      // Always remove the old script tag if it exists, to ensure a fresh load
-      const existingScript = document.getElementById(id);
-      if (existingScript) {
-        existingScript.remove();
-      }
-
-      // Check if google maps is already available (e.g., from a previous successful load)
-      if (window.google && window.google.maps) {
-        return resolve();
+      if (document.getElementById(MAP_SCRIPT_ID)) {
+        if (window.mappls) {
+            return resolve();
+        }
+        // If script exists but window.mappls is not there, it might be loading.
+        // A more robust solution might listen for the script's load event.
+        setTimeout(() => {
+            if(window.mappls) resolve();
+            else reject(new Error('Mappls SDK failed to initialize.'));
+        }, 1000);
+        return;
       }
   
       const script = document.createElement('script');
-      script.src = src;
-      script.id = id;
+      script.id = MAP_SCRIPT_ID;
+      script.src = `https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=${apiKey}`;
       script.async = true;
       script.defer = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load map script. The API key may be invalid or the URL incorrect.`));
+      script.onerror = () => reject(new Error('Failed to load Mappls map script. The API key may be invalid.'));
       document.head.appendChild(script);
     });
 };
@@ -65,10 +64,19 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 
-export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default', apiUrl }: DirectionsMapProps) {
+interface DirectionsMapProps {
+    destinationAddress?: string;
+    destinationCoords?: { lat: number; lng: number };
+    riderCoords?: { lat: number; lng: number } | null;
+    view?: 'default' | 'satellite';
+    apiKey?: string | null;
+}
+
+
+export default function DirectionsMap({ destinationAddress, destinationCoords, riderCoords, view = 'default', apiKey }: DirectionsMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstance = useRef<google.maps.Map | null>(null);
-    const riderMarker = useRef<google.maps.Marker | null>(null);
+    const mapInstance = useRef<any | null>(null);
+    const riderMarker = useRef<any | null>(null);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -76,55 +84,39 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     const { toast } = useToast();
 
     const initMap = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps) return;
+        if (!mapRef.current || !window.mappls) return;
 
         setIsLoading(true);
         setError(null);
         setDistance(null);
         
-        const map = new window.google.maps.Map(mapRef.current, {
+        mapInstance.current = new window.mappls.Map(mapRef.current, {
+            center: { lat: RESTAURANT_COORDS.lat, lng: RESTAURANT_COORDS.lng },
             zoom: 12,
-            center: RESTAURANT_COORDS,
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: false,
-            mapTypeId: view === 'satellite' ? 'satellite' : 'roadmap',
         });
-        mapInstance.current = map;
 
-        const destinationLatLng = destinationCoords 
-            ? new window.google.maps.LatLng(destinationCoords.lat, destinationCoords.lng)
-            : null;
-        
-        if (!destinationLatLng) {
-            new window.google.maps.Marker({
-                position: RESTAURANT_COORDS,
-                map: map,
-                title: 'Restaurant Location'
-            });
+        if (!destinationCoords) {
+            new window.mappls.Marker({ map: mapInstance.current, position: RESTAURANT_COORDS });
             setIsLoading(false);
             return;
         }
 
-        const bounds = new window.google.maps.LatLngBounds();
+        const markers = [
+            {
+                position: RESTAURANT_COORDS,
+                title: 'Restaurant',
+            },
+            {
+                position: destinationCoords,
+                title: 'Destination',
+            }
+        ];
+        mapInstance.current.fitBounds(markers.map(m => m.position), { padding: 50 });
+        
+        new window.mappls.Marker({ map: mapInstance.current, position: RESTAURANT_COORDS });
+        new window.mappls.Marker({ map: mapInstance.current, position: destinationCoords });
 
-        new window.google.maps.Marker({
-            position: RESTAURANT_COORDS,
-            map: map,
-            title: 'Origin (Restaurant)'
-        });
-        bounds.extend(RESTAURANT_COORDS);
-
-        new window.google.maps.Marker({
-            position: destinationLatLng,
-            map: map,
-            title: 'Destination'
-        });
-        bounds.extend(destinationLatLng);
-
-        map.fitBounds(bounds);
-
-        const distKm = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, destinationLatLng.lat(), destinationLatLng.lng());
+        const distKm = getDistance(RESTAURANT_COORDS.lat, RESTAURANT_COORDS.lng, destinationCoords.lat, destinationCoords.lng);
         setDistance(`${distKm.toFixed(2)} km`);
         setIsLoading(false);
 
@@ -133,8 +125,9 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     useEffect(() => {
       let isMounted = true;
       
-      if (!apiUrl) {
-        setError("Map API Key is not configured in settings.");
+      const apiKey = process.env.NEXT_PUBLIC_MAPPLS_API_KEY;
+      if (!apiKey) {
+        setError("Mappls API Key is not configured in settings.");
         setIsLoading(false);
         return;
       }
@@ -142,8 +135,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       setIsLoading(true);
       setError(null);
   
-      const fullApiUrl = buildScriptUrl(apiUrl);
-      loadScript(fullApiUrl, MAP_SCRIPT_ID)
+      loadScript(apiKey)
         .then(() => {
           if (isMounted) {
             initMap();
@@ -163,32 +155,26 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
         });
   
       return () => { isMounted = false; };
-    }, [initMap, toast, apiUrl]);
+    }, [initMap, toast]);
 
     useEffect(() => {
-        if (!mapInstance.current || !window.google?.maps) return;
+        if (!mapInstance.current || !window.mappls) return;
 
         const bikeIcon = {
-            path: 'M14.5,9.5c0,-1.1 -0.9,-2 -2,-2s-2,0.9 -2,2s0.9,2 2,2s2,-0.9 2,-2zm-8,0c0,-1.1 -0.9,-2 -2,-2s-2,0.9 -2,2s0.9,2 2,2s2,-0.9 2,-2zm5.5,5.5l-2,0l-3,-3l-2,0l0,3l-2,0l0,-5l5,-2.5l0.5,0l3,2.5l0,5zm-3.5,-1c-0.8,0 -1.5,0.7 -1.5,1.5c0,0.8 0.7,1.5 1.5,1.5s1.5,-0.7 1.5,-1.5c0,-0.8 -0.7,-1.5 -1.5,-1.5zm-5,0c-0.8,0 -1.5,0.7 -1.5,1.5c0,0.8 0.7,1.5 1.5,1.5s1.5,-0.7 1.5,-1.5c0,-0.8 -0.7,-1.5 -1.5,-1.5z',
-            fillColor: 'hsl(var(--primary))',
-            fillOpacity: 1,
-            strokeWeight: 1,
-            strokeColor: '#ffffff',
-            rotation: 0,
-            scale: 1.5,
-            anchor: new window.google.maps.Point(10, 10),
+            url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWJpa2UiPjxjaXJjbGUgY3g9IjUuNSIgY3k9IjE3LjUiIHI9IjMuNSIvPjxjaXJjbGUgY3g9IjE4LjUiIGN5PSIxNy41IiByPSIzLjUiLz48cGF0aCBkPSJNMTIgM2wtMi41IDcgLTMtMy0yIDQiLz48cGF0aCBkPSJNMTYgM2gtMi41bC0yIDdscTMtMy41IDctMS41Ii8+PC9zdmc+',
+            width: 32,
+            height: 32
         };
 
         if (riderCoords) {
-            const position = new window.google.maps.LatLng(riderCoords.lat, riderCoords.lng);
+            const position = { lat: riderCoords.lat, lng: riderCoords.lng };
             if (riderMarker.current) {
                 riderMarker.current.setPosition(position);
             } else {
-                riderMarker.current = new window.google.maps.Marker({
-                    position,
+                riderMarker.current = new window.mappls.Marker({
                     map: mapInstance.current,
-                    icon: bikeIcon,
-                    title: "Rider Location"
+                    position: position,
+                    icon_html: `<div style="color:hsl(var(--primary));"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bike"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M12 3-2.5 7-3-3-2 4"/><path d="m16 3-2.5 7q3-3.5 7-1.5"/></svg></div>`
                 });
             }
              mapInstance.current.panTo(position);
@@ -219,10 +205,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4">
                     <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                     <p className="text-destructive font-semibold">{error}</p>
-                    <p className="text-destructive/80 text-sm mt-1">Please check the API Key in the admin settings.</p>
-                     <Button variant="destructive" size="sm" asChild className="mt-4">
-                        <Link href="/admin/payment">Go to Settings</Link>
-                    </Button>
+                    <p className="text-destructive/80 text-sm mt-1">Please check your Mappls API Key in the .env file.</p>
                 </div>
             )}
             <div ref={mapRef} style={containerStyle} />
