@@ -18,7 +18,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addAddress } from '@/lib/data';
 import type { Address } from '@/lib/types';
 import AnimatedPlateSpinner from './icons/AnimatedPlateSpinner';
-import { MapPin } from 'lucide-react';
+import { MapPin, LocateFixed, Search } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 declare global {
   interface Window {
@@ -52,22 +53,19 @@ const loadScript = (apiKey: string): Promise<void> => {
   
         const script = document.createElement('script');
         script.id = MAP_SCRIPT_ID;
-        script.src = `https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=${apiKey}`;
+        script.src = `https://apis.mappls.com/advancedmaps/api/${apiKey}/map_sdk?layer=vector&v=3.0&callback=initMap`;
         script.async = true;
         script.defer = true;
-        script.onload = () => resolve();
+        (window as any).initMap = () => resolve();
         script.onerror = () => reject(new Error('Failed to load Mappls map script. The API key may be invalid.'));
         document.head.appendChild(script);
     });
 };
 
-
-export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, apiKey: apiKeyProp }: LocationPickerProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
-  const marker = useRef<any>(null);
+export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess }: LocationPickerProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [apiKey, setApiKey] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -78,78 +76,63 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
     phone: '',
     type: 'Home'
   });
-  const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
-
-  const initMap = useCallback(() => {
-    if (!mapRef.current || !window.mappls) return;
-    setIsLoading(true);
-    setError(null);
-    
-    mapInstance.current = new window.mappls.Map(mapRef.current, {
-        center: { lat: 25.970963, lng: 83.873754 }, // Nagra, Ballia
-        zoom: 15,
-    });
-    
-    setIsLoading(false);
-
-    mapInstance.current.addListener('click', (e: any) => {
-        const coords = { lat: e.latlng.lat, lng: e.latlng.lng };
-        setSelectedCoords(coords);
-        if (marker.current) {
-            marker.current.setPosition(coords);
-        } else {
-            marker.current = new window.mappls.Marker({ map: mapInstance.current, position: coords });
-        }
-        mapInstance.current.panTo(coords);
-        
-        // Reverse Geocode
-        fetch(`https://apis.mappls.com/advancedmaps/v1/${process.env.NEXT_PUBLIC_MAPPLS_API_KEY}/rev_geocode?lat=${coords.lat}&lng=${coords.lng}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.results && data.results.length > 0) {
-                    const result = data.results[0];
-                    setAddressDetails(prev => ({
-                        ...prev,
-                        street: `${result.houseName || ''} ${result.houseNumber || ''}, ${result.street || ''}`.trim().replace(/^,/, '').trim(),
-                        village: result.subLocality || result.locality,
-                        city: result.city || result.district,
-                        state: result.state,
-                        pinCode: result.pincode,
-                    }));
-                }
-            })
-            .catch(err => {
-                console.error("Reverse geocoding failed", err);
-                toast({ title: 'Could not fetch address details.', variant: 'destructive' });
-            });
-    });
-
-  }, []);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-        setAddressDetails({ fullName: user?.displayName || '', phone: '', type: 'Home' });
-        setSelectedCoords(null);
+    setApiKey(process.env.NEXT_PUBLIC_MAPPLS_API_KEY || null);
+  }, []);
 
-        const apiKey = process.env.NEXT_PUBLIC_MAPPLS_API_KEY;
-        if (!apiKey) {
-            setError("Mappls API key is not configured.");
-            setIsLoading(false);
-            return;
-        }
-        
-        loadScript(apiKey).then(initMap).catch(err => {
-            setError(err.message);
-            setIsLoading(false);
-        });
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+        toast({ title: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+        return;
     }
-  }, [isOpen, user, initMap]);
-
-
+    setIsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+            setCoords({ lat: latitude, lng: longitude });
+            try {
+                const response = await fetch('/api/reverse-geocode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: latitude, lng: longitude, apiKey }),
+                });
+                if (!response.ok) throw new Error('Failed to fetch address');
+                const data = await response.json();
+                setAddressDetails(prev => ({
+                    ...prev,
+                    street: data.street,
+                    village: data.village,
+                    city: data.city,
+                    state: data.state,
+                    pinCode: data.pinCode,
+                }));
+            } catch (err) {
+                toast({ title: 'Could not fetch address details.', variant: 'destructive' });
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        () => {
+            toast({ title: 'Unable to retrieve your location.', description: 'Please enable location services.', variant: 'destructive' });
+            setIsLoading(false);
+        }
+    );
+  };
+  
   const handleSave = async () => {
-    if (!user || !selectedCoords) return;
+    if (!user || !coords) return;
     if (!addressDetails.fullName || !addressDetails.phone) {
         toast({ title: "Missing Information", description: "Please enter your full name and phone number.", variant: "destructive" });
+        return;
+    }
+    if (!/^\d{10}$/.test(addressDetails.phone)) {
+        toast({ title: "Invalid Phone", description: "Please enter a valid 10-digit phone number.", variant: "destructive" });
+        return;
+    }
+     if (!addressDetails.pinCode || !/^\d{6}$/.test(addressDetails.pinCode)) {
+        toast({ title: "Invalid PIN Code", description: "Please enter a valid 6-digit PIN code.", variant: "destructive" });
         return;
     }
 
@@ -162,10 +145,10 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
         village: addressDetails.village || '',
         city: addressDetails.city || 'N/A',
         state: addressDetails.state || 'N/A',
-        pinCode: addressDetails.pinCode || 'N/A',
+        pinCode: addressDetails.pinCode,
         isDefault: false, // This will be handled by logic on the checkout page
-        lat: selectedCoords.lat,
-        lng: selectedCoords.lng,
+        lat: coords.lat,
+        lng: coords.lng,
     };
     
     try {
@@ -182,44 +165,51 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-6 pb-2">
-          <DialogTitle>Select Delivery Location</DialogTitle>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add New Address</DialogTitle>
           <DialogDescription>
-            Click on the map to set your address. Fine-tune the details in the form below.
+            Use GPS to fill your address automatically or enter it manually.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex-grow relative">
-            {isLoading && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
-                    <AnimatedPlateSpinner className="h-16 w-16" />
-                </div>
-            )}
-            {error && (
-                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-destructive/10 text-destructive text-center p-4">
-                     {error}
-                 </div>
-            )}
-            <div ref={mapRef} className="h-full w-full" />
-        </div>
-
-        <div className="p-6 overflow-y-auto bg-background">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label>Full Name</Label><Input value={addressDetails.fullName} onChange={e => setAddressDetails(p => ({ ...p, fullName: e.target.value }))} /></div>
-                <div><Label>Phone</Label><Input value={addressDetails.phone} onChange={e => setAddressDetails(p => ({ ...p, phone: e.target.value }))} /></div>
-                <div><Label>House, Street</Label><Input value={addressDetails.street} onChange={e => setAddressDetails(p => ({ ...p, street: e.target.value }))} /></div>
+        
+        <div className="py-4 space-y-4">
+             <Alert>
+                <LocateFixed className="h-4 w-4" />
+                <AlertTitle>Location Services</AlertTitle>
+                <AlertDescription>
+                    Click the button below to automatically fill in your address using your device's GPS.
+                </AlertDescription>
+                <Button onClick={handleGetCurrentLocation} disabled={isLoading || !apiKey} className="mt-4 w-full">
+                    {isLoading ? <AnimatedPlateSpinner className="h-5 w-5 mr-2" /> : <MapPin className="mr-2 h-4 w-4" />}
+                    {isLoading ? 'Fetching...' : 'Get Current Location'}
+                </Button>
+                {!apiKey && <p className="text-xs text-destructive mt-2 text-center">Location service is not configured.</p>}
+             </Alert>
+             
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><Label>Full Name*</Label><Input value={addressDetails.fullName} onChange={e => setAddressDetails(p => ({ ...p, fullName: e.target.value }))} /></div>
+                <div><Label>Phone*</Label><Input type="tel" value={addressDetails.phone} onChange={e => setAddressDetails(p => ({ ...p, phone: e.target.value }))} /></div>
+                <div><Label>House, Street*</Label><Input value={addressDetails.street} onChange={e => setAddressDetails(p => ({ ...p, street: e.target.value }))} /></div>
                 <div><Label>Village/Area</Label><Input value={addressDetails.village} onChange={e => setAddressDetails(p => ({ ...p, village: e.target.value }))} /></div>
-                <div><Label>City</Label><Input value={addressDetails.city} disabled /></div>
-                <div><Label>PIN Code</Label><Input value={addressDetails.pinCode} disabled /></div>
+                <div><Label>City*</Label><Input value={addressDetails.city} onChange={e => setAddressDetails(p => ({ ...p, city: e.target.value }))} /></div>
+                <div><Label>PIN Code*</Label><Input value={addressDetails.pinCode} onChange={e => setAddressDetails(p => ({ ...p, pinCode: e.target.value }))} /></div>
+                <div><Label>State*</Label><Input value={addressDetails.state} onChange={e => setAddressDetails(p => ({ ...p, state: e.target.value }))} /></div>
+                 <div><Label>Address Type</Label>
+                    <select value={addressDetails.type} onChange={e => setAddressDetails(p => ({...p, type: e.target.value as 'Home' | 'Work' | 'Other'}))} className="w-full h-10 border border-input bg-background rounded-md px-3 text-sm">
+                        <option value="Home">Home</option>
+                        <option value="Work">Work</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <DialogFooter className="p-6 pt-4 border-t">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!selectedCoords || isSaving}>
+          <Button onClick={handleSave} disabled={!coords || isSaving}>
             {isSaving ? <AnimatedPlateSpinner className="h-5 w-5 mr-2" /> : <MapPin className="mr-2 h-4 w-4" />}
             {isSaving ? 'Saving...' : 'Save Address'}
           </Button>
@@ -228,4 +218,3 @@ export default function LocationPicker({ isOpen, onOpenChange, onSaveSuccess, ap
     </Dialog>
   );
 }
-

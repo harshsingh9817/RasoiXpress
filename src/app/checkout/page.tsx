@@ -14,7 +14,7 @@ import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types
 import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
-import LocationPicker from '@/components/LocationPicker';
+import AddressFormDialog from '@/components/AddressFormDialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import {
@@ -66,11 +66,9 @@ export default function CheckoutPage() {
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [isMapOpen, setIsMapOpen] = useState(false);
   
+  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
   const [addressToEdit, setAddressToEdit] = useState<AddressType | null>(null);
-  const [isEditAddressDialogOpen, setIsEditAddressDialogOpen] = useState(false);
-  const [editAddressFormData, setEditAddressFormData] = useState<Partial<AddressType>>({});
   
   const [addressToDelete, setAddressToDelete] = useState<AddressType | null>(null);
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
@@ -141,7 +139,7 @@ export default function CheckoutPage() {
 
     const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
     
-    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number') {
+    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number' && selectedAddress.lat !== 0) {
         const dist = getDistance(
             RESTAURANT_COORDS.lat,
             RESTAURANT_COORDS.lng,
@@ -178,12 +176,18 @@ export default function CheckoutPage() {
             setDeliveryFee(0);
         }
 
-    } else {
+    } else if (selectedAddress) { // Address exists but has no coordinates
+        setIsServiceable(false); // Can't deliver without coordinates
         setDistance(null);
         setDeliveryFee(0);
-        setIsServiceable(false);
+        toast({
+            title: 'Location Incomplete',
+            description: 'This address is missing location data. Please delete and re-add it using GPS for delivery.',
+            variant: 'destructive',
+            duration: 7000,
+        })
     }
-  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings]);
+  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
     setIsLoading(true);
@@ -260,7 +264,7 @@ export default function CheckoutPage() {
         handler: async (response: any) => {
             const finalOrderData = {
               ...orderData,
-              status: 'Order Placed', // Set initial status to Order Placed
+              status: 'Order Placed',
               razorpayPaymentId: response.razorpay_payment_id,
               razorpayOrderId: response.razorpay_order_id,
             };
@@ -337,21 +341,7 @@ export default function CheckoutPage() {
   
   const handleOpenEditDialog = (address: AddressType) => {
       setAddressToEdit(address);
-      setEditAddressFormData(address);
-      setIsEditAddressDialogOpen(true);
-  };
-  
-  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setEditAddressFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleUpdateAddress = async (e: FormEvent) => {
-      e.preventDefault();
-      if (!user || !addressToEdit) return;
-      await updateAddress(user.uid, { ...addressToEdit, ...editAddressFormData } as AddressType);
-      await loadPageData();
-      setIsEditAddressDialogOpen(false);
-      toast({ title: "Address updated successfully!" });
+      setIsAddressFormOpen(true);
   };
 
   const handleOpenDeleteDialog = (address: AddressType) => {
@@ -423,12 +413,12 @@ export default function CheckoutPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Shipping Address</CardTitle>
-                <CardDescription>Select an address or add a new one using the map.</CardDescription>
+                <CardDescription>Select an address or add a new one.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsMapOpen(true)}>
+                 <Button type="button" variant="outline" className="w-full h-12 text-lg" onClick={() => setIsAddressFormOpen(true)}>
                     <MapPin className="mr-2 h-5 w-5" />
-                    Add New Address via Map
+                    Add New Address
                 </Button>
 
                 <Separator className="my-6" />
@@ -536,33 +526,13 @@ export default function CheckoutPage() {
       </div>
 
     </div>
-    <LocationPicker 
-        isOpen={isMapOpen} 
-        onOpenChange={setIsMapOpen} 
+    <AddressFormDialog 
+        isOpen={isAddressFormOpen} 
+        onOpenChange={setIsAddressFormOpen} 
         onSaveSuccess={handleNewAddressAdded}
-        apiKey={process.env.NEXT_PUBLIC_MAPPLS_API_KEY}
+        addressToEdit={addressToEdit}
      />
      
-    <Dialog open={isEditAddressDialogOpen} onOpenChange={setIsEditAddressDialogOpen}>
-      <EditDialogContent>
-        <EditDialogHeader>
-          <EditDialogTitle>Edit Address</EditDialogTitle>
-        </EditDialogHeader>
-        <form onSubmit={handleUpdateAddress} className="space-y-4">
-          <Input name="fullName" value={editAddressFormData.fullName || ''} onChange={handleEditFormChange} placeholder="Full Name" />
-          <Input name="street" value={editAddressFormData.street || ''} onChange={handleEditFormChange} placeholder="House / Street" />
-          <Input name="village" value={editAddressFormData.village || ''} onChange={handleEditFormChange} placeholder="Village / Area" />
-          <Input name="city" value={editAddressFormData.city || ''} onChange={handleEditFormChange} placeholder="City" />
-          <Input name="pinCode" value={editAddressFormData.pinCode || ''} onChange={handleEditFormChange} placeholder="Pin Code" />
-          <Input name="phone" value={editAddressFormData.phone || ''} onChange={handleEditFormChange} placeholder="Phone" />
-          <EditDialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsEditAddressDialogOpen(false)}>Cancel</Button>
-            <Button type="submit">Save Changes</Button>
-          </EditDialogFooter>
-        </form>
-      </EditDialogContent>
-    </Dialog>
-
     <AlertDialog open={isDeleteAddressDialogOpen} onOpenChange={setIsDeleteAddressDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>

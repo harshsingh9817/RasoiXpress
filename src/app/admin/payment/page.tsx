@@ -225,12 +225,12 @@ export default function PaymentSettingsPage() {
                 name="mapApiUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> GoMaps Pro API Key</FormLabel>
+                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> Mappls API Key</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="AlzaSyL1KdmS5eDvkDB2qZVBq-UmqUFQ9KZ3aoY..." {...field} value={field.value ?? ''} rows={3} />
+                      <Textarea placeholder="Enter your Mappls API key..." {...field} value={field.value ?? ''} rows={3} />
                     </FormControl>
                       <FormDescription>
-                          Paste only the API Key here. The application will construct the full URL automatically. Get the key from your GoMaps Pro dashboard.
+                          This key is required for location-based services like address autofill and delivery distance calculation. Get it from your Mappls dashboard.
                       </FormDescription>
                     <FormMessage />
                   </FormItem>

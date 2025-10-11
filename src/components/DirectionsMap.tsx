@@ -30,8 +30,6 @@ const loadScript = (apiKey: string): Promise<void> => {
         if (window.mappls) {
             return resolve();
         }
-        // If script exists but window.mappls is not there, it might be loading.
-        // A more robust solution might listen for the script's load event.
         setTimeout(() => {
             if(window.mappls) resolve();
             else reject(new Error('Mappls SDK failed to initialize.'));
@@ -41,10 +39,10 @@ const loadScript = (apiKey: string): Promise<void> => {
   
       const script = document.createElement('script');
       script.id = MAP_SCRIPT_ID;
-      script.src = `https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=${apiKey}`;
+      script.src = `https://apis.mappls.com/advancedmaps/api/${apiKey}/map_sdk?layer=vector&v=3.0&callback=initMap`;
       script.async = true;
       script.defer = true;
-      script.onload = () => resolve();
+      (window as any).initMap = () => resolve();
       script.onerror = () => reject(new Error('Failed to load Mappls map script. The API key may be invalid.'));
       document.head.appendChild(script);
     });
@@ -125,9 +123,10 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
     useEffect(() => {
       let isMounted = true;
       
-      const apiKey = process.env.NEXT_PUBLIC_MAPPLS_API_KEY;
-      if (!apiKey) {
-        setError("Mappls API Key is not configured in settings.");
+      const effectiveApiKey = apiKey || process.env.NEXT_PUBLIC_MAPPLS_API_KEY;
+
+      if (!effectiveApiKey) {
+        setError("Mappls API Key is not configured.");
         setIsLoading(false);
         return;
       }
@@ -135,7 +134,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
       setIsLoading(true);
       setError(null);
   
-      loadScript(apiKey)
+      loadScript(effectiveApiKey)
         .then(() => {
           if (isMounted) {
             initMap();
@@ -155,7 +154,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
         });
   
       return () => { isMounted = false; };
-    }, [initMap, toast]);
+    }, [initMap, toast, apiKey]);
 
     useEffect(() => {
         if (!mapInstance.current || !window.mappls) return;
@@ -205,7 +204,7 @@ export default function DirectionsMap({ destinationAddress, destinationCoords, r
                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-destructive/10 backdrop-blur-sm rounded-lg p-4">
                     <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
                     <p className="text-destructive font-semibold">{error}</p>
-                    <p className="text-destructive/80 text-sm mt-1">Please check your Mappls API Key in the .env file.</p>
+                    <p className="text-destructive/80 text-sm mt-1">Please check your Mappls API Key in the settings.</p>
                 </div>
             )}
             <div ref={mapRef} style={containerStyle} />

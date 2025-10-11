@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 
 // This function now ALWAYS assumes the input is a key and builds the URL.
 function buildApiUrl(key: string, lat: number, lng: number): string {
-    const host = 'https://maps.gomaps.pro'; 
-    return `${host}/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
+    const host = 'https://apis.mappls.com/advancedmaps/v1'; 
+    return `${host}/${key}/rev_geocode?lat=${lat}&lng=${lng}`;
 }
 
 
@@ -25,27 +25,19 @@ export async function POST(request: Request) {
     const response = await fetch(geocodeApiUrl);
     const data = await response.json();
 
-    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+    if (data.responseCode !== 200 || !data.results || data.results.length === 0) {
       console.error('Reverse geocoding failed:', data.error_message || data.status);
       return NextResponse.json({ error: 'Could not find address for this location.' }, { status: 404 });
     }
 
-    const addressComponents = data.results[0].address_components;
-    const formattedAddress = data.results[0].formatted_address;
-
-    const getAddressComponent = (type: string) => 
-        addressComponents.find((c: any) => c.types.includes(type))?.long_name || '';
-
-    const streetNumber = getAddressComponent('street_number');
-    const route = getAddressComponent('route');
-    const street = streetNumber ? `${streetNumber} ${route}` : route;
-
+    const addressComponents = data.results[0];
+    
     const address = {
-        street: street,
-        village: getAddressComponent('sublocality_level_2') || getAddressComponent('sublocality_level_1'),
-        city: getAddressComponent('locality') || getAddressComponent('administrative_area_level_2'),
-        pinCode: getAddressComponent('postal_code'),
-        formattedAddress: formattedAddress,
+        street: `${addressComponents.houseName || ''} ${addressComponents.houseNumber || ''}, ${addressComponents.street || ''}`.trim().replace(/^,|,$/g, '').trim(),
+        village: addressComponents.subLocality || addressComponents.locality,
+        city: addressComponents.city || addressComponents.district,
+        state: addressComponents.state,
+        pinCode: addressComponents.pincode,
     };
     
     return NextResponse.json(address);
