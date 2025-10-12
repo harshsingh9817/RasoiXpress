@@ -1,77 +1,40 @@
+import crypto from "crypto";
+import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 
-import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, writeBatch } from 'firebase/firestore';
+export async function POST(req: Request) {
+  const payload = await req.text();
+  const signature = req.headers.get("x-razorpay-signature");
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
 
-// This is the new, secure webhook handler for Razorpay.
-// It listens for server-to-server communication from Razorpay to confirm payments.
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
 
-export async function POST(request: Request) {
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  const webhookSignature = request.headers.get('x-razorpay-signature');
-
-  if (!keySecret) {
-    console.error('Razorpay secret key not configured.');
-    return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
+  if (signature !== expectedSignature) {
+    console.error("❌ Invalid webhook signature");
+    return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 400 });
   }
 
-  if (!webhookSignature) {
-    return NextResponse.json({ success: false, error: 'Signature missing.' }, { status: 400 });
-  }
+  const event = JSON.parse(payload);
+  if (event.event === "payment.captured") {
+    const orderId = event.payload.payment.entity.order_id;
 
-  try {
-    const body = await request.text();
+    const ordersRef = collection(db, "orders");
+    const q = query(ordersRef, where("razorpayOrderId", "==", orderId));
+    const snapshot = await getDocs(q);
 
-    const expectedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(body)
-      .digest('hex');
-
-    if (expectedSignature !== webhookSignature) {
-      console.warn('Invalid Razorpay webhook signature received.');
-      return NextResponse.json({ success: false, error: 'Invalid signature.' }, { status: 400 });
-    }
-
-    const event = JSON.parse(body);
-
-    // We only care about the 'payment.captured' event.
-    if (event.event === 'payment.captured' && event.payload.payment.entity.status === 'captured') {
-      const paymentEntity = event.payload.payment.entity;
-      const razorpayOrderId = paymentEntity.order_id;
-      const razorpayPaymentId = paymentEntity.id;
-
-      // Find the corresponding order in our database.
-      const ordersRef = collection(db, 'orders');
-      const q = query(ordersRef, where('razorpayOrderId', '==', razorpayOrderId));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        console.log(`Webhook received for order ${razorpayOrderId}, but no matching order found in Firestore. This might be a race condition or a duplicate webhook.`);
-        return NextResponse.json({ success: true, message: 'No matching order found, but webhook acknowledged.' });
-      }
-
-      // Update the order with the confirmed payment ID and ensure status is 'Confirmed'.
-      const batch = writeBatch(db);
-      querySnapshot.forEach(doc => {
-          const orderData = doc.data();
-          // Only update if the status isn't already a final one like 'Delivered' or 'Cancelled'.
-          if (orderData.status === 'Order Placed' || orderData.status === 'Confirmed') {
-            batch.update(doc.ref, { 
-                razorpayPaymentId: razorpayPaymentId,
-                status: 'Confirmed',
-            });
-          }
+    const batch = writeBatch(db);
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, {
+        razorpayPaymentId: event.payload.payment.entity.id,
+        status: "Confirmed",
       });
-      await batch.commit();
-      
-      console.log(`Successfully verified and updated order for Razorpay Order ID: ${razorpayOrderId}`);
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error: any) {
-    console.error('Razorpay webhook processing error:', error);
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    });
+    await batch.commit();
   }
+
+  return NextResponse.json({ success: true });
 }
