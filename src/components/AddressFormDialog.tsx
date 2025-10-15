@@ -155,14 +155,18 @@ export default function AddressFormDialog({
       toast({ title: "Authentication Error", description: "You must be logged in to save an address.", variant: "destructive" });
       return;
     }
+    if (!coords) {
+        toast({ title: "Location Missing", description: "Please use 'Get Current Location' to set your address coordinates before saving.", variant: "destructive" });
+        return;
+    }
     setIsSubmitting(true);
     try {
         if (addressToEdit) {
             const updatedAddress: Address = {
                 ...addressToEdit,
                 ...data,
-                lat: coords?.lat || 0,
-                lng: coords?.lng || 0,
+                lat: coords.lat,
+                lng: coords.lng,
             };
             await updateAddress(user.uid, updatedAddress);
             toast({ title: "Address Updated!", description: "Your address has been successfully updated." });
@@ -172,8 +176,8 @@ export default function AddressFormDialog({
             const newAddress: Omit<Address, 'id'> = {
                 ...data,
                 isDefault: existingAddresses.length === 0,
-                lat: coords?.lat || 0,
-                lng: coords?.lng || 0,
+                lat: coords.lat,
+                lng: coords.lng,
             };
             const addedAddress = await addAddress(user.uid, newAddress);
             toast({ title: "Address Saved!", description: "The new address has been added to your profile." });
@@ -194,7 +198,7 @@ export default function AddressFormDialog({
         <DialogHeader>
           <DialogTitle>{addressToEdit ? "Edit Address" : "Add a New Address"}</DialogTitle>
           <DialogDescription>
-            Please fill in your delivery details manually.
+            Fill in your delivery details. Use the location button for auto-fill.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -204,7 +208,7 @@ export default function AddressFormDialog({
                     <LocateFixed className="h-4 w-4" />
                     <AlertTitle>Auto-fill Address</AlertTitle>
                     <AlertDescription>
-                        Use your device's GPS to fill the fields below automatically.
+                        Click the button below to use your device's GPS and automatically fill in the address fields.
                     </AlertDescription>
                     <Button type="button" onClick={handleGetCurrentLocation} disabled={isFetchingLocation} className="mt-3 w-full">
                         {isFetchingLocation ? <AnimatedPlateSpinner className="h-5 w-5 mr-2" /> : <MapPin className="mr-2 h-4 w-4" />}

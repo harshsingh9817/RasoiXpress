@@ -70,6 +70,12 @@ const nextConfig: NextConfig = {
         hostname: 'fra.cloud.appwrite.io',
         port: '',
         pathname: '/**',
+      },
+      { // Added for Mappls
+        protocol: 'https',
+        hostname: 'apis.mappls.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
