@@ -32,21 +32,6 @@ import { Dialog, DialogFooter as EditDialogFooter, DialogContent as EditDialogCo
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
-const RESTAURANT_COORDS = { lat: 25.970951, lng: 83.873747 };
-
-const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-};
-
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -77,6 +62,7 @@ export default function CheckoutPage() {
   const [distance, setDistance] = useState<number | null>(null);
   const [isServiceable, setIsServiceable] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
 
   const subTotal = getCartSubtotal();
@@ -139,53 +125,61 @@ export default function CheckoutPage() {
 
     const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
     
-    if (selectedAddress && typeof selectedAddress.lat === 'number' && typeof selectedAddress.lng === 'number' && selectedAddress.lat !== 0) {
-        const dist = getDistance(
-            RESTAURANT_COORDS.lat,
-            RESTAURANT_COORDS.lng,
-            selectedAddress.lat,
-            selectedAddress.lng
-        );
-        setDistance(dist);
-        
-        const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
-
-        if (dist > maxDistance) {
-            setIsServiceable(false);
-            setDeliveryFee(0);
-            return;
-        }
-
-        setIsServiceable(true);
-        
-        if (paymentSettings?.isDeliveryFeeEnabled === false) {
-            setDeliveryFee(0);
-            return;
-        }
-
-        const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
-        if (isFirstOrder) {
-            setDeliveryFee(0);
-            return;
-        }
-
-        if (subTotal > 0 && subTotal < 300) {
-            const fee = Math.round(dist * 25);
-            setDeliveryFee(fee);
-        } else {
-            setDeliveryFee(0);
-        }
-
-    } else if (selectedAddress) { // Address exists but has no coordinates
-        setIsServiceable(false); // Can't deliver without coordinates
-        setDistance(null);
-        setDeliveryFee(0);
-        toast({
-            title: 'Location Incomplete',
-            description: 'This address is missing location data. Please delete and re-add it using GPS for delivery.',
-            variant: 'destructive',
-            duration: 7000,
+    if (selectedAddress) {
+        setIsCalculatingDistance(true);
+        fetch('/api/distance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.pinCode}` }),
         })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('Failed to calculate distance.');
+            }
+            return res.json();
+        })
+        .then(data => {
+            const dist = data.distance;
+            setDistance(dist);
+            
+            const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
+
+            if (dist > maxDistance) {
+                setIsServiceable(false);
+                setDeliveryFee(0);
+                return;
+            }
+
+            setIsServiceable(true);
+            
+            if (paymentSettings?.isDeliveryFeeEnabled === false) {
+                setDeliveryFee(0);
+                return;
+            }
+
+            const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
+            if (isFirstOrder) {
+                setDeliveryFee(0);
+                return;
+            }
+
+            if (subTotal > 0 && subTotal < 300) {
+                const fee = Math.round(dist * 25);
+                setDeliveryFee(fee);
+            } else {
+                setDeliveryFee(0);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            toast({ title: 'Distance Error', description: 'Could not calculate delivery distance.', variant: 'destructive'});
+            setIsServiceable(false);
+            setDistance(null);
+            setDeliveryFee(0);
+        })
+        .finally(() => {
+            setIsCalculatingDistance(false);
+        });
     }
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
 
@@ -401,7 +395,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isProcessing = isLoading || isProcessingPayment;
+  const isProcessing = isLoading || isProcessingPayment || isCalculatingDistance;
   const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
@@ -500,15 +494,17 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm"><span>Taxes:</span><span>Rs.{totalTax.toFixed(2)}</span></div>
                     <div className="flex justify-between text-sm">
                         <span>Delivery Fee:</span>
-                        <span>
-                            {isServiceable ? (
-                                deliveryFee > 0 ? (
-                                    `Rs.${deliveryFee.toFixed(2)}`
+                        <span className="flex items-center">
+                             {isCalculatingDistance ? <Loader2 className="h-4 w-4 animate-spin ml-2"/> : (
+                                isServiceable ? (
+                                    deliveryFee > 0 ? (
+                                        `Rs.${deliveryFee.toFixed(2)}`
+                                    ) : (
+                                        <span className="font-semibold text-green-600">FREE</span>
+                                    )
                                 ) : (
-                                    <span className="font-semibold text-green-600">FREE</span>
+                                    'Not available'
                                 )
-                            ) : (
-                                'Not available'
                             )}
                         </span>
                     </div>

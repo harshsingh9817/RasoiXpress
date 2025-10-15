@@ -1,104 +1,80 @@
 
 import { NextResponse } from 'next/server';
+import type { PaymentSettings } from '@/lib/types';
+import { getPaymentSettings } from '@/lib/data';
 
-const PRESET = {
-  name: "Rasoi Xpress Kitchen",
-  lat: 25.970951,
-  lon: 83.873747
-};
+const RESTAURANT_COORDS = { lat: 25.970951, lng: 83.873747 };
 
-const ORS_API_KEY = "5b3ce3597851110001cf62487ee37f06934d4cb4a89624a112bec501";
-const DEFAULT_LOCATION_CONTEXT = "Nagra, Ballia, Uttar Pradesh";
-
-async function geocodeAddress(address: string) {
-  const fullAddress = `${address}, ${DEFAULT_LOCATION_CONTEXT}`;
-  const query = encodeURIComponent(fullAddress);
-  console.log("🗺 Searching:", fullAddress);
-
-  try {
-    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&addressdetails=1&countrycodes=in`;
-    const nomRes = await fetch(nomUrl, {
-      headers: { "User-Agent": "RasoiXpress/1.0 (support@example.com)" }
-    });
-    const nomData = await nomRes.json();
-    if (nomData.length) {
-      console.log("✅ Found via Nominatim");
-      return { lat: parseFloat(nomData[0].lat), lon: parseFloat(nomData[0].lon) };
+async function geocodeAddress(address: string, apiKey: string) {
+    const geocodeApiUrl = `https://apis.mappls.com/advancedmaps/v1/${apiKey}/geo_code?addr=${encodeURIComponent(address)}`;
+    try {
+        const response = await fetch(geocodeApiUrl);
+        if (!response.ok) {
+            console.error("Mappls Geocoding API failed with status:", response.status);
+            return null;
+        }
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            const { lat, lng } = data.results[0];
+            return { lat: parseFloat(lat), lng: parseFloat(lng) };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error during Mappls geocoding:", error);
+        return null;
     }
-  } catch (e) {
-    console.error("Nominatim error:", e);
-  }
-
-  try {
-    const phoUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1&lat=${PRESET.lat}&lon=${PRESET.lon}`;
-    const phoRes = await fetch(phoUrl);
-    const phoData = await phoRes.json();
-    if (phoData.features && phoData.features.length) {
-      console.log("✅ Found via Photon");
-      const coords = phoData.features[0].geometry.coordinates;
-      return { lat: coords[1], lon: coords[0] };
-    }
-  } catch (e) {
-    console.error("Photon error:", e);
-  }
-
-  return null;
 }
 
 
 export async function POST(request: Request) {
-  if (!ORS_API_KEY) {
-    console.error("OpenRouteService API key is not configured.");
-    return NextResponse.json({ error: "Distance service is not configured on the server." }, { status: 500 });
-  }
-
-  try {
-    let { address, lat, lon } = await request.json();
-
-    if (!lat || !lon) {
-      if (address) {
-          const g = await geocodeAddress(address);
-          if (!g) {
-            return NextResponse.json({ error: "Address could not be found." }, { status: 404 });
-          }
-          lat = g.lat;
-          lon = g.lon;
-      } else {
-        return NextResponse.json({ error: "Please provide 'address' or both 'lat' and 'lon'." }, { status: 400 });
-      }
+    let paymentSettings: PaymentSettings | null = null;
+    try {
+        paymentSettings = await getPaymentSettings();
+    } catch (error) {
+        console.error("Failed to get payment settings:", error);
+        // Continue with a null apiKey, error will be handled below
     }
 
-    const routeUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_API_KEY}`;
-    const orsRes = await fetch(routeUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coordinates: [
-          [lon, lat],
-          [PRESET.lon, PRESET.lat]
-        ]
-      })
-    });
-
-    const orsData = await orsRes.json();
-
-    if (!orsData.routes || !orsData.routes.length) {
-        return NextResponse.json({ error: "No route found between the locations." }, { status: 404 });
+    if (!paymentSettings?.mapApiUrl) {
+        return NextResponse.json({ error: "Mappls API Key is not configured on the server." }, { status: 500 });
     }
+    const apiKey = paymentSettings.mapApiUrl;
 
-    const summary = orsData.routes[0].summary;
+    try {
+        const { address } = await request.json();
 
-    return NextResponse.json({
-      from: { lat, lon },
-      to: PRESET,
-      distance_m: Math.round(summary.distance),
-      distance_km: +(summary.distance / 1000).toFixed(2),
-      duration_min: +(summary.duration / 60).toFixed(1),
-      engine: 'openrouteservice'
-    });
+        if (!address) {
+            return NextResponse.json({ error: "Address is required." }, { status: 400 });
+        }
 
-  } catch (err: any) {
-    console.error("Distance API internal error:", err);
-    return NextResponse.json({ error: err.message || "An internal server error occurred." }, { status: 500 });
-  }
+        const destinationCoords = await geocodeAddress(address, apiKey);
+
+        if (!destinationCoords) {
+            return NextResponse.json({ error: "Could not find coordinates for the provided address." }, { status: 404 });
+        }
+
+        const directionsApiUrl = `https://apis.mappls.com/advancedmaps/v1/${apiKey}/route_adv/driving/${RESTAURANT_COORDS.lng},${RESTAURANT_COORDS.lat};${destinationCoords.lng},${destinationCoords.lat}`;
+
+        const response = await fetch(directionsApiUrl);
+        if (!response.ok) {
+            console.error("Mappls Directions API failed:", response.status, await response.text());
+            return NextResponse.json({ error: "Failed to calculate route." }, { status: 500 });
+        }
+
+        const data = await response.json();
+
+        if (data.responseCode !== 200 || !data.routes || data.routes.length === 0) {
+             return NextResponse.json({ error: "No route found to the destination." }, { status: 404 });
+        }
+        
+        const route = data.routes[0];
+        const distanceInMeters = route.distance;
+        const distanceInKm = distanceInMeters / 1000;
+
+        return NextResponse.json({ distance: distanceInKm });
+
+    } catch (error: any) {
+        console.error('Distance API internal error:', error);
+        return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
+    }
 }
