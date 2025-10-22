@@ -28,16 +28,22 @@ export async function POST(req: Request) {
   });
 
   try {
-    const { amount } = await req.json();
+    const { amount, firebaseOrderId } = await req.json(); // Destructure firebaseOrderId
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'A valid amount is required to create a payment.' }, { status: 400 });
+    }
+    if (!firebaseOrderId) {
+      return NextResponse.json({ error: 'Firebase Order ID is required to create a payment.' }, { status: 400 });
     }
 
     const options = {
       amount: Math.round(amount * 100), // amount in the smallest currency unit (paise)
       currency: "INR", // Explicitly set currency to INR
       receipt: `receipt_order_${Date.now()}`,
+      notes: { // Add notes to include firebaseOrderId
+        firebaseOrderId: firebaseOrderId,
+      },
     };
 
     const order: Order = await razorpay.orders.create(options);
