@@ -41,7 +41,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<'address' | 'success'>('address');
@@ -184,7 +184,6 @@ export default function CheckoutPage() {
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
 
   const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
-    setIsLoading(true);
     try {
         const placedOrder = await placeOrder(orderData);
         setOrderDetails(placedOrder);
@@ -195,7 +194,8 @@ export default function CheckoutPage() {
         console.error("Failed to place order:", error);
         toast({ title: "Order Failed", description: error.message || "Could not place your order. Please try again.", variant: "destructive" });
     } finally {
-        setIsLoading(false);
+        setIsFinalizing(false);
+        setIsProcessingPayment(false);
     }
   };
 
@@ -236,17 +236,25 @@ export default function CheckoutPage() {
     }
 
     try {
-      const orderResponse = await fetch('/api/razorpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: grandTotal }),
-      });
+        const finalOrderData = {
+            ...orderData,
+            status: 'Order Placed',
+        };
+        const placedOrder = await placeOrder(finalOrderData);
+
+        const orderResponse = await fetch('/api/razorpay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: grandTotal, firebaseOrderId: placedOrder.id }),
+        });
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
         throw new Error(errorData.error || 'Failed to create Razorpay order');
       }
       const razorpayOrder = await orderResponse.json();
+
+      setIsFinalizing(true); // Show finalizing screen
 
       const paymentObject = new window.Razorpay({
         key: keyId,
@@ -256,17 +264,17 @@ export default function CheckoutPage() {
         description: "Order Payment",
         order_id: razorpayOrder.id,
         handler: async (response: any) => {
-            const finalOrderData = {
-              ...orderData,
-              status: 'Order Placed',
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpayOrderId: response.razorpay_order_id,
-            };
-            await finalizeOrder(finalOrderData);
+            // No need to call finalizeOrder again. The webhook handles confirmation.
+            // The success screen is shown optimistically.
+            setOrderDetails(placedOrder);
+            clearCart();
+            setCurrentStep('success');
+            setTimeout(() => { router.push(`/my-orders?track=${placedOrder.id}`); }, 8000);
         },
         modal: {
             ondismiss: () => {
               setIsProcessingPayment(false);
+              setIsFinalizing(false);
               toast({ title: "Payment Cancelled", variant: "destructive" });
             }
         },
@@ -278,6 +286,7 @@ export default function CheckoutPage() {
         console.error('Razorpay payment failed:', response.error);
         toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
         setIsProcessingPayment(false);
+        setIsFinalizing(false);
       });
       paymentObject.open();
 
@@ -285,6 +294,7 @@ export default function CheckoutPage() {
       console.error("Error during Razorpay process:", error);
       toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
       setIsProcessingPayment(false);
+      setIsFinalizing(false);
     }
   };
 
@@ -366,6 +376,16 @@ export default function CheckoutPage() {
     );
   }
 
+  if (isFinalizing) {
+    return (
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-center px-4">
+        <div className="w-24 h-24 text-primary"><AnimatedPlateSpinner /></div>
+        <h1 className="text-2xl font-headline font-bold text-primary mt-4">Payment Successful!</h1>
+        <p className="text-lg text-muted-foreground">Finalizing your order, please wait...</p>
+      </div>
+    );
+  }
+
   if (currentStep === 'success' && orderDetails) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
@@ -395,7 +415,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isProcessing = isLoading || isProcessingPayment || isCalculatingDistance;
+  const isProcessingForm = isProcessingPayment || isCalculatingDistance;
   const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
@@ -513,9 +533,9 @@ export default function CheckoutPage() {
                     <Separator />
                     <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
                 </div>
-                 <Button onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddressId || !isServiceable} className="w-full">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="mr-2" />} 
-                    {isProcessing ? 'Processing...' : `Pay Rs.${grandTotal.toFixed(2)}`}
+                 <Button onClick={handlePlaceOrder} disabled={isProcessingForm || !selectedAddressId || !isServiceable} className="w-full">
+                    {isProcessingForm ? <Loader2 className="animate-spin" /> : <CreditCard className="mr-2" />} 
+                    {isProcessingForm ? 'Processing...' : `Pay Rs.${grandTotal.toFixed(2)}`}
                 </Button>
             </CardContent>
          </Card>
