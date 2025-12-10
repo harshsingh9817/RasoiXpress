@@ -2,30 +2,9 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-
-// Initialize Firebase Admin SDK
-let app: App;
-if (!getApps().length) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    ? JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf8'))
-    : null;
-
-  if (serviceAccount) {
-    app = initializeApp({
-      credential: cert(serviceAccount)
-    });
-  } else {
-    console.error("Firebase Admin SDK service account key is not set. Webhook will not function.");
-  }
-} else {
-  app = getApps()[0];
-}
-
-const db = getFirestore(app);
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 // This function handles the browser's preflight CORS check for the webhook URL.
-// While not strictly necessary for server-to-server webhooks, it's good practice for debugging.
 export async function OPTIONS() {
   const res = new NextResponse(null, { status: 200 });
   res.headers.set('Access-Control-Allow-Origin', '*'); // Or restrict to Razorpay IPs in production
@@ -62,25 +41,40 @@ export async function POST(req: Request) {
       console.error("Webhook Error: Invalid Razorpay signature.");
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
+    
+    // --- Initialize Firebase Admin SDK inside the function ---
+    let app: App;
+    if (!getApps().length) {
+      const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+        ? JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf8'))
+        : null;
+
+      if (!serviceAccount) {
+        console.error("Firebase Admin SDK service account key is not set. Webhook cannot function.");
+        return NextResponse.json({ error: 'Firebase Admin not configured on server.' }, { status: 500 });
+      }
+      app = initializeApp({ credential: cert(serviceAccount) });
+    } else {
+      app = getApps()[0];
+    }
+    const db = getFirestore(app);
+    // --- End Firebase Admin Initialization ---
 
     const payload = JSON.parse(body);
 
-    // We are interested in 'payment.captured' event
     if (payload.event === 'payment.captured') {
       const payment = payload.payload.payment.entity;
-      const order = payload.payload.order.entity; // The Razorpay order entity
+      const order = payload.payload.order.entity;
 
       const razorpayPaymentId = payment.id;
       const razorpayOrderId = order.id;
-      const firebaseOrderId = order.notes?.firebaseOrderId; // Get firebaseOrderId from notes
+      const firebaseOrderId = order.notes?.firebaseOrderId;
 
       if (!firebaseOrderId) {
         console.error(`Webhook Error: firebaseOrderId not found in Razorpay order notes for payment ${razorpayPaymentId}.`);
-        // We return 200 OK here because retrying won't fix this. It's an issue with how the payment was created.
         return NextResponse.json({ status: 'Acknowledged, but firebaseOrderId was missing.' }, { status: 200 });
       }
 
-      // Update Firestore order
       const orderRef = db.collection('orders').doc(firebaseOrderId);
       const doc = await orderRef.get();
 
@@ -90,10 +84,10 @@ export async function POST(req: Request) {
       }
 
       await orderRef.update({
-        status: "Confirmed", // Mark as confirmed after server-side verification
+        status: "Confirmed",
         razorpayPaymentId: razorpayPaymentId,
         razorpayOrderId: razorpayOrderId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       console.log(`Webhook Success: Order ${firebaseOrderId} updated with payment ID ${razorpayPaymentId}.`);
@@ -101,7 +95,7 @@ export async function POST(req: Request) {
 
     } else {
       console.log(`Webhook Info: Received unhandled event type: ${payload.event}`);
-      return NextResponse.json({ status: 'ignored' }, { status: 200 }); // Acknowledge other events
+      return NextResponse.json({ status: 'ignored' }, { status: 200 });
     }
 
   } catch (error: any) {
