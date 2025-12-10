@@ -1,8 +1,8 @@
 
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import type { App } from "firebase-admin/app";
+import type { Firestore, FieldValue } from "firebase-admin/firestore";
 
 // This function handles the browser's preflight CORS check for the webhook URL.
 export async function OPTIONS() {
@@ -42,7 +42,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
     
-    // --- Initialize Firebase Admin SDK inside the function ---
+    // --- DYNAMICALLY Initialize Firebase Admin SDK inside the function ---
+    const { initializeApp, getApps, cert } = await import("firebase-admin/app");
+    const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
+
     let app: App;
     if (!getApps().length) {
       const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
@@ -57,7 +60,7 @@ export async function POST(req: Request) {
     } else {
       app = getApps()[0];
     }
-    const db = getFirestore(app);
+    const db: Firestore = getFirestore(app);
     // --- End Firebase Admin Initialization ---
 
     const payload = JSON.parse(body);
