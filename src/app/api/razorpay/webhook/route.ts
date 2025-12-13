@@ -7,7 +7,7 @@ import type { Firestore, FieldValue } from "firebase-admin/firestore";
 // This function handles the browser's preflight CORS check for the webhook URL.
 export async function OPTIONS() {
   const res = new NextResponse(null, { status: 200 });
-  res.headers.set('Access-Control-Allow-Origin', '*'); // Or restrict to Razorpay IPs in production
+  res.headers.set('Access-Control-Allow-Origin', '*');
   res.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Razorpay-Signature');
   return res;
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.text(); // Read the raw request body for signature verification
+    const body = await req.text();
     const signature = req.headers.get('x-razorpay-signature');
 
     if (!signature) {
@@ -31,7 +31,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No signature provided" }, { status: 400 });
     }
 
-    // Verify the webhook signature
     const expectedSignature = crypto
       .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
       .update(body)
@@ -48,14 +47,12 @@ export async function POST(req: Request) {
 
     let app: App;
     if (!getApps().length) {
-      const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-        ? JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf8'))
-        : null;
-
-      if (!serviceAccount) {
+      const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+      if (!serviceAccountKey) {
         console.error("Firebase Admin SDK service account key is not set. Webhook cannot function.");
         return NextResponse.json({ error: 'Firebase Admin not configured on server.' }, { status: 500 });
       }
+      const serviceAccount = JSON.parse(Buffer.from(serviceAccountKey, 'base64').toString('utf8'));
       app = initializeApp({ credential: cert(serviceAccount) });
     } else {
       app = getApps()[0];
@@ -67,33 +64,42 @@ export async function POST(req: Request) {
 
     if (payload.event === 'payment.captured') {
       const payment = payload.payload.payment.entity;
-      const order = payload.payload.order.entity;
+      const razorpayOrder = payload.payload.order.entity;
+      const orderNotes = razorpayOrder.notes;
 
-      const razorpayPaymentId = payment.id;
-      const razorpayOrderId = order.id;
-      const firebaseOrderId = order.notes?.firebaseOrderId;
-
-      if (!firebaseOrderId) {
-        console.error(`Webhook Error: firebaseOrderId not found in Razorpay order notes for payment ${razorpayPaymentId}.`);
-        return NextResponse.json({ status: 'Acknowledged, but firebaseOrderId was missing.' }, { status: 200 });
+      if (!orderNotes || !orderNotes.userId) {
+        console.error(`Webhook Error: Missing required order data in Razorpay notes for payment ${payment.id}.`);
+        return NextResponse.json({ status: 'Acknowledged, but order data was missing.' }, { status: 200 });
       }
 
-      const orderRef = db.collection('orders').doc(firebaseOrderId);
-      const doc = await orderRef.get();
+      // Reconstruct the order object from notes
+      const newOrderData = {
+          userId: orderNotes.userId,
+          userEmail: orderNotes.userEmail,
+          customerName: orderNotes.customerName,
+          date: orderNotes.date,
+          status: "Order Placed", // Initial status
+          total: parseFloat(orderNotes.grandTotal),
+          items: JSON.parse(orderNotes.items),
+          shippingAddress: orderNotes.shippingAddress,
+          shippingLat: parseFloat(orderNotes.shippingLat),
+          shippingLng: parseFloat(orderNotes.shippingLng),
+          paymentMethod: 'Razorpay',
+          customerPhone: orderNotes.customerPhone,
+          deliveryConfirmationCode: orderNotes.deliveryConfirmationCode,
+          deliveryFee: parseFloat(orderNotes.deliveryFee),
+          totalTax: parseFloat(orderNotes.totalTax),
+          couponCode: orderNotes.couponCode || null,
+          discountAmount: parseFloat(orderNotes.discountAmount || '0'),
+          razorpayPaymentId: payment.id,
+          razorpayOrderId: razorpayOrder.id,
+          createdAt: FieldValue.serverTimestamp(),
+      };
+      
+      const ordersCol = db.collection('orders');
+      await addDoc(ordersCol, newOrderData);
 
-      if (!doc.exists) {
-          console.error(`❌ Order with ID ${firebaseOrderId} not found in Firebase.`);
-          return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
-      }
-
-      await orderRef.update({
-        status: "Confirmed",
-        razorpayPaymentId: razorpayPaymentId,
-        razorpayOrderId: razorpayOrderId,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      console.log(`Webhook Success: Order ${firebaseOrderId} updated with payment ID ${razorpayPaymentId}.`);
+      console.log(`Webhook Success: New order created from payment ${payment.id}.`);
       return NextResponse.json({ status: 'success' }, { status: 200 });
 
     } else {

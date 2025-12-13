@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
-import type { Order, Address as AddressType, PaymentSettings } from '@/lib/types';
-import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
+import type { Order, Address as AddressType, PaymentSettings, CartItem, User } from '@/lib/types';
+import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import AddressFormDialog from '@/components/AddressFormDialog';
@@ -44,10 +44,10 @@ export default function CheckoutPage() {
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState<'address' | 'success'>('address');
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Order | null>(null);
+  const [finalizedOrderId, setFinalizedOrderId] = useState<string | null>(null);
   
   const [addresses, setAddresses] = useState<AddressType[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -110,10 +110,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthLoading) return;
     if (!isAuthenticated) { router.replace('/login'); return; }
-    if (getCartItemCount() === 0 && currentStep !== 'success') { router.replace('/'); return; }
+    if (getCartItemCount() === 0 && !showSuccessScreen) { router.replace('/'); return; }
     if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
-  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, currentStep, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
+  }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, showSuccessScreen, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
 
   useEffect(() => {
     if (!selectedAddressId) {
@@ -183,21 +183,6 @@ export default function CheckoutPage() {
     }
   }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
 
-  const finalizeOrder = async (orderData: Omit<Order, 'id'>) => {
-    try {
-        const placedOrder = await placeOrder(orderData);
-        setOrderDetails(placedOrder);
-        clearCart();
-        setCurrentStep('success');
-        setTimeout(() => { router.push(`/my-orders?track=${placedOrder.id}`); }, 8000);
-    } catch (error: any) {
-        console.error("Failed to place order:", error);
-        toast({ title: "Order Failed", description: error.message || "Could not place your order. Please try again.", variant: "destructive" });
-    } finally {
-        setIsFinalizing(false);
-        setIsProcessingPayment(false);
-    }
-  };
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -214,91 +199,6 @@ export default function CheckoutPage() {
     });
   };
 
-  const handleRazorpayPayment = async (orderData: Omit<Order, 'id'>, selectedAddress: AddressType) => {
-    setIsProcessingPayment(true);
-    
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
-      toast({
-        title: "Configuration Error",
-        description: "Razorpay client key is not set. Please contact support.",
-        variant: "destructive",
-      });
-      setIsProcessingPayment(false);
-      return;
-    }
-
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      toast({ title: "Payment Error", description: "Could not load payment gateway. Please try again.", variant: "destructive" });
-      setIsProcessingPayment(false);
-      return;
-    }
-
-    try {
-        const finalOrderData = {
-            ...orderData,
-            status: 'Order Placed',
-        };
-        const placedOrder = await placeOrder(finalOrderData);
-
-        const orderResponse = await fetch('/api/razorpay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: grandTotal, firebaseOrderId: placedOrder.id }),
-        });
-
-      if (!orderResponse.ok) {
-        const errorData = await orderResponse.json();
-        throw new Error(errorData.error || 'Failed to create Razorpay order');
-      }
-      const razorpayOrder = await orderResponse.json();
-
-      setIsFinalizing(true); // Show finalizing screen
-
-      const paymentObject = new window.Razorpay({
-        key: keyId,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        name: paymentSettings?.merchantName || "Rasoi Xpress",
-        description: "Order Payment",
-        order_id: razorpayOrder.id,
-        handler: async (response: any) => {
-            // No need to call finalizeOrder again. The webhook handles confirmation.
-            // The success screen is shown optimistically.
-            setOrderDetails(placedOrder);
-            clearCart();
-            setCurrentStep('success');
-            setTimeout(() => { router.push(`/my-orders?track=${placedOrder.id}`); }, 8000);
-        },
-        modal: {
-            ondismiss: () => {
-              setIsProcessingPayment(false);
-              setIsFinalizing(false);
-              toast({ title: "Payment Cancelled", variant: "destructive" });
-            }
-        },
-        prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
-        theme: { color: "#E64A19" },
-      });
-
-      paymentObject.on('payment.failed', (response: any) => {
-        console.error('Razorpay payment failed:', response.error);
-        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
-        setIsProcessingPayment(false);
-        setIsFinalizing(false);
-      });
-      paymentObject.open();
-
-    } catch (error: any) {
-      console.error("Error during Razorpay process:", error);
-      toast({ title: "Error", description: error.message || "Could not initiate payment. Please try again.", variant: "destructive" });
-      setIsProcessingPayment(false);
-      setIsFinalizing(false);
-    }
-  };
-
-
   const handlePlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !selectedAddressId) {
@@ -312,28 +212,88 @@ export default function CheckoutPage() {
         return;
     }
     
-    const villagePart = selectedAddress.village ? `${selectedAddress.village}, ` : '';
-    const newOrderData: Omit<Order, 'id'> = {
-        userId: user.uid,
-        userEmail: user.email || 'N/A',
-        customerName: selectedAddress.fullName,
-        date: new Date().toISOString(),
-        status: 'Order Placed',
-        total: grandTotal,
-        items: cartItems.map(item => ({ ...item })),
-        shippingAddress: `${selectedAddress.street}, ${villagePart}${selectedAddress.city}, ${selectedAddress.pinCode}`,
-        shippingLat: selectedAddress.lat,
-        shippingLng: selectedAddress.lng,
-        paymentMethod: 'Razorpay',
-        customerPhone: selectedAddress.phone,
-        deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
-        deliveryFee: deliveryFee,
-        totalTax: totalTax,
-        couponCode: appliedCoupon?.code || null,
-        discountAmount: discountAmount || 0,
-    };
-    
-    handleRazorpayPayment(newOrderData, selectedAddress);
+    setIsProcessingPayment(true);
+
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (!keyId || keyId.startsWith('REPLACE_WITH_')) {
+      toast({ title: "Configuration Error", description: "Razorpay client key is not set.", variant: "destructive" });
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast({ title: "Payment Error", description: "Could not load payment gateway.", variant: "destructive" });
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    try {
+        const orderResponse = await fetch('/api/razorpay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                amount: grandTotal, 
+                user,
+                cartItems,
+                shippingAddress: selectedAddress,
+                deliveryFee,
+                totalTax,
+                coupon: appliedCoupon
+            }),
+        });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.error || 'Failed to create Razorpay order');
+      }
+      const razorpayOrder = await orderResponse.json();
+      
+      const paymentObject = new window.Razorpay({
+        key: keyId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: paymentSettings?.merchantName || "Rasoi Xpress",
+        description: "Order Payment",
+        order_id: razorpayOrder.id,
+        handler: (response: any) => {
+            setIsFinalizing(true);
+            // The webhook will handle order creation. We just need to wait and then redirect.
+            setTimeout(() => {
+                clearCart();
+                setFinalizedOrderId(response.razorpay_order_id);
+                setShowSuccessScreen(true);
+                setIsFinalizing(false);
+                
+                // Further timeout for the success screen itself
+                setTimeout(() => {
+                    router.push(`/my-orders`);
+                }, 8000);
+
+            }, 3000); // Wait 3 seconds for webhook to process
+        },
+        modal: {
+            ondismiss: () => {
+              setIsProcessingPayment(false);
+              toast({ title: "Payment Cancelled", variant: "destructive" });
+            }
+        },
+        prefill: { name: selectedAddress.fullName, email: user?.email, contact: selectedAddress.phone },
+        theme: { color: "#E64A19" },
+      });
+
+      paymentObject.on('payment.failed', (response: any) => {
+        console.error('Razorpay payment failed:', response.error);
+        toast({ title: "Payment Failed", description: response.error.description || 'An unknown error occurred.', variant: "destructive" });
+        setIsProcessingPayment(false);
+      });
+      paymentObject.open();
+
+    } catch (error: any) {
+      console.error("Error during Razorpay process:", error);
+      toast({ title: "Error", description: error.message || "Could not initiate payment.", variant: "destructive" });
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleSetDefault = async (addressId: string) => {
@@ -375,7 +335,7 @@ export default function CheckoutPage() {
       </div>
     );
   }
-
+  
   if (isFinalizing) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-center px-4">
@@ -386,7 +346,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (currentStep === 'success' && orderDetails) {
+  if (showSuccessScreen) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
         <CheckCircle className="h-24 w-24 text-green-500 mb-6" />
@@ -397,17 +357,17 @@ export default function CheckoutPage() {
             <CardHeader className="p-2">
                 <CardTitle className="text-lg text-primary">
                     <ShieldCheck className="mr-2 h-5 w-5 inline"/>
-                    Your Order Code
+                    Your Razorpay Order ID
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-                <p className="text-4xl font-bold tracking-widest">#{orderDetails.id.slice(-6)}</p>
-                <p className="text-xs text-muted-foreground mt-2">Use this code for any inquiries about your order.</p>
+                <p className="text-2xl font-bold tracking-widest break-all">#{finalizedOrderId?.slice(-8)}</p>
+                <p className="text-xs text-muted-foreground mt-2">Use this code for any payment inquiries.</p>
             </CardContent>
         </Card>
 
         <div className="mt-8 flex gap-4">
-            <Button onClick={() => router.push(`/my-orders?track=${orderDetails?.id}`)} size="lg">Track My Order</Button>
+            <Button onClick={() => router.push(`/my-orders`)} size="lg">Track My Order</Button>
             <Button onClick={() => router.push('/')} variant="outline" size="lg">Continue Shopping</Button>
         </div>
         <p className="text-xs text-muted-foreground mt-6">Redirecting automatically...</p>

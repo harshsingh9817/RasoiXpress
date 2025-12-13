@@ -24,16 +24,16 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  originalPrice?: number; // The new field for the original price before discount
+  originalPrice?: number;
   costPrice?: number;
   imageUrl: string;
   category: string;
   isVegetarian?: boolean;
   isPopular?: boolean;
-  isVisible?: boolean; // Added for visibility control
-  weight?: string; // e.g., "250g", "Approx. 300g"
-  ingredients?: string; // e.g., "Flour, Tomato, Cheese, Basil" or comma-separated
-  taxRate?: number; // e.g., 0.05 for 5% tax
+  isVisible?: boolean;
+  weight?: string;
+  ingredients?: string;
+  taxRate?: number;
 }
 
 export interface CartItem extends MenuItem {
@@ -63,15 +63,15 @@ export interface Review {
 export interface Order {
   id: string;
   userId: string;
-  supabase_order_uuid?: string; // Added to store the Supabase UUID
+  supabase_order_uuid?: string;
   userEmail: string; 
   customerName: string; 
   date: string;
   status: OrderStatus;
-  total: number; // This is the grand total
+  total: number;
   items: OrderItem[];
   shippingAddress: string;
-  paymentMethod: 'Razorpay';
+  paymentMethod: 'Razorpay' | 'Cash on Delivery';
   cancellationReason?: string;
   review?: Review; 
   customerPhone?: string;
@@ -96,8 +96,8 @@ export interface Address {
   id: string;
   fullName: string;
   type: 'Home' | 'Work' | 'Other';
-  street: string; // House No, Building Name and Road Name/Area
-  village?: string; // Village, Landmark
+  street: string;
+  village?: string;
   city: string;
   state: string;
   pinCode: string; 
@@ -106,6 +106,12 @@ export interface Address {
   isDefault: boolean;
   lat: number;
   lng: number;
+}
+
+export interface User {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
 }
 
 export interface AppNotification {
@@ -126,8 +132,8 @@ export interface HeroMedia {
   order: number;
   headline?: string;
   subheadline?: string;
-  linkType?: 'none' | 'item' | 'category' | 'menu' | 'categories';
-  linkValue?: string; // Holds menu item ID or category name
+  linkType?: 'none' | 'item' | 'category' | 'menu' | 'categories' | 'custom';
+  linkValue?: string;
   textPosition?: 'bottom-left' | 'bottom-center' | 'bottom-right' | 'center-left' | 'center-center' | 'center-right' | 'top-left' | 'top-center' | 'top-right';
   fontSize?: 'sm' | 'md' | 'lg' | 'xl';
   fontFamily?: 'sans' | 'serif' | 'headline';
@@ -135,8 +141,8 @@ export interface HeroMedia {
 
 export interface HeroData {
   media: HeroMedia[];
-  slideInterval: number; // in seconds
-  orderingTime?: string; // e.g., '10:00 AM - 10:00 PM'
+  slideInterval: number;
+  orderingTime?: string;
 }
 
 export interface PaymentSettings {

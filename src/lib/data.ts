@@ -170,71 +170,18 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management (Firebase & Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    const ordersCol = collection(db, 'orders');
-    
-    // Ensure couponCode and discountAmount are not undefined before saving
-    const dataToSave = {
-        ...orderData,
-        couponCode: orderData.couponCode || null,
-        discountAmount: orderData.discountAmount || 0,
-        createdAt: serverTimestamp(),
-    };
-
-    const docRef = await addDoc(ordersCol, dataToSave);
-
-    let newOrder = { ...orderData, id: docRef.id } as Order;
-
-    if (supabase) {
-        try {
-            const supabaseOrderData = {
-                customer_name: newOrder.customerName,
-                customer_phone: newOrder.customerPhone,
-                user_email: newOrder.userEmail,
-                shipping_address: newOrder.shippingAddress,
-                shipping_lat: newOrder.shippingLat,
-                shipping_lng: newOrder.shippingLng,
-                status: newOrder.status,
-                payment_method: newOrder.paymentMethod,
-                total: newOrder.total,
-                total_tax: newOrder.totalTax,
-                delivery_confirmation_code: newOrder.deliveryConfirmationCode,
-                date: newOrder.date,
-                items: newOrder.items,
-            };
-
-            const { data: supabaseData, error: supabaseError } = await supabase
-                .from('orders')
-                .insert([supabaseOrderData])
-                .select('id')
-                .single();
-
-            if (supabaseError) {
-                console.error("Supabase insert error:", supabaseError.message);
-            } else if (supabaseData) {
-                const supabaseUUID = supabaseData.id;
-                await updateDoc(docRef, { supabase_order_uuid: supabaseUUID });
-                newOrder.supabase_order_uuid = supabaseUUID;
-            }
-
-        } catch (error) {
-            console.error("An unexpected error occurred while saving to Supabase:", error);
-        }
-    } else {
-        console.warn("Supabase client not initialized. Order was not saved to Supabase.");
-    }
-
-    return newOrder;
+    // This function is now deprecated as order creation is handled by the webhook.
+    // It's kept here to avoid breaking the checkout page if it's called, but it shouldn't be.
+    console.warn("placeOrder is deprecated and should not be called from the client.");
+    // In a real scenario, you might throw an error or just return a temporary object.
+    // We will return a partial order to satisfy the type.
+    return { id: 'temp-id', ...orderData } as Order;
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
     const docRef = doc(db, 'orders', orderId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
-}
-
-export async function updateOrderPaymentDetails(orderId: string, paymentData: { razorpayOrderId: string }): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    await updateDoc(docRef, paymentData);
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
@@ -351,11 +298,8 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin
     const menuItemsCol = collection(db, 'menuItems');
     let q;
     if (isAdmin) {
-      // Admin gets all items, and we avoid the composite index by just ordering by name.
-      // Filtering can be done on the client if needed.
       q = query(menuItemsCol, orderBy("name"));
     } else {
-      // Users only get visible items, this query requires a composite index.
       q = query(menuItemsCol, where("isVisible", "==", true), orderBy("name"));
     }
     return onSnapshot(q, (snapshot) => {
@@ -411,7 +355,7 @@ export function listenToUserAdminMessages(userId: string, callback: (messages: A
         }
     };
     
-    fetchAndCallback(); // Initial fetch
+    fetchAndCallback();
 
     const individualUnsub = onSnapshot(individualQuery, fetchAndCallback);
     const broadcastUnsub = onSnapshot(broadcastQuery, fetchAndCallback);
@@ -464,7 +408,6 @@ export function listenToRiderAppOrders(): () => void {
                     updatedFields.status = status;
                 }
     
-                // Only add fields if they are not null or undefined
                 if (riderOrderData.rider_id != null) updatedFields.deliveryRiderId = riderOrderData.rider_id;
                 if (riderOrderData.rider_name != null) updatedFields.deliveryRiderName = riderOrderData.rider_name;
                 if (riderOrderData.rider_phone != null) updatedFields.deliveryRiderPhone = riderOrderData.rider_phone;
@@ -536,7 +479,6 @@ export async function getHeroData(): Promise<HeroData> {
         return defaultHeroData;
     }
     const data = docSnap.data();
-    // Correctly merge defaults with saved data
     return { ...defaultHeroData, ...data } as HeroData;
 }
 
@@ -659,7 +601,6 @@ export async function sendAdminMessage(
     const messagesCol = collection(db, 'adminMessages');
     let dataToSend: { [key: string]: any } = { timestamp: serverTimestamp() };
 
-    // This block handles the new, cleaner function signature
     if (typeof optionsOrMessage === 'object' || optionsOrMessage === undefined) {
         const type = typeOrUserId;
         const title = titleOrUserEmail;
@@ -680,7 +621,6 @@ export async function sendAdminMessage(
             dataToSend.link = options.link;
         }
 
-    // This block maintains compatibility with the old, 3-argument signature for support tickets
     } else {
         const userId = typeOrUserId;
         const userEmail = titleOrUserEmail;
@@ -804,7 +744,6 @@ export async function checkCoupon(code: string, userId: string): Promise<{ isVal
     if (now < couponData.validFrom) return { isValid: false, error: `This coupon is not active yet. It starts on ${couponData.validFrom.toLocaleDateString()}.` };
     if (now > couponData.validUntil) return { isValid: false, error: "This coupon has expired." };
 
-    // Check if user has already used this coupon
     const ordersQuery = query(
         collection(db, 'orders'),
         where('userId', '==', userId),
