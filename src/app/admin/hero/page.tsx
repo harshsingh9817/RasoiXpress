@@ -38,7 +38,6 @@ const heroMediaSchema = z.object({
 
 const heroSchema = z.object({
   slideInterval: z.coerce.number().min(1, "Interval must be at least 1 second.").default(5),
-  orderingTime: z.string().optional(),
   media: z.array(heroMediaSchema).min(1, "You must have at least one slide."),
 });
 
@@ -60,7 +59,7 @@ export default function HeroManagementPage() {
   
   const form = useForm<HeroFormValues>({
     resolver: zodResolver(heroSchema),
-    defaultValues: { media: [], slideInterval: 5, orderingTime: '' },
+    defaultValues: { media: [], slideInterval: 5 },
   });
 
   const { fields, append, remove, move } = useFieldArray({
@@ -84,7 +83,6 @@ export default function HeroManagementPage() {
 
       form.reset({
         slideInterval: sortedData.slideInterval || 5,
-        orderingTime: sortedData.orderingTime || '7:30 AM - 9:00 PM',
         media: sortedData.media || [],
       });
       setMediaFiles(sortedData.media?.map(m => ({ file: null, preview: m.src, type: m.type })) || []);
@@ -144,9 +142,8 @@ export default function HeroManagementPage() {
         linkValue: item.linkType === 'none' ? '' : item.linkValue,
       }));
 
-      const finalDataToSave: HeroData = {
+      const finalDataToSave: Omit<HeroData, 'orderingTime'> = {
         slideInterval: data.slideInterval,
-        orderingTime: data.orderingTime,
         media: updatedMedia,
       };
 
@@ -219,7 +216,7 @@ export default function HeroManagementPage() {
                     <LayoutTemplate className="mr-3 h-6 w-6 text-primary" /> Edit Homepage Hero
                   </CardTitle>
                   <CardDescription>
-                    Manage slides, text overlays, ordering times, and autoplay speed for the homepage carousel.
+                    Manage slides, text overlays, and autoplay speed for the homepage carousel.
                   </CardDescription>
                 </div>
                 <Button type="submit" disabled={isSubmitting} className="shrink-0">
@@ -243,20 +240,6 @@ export default function HeroManagementPage() {
                       </FormItem>
                     )}
                   />
-                   <FormField
-                      control={form.control}
-                      name="orderingTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><LayoutTemplate className="mr-2 h-4 w-4 text-primary" /> Ordering Hours</FormLabel>
-                          <FormControl>
-                            <Input placeholder="7:30 AM - 9:00 PM" {...field} />
-                          </FormControl>
-                          <FormDescription>The time window when users can place orders.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                </div>
               <Separator />
               <div>

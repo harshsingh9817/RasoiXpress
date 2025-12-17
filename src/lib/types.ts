@@ -142,7 +142,6 @@ export interface HeroMedia {
 export interface HeroData {
   media: HeroMedia[];
   slideInterval: number;
-  orderingTime?: string;
 }
 
 export interface PaymentSettings {

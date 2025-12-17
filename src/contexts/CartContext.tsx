@@ -1,10 +1,10 @@
 
 "use client";
 
-import type { MenuItem, CartItem, Coupon, Order, Address } from '@/lib/types';
+import type { MenuItem, CartItem, Coupon, Order, Address, RestaurantTime } from '@/lib/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getHeroData, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb, placeOrder, getAddresses, getPaymentSettings, getUserProfile, listenToMenuItems } from '@/lib/data';
+import { getRestaurantTime, checkCoupon, listenToUserCart, updateUserCartItem, removeUserCartItem, clearUserCart as clearUserCartInDb, placeOrder, getAddresses, getPaymentSettings, getUserProfile, listenToMenuItems } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,41 +140,38 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-    getHeroData().then(heroData => {
-        if (!heroData?.orderingTime) return;
+    getRestaurantTime().then(timeData => {
+        if (!timeData?.openTime || !timeData?.closeTime) return;
+        
+        const format12Hour = (time24: string): string => {
+            const [hours, minutes] = time24.split(':');
+            const h = parseInt(hours, 10);
+            const m = parseInt(minutes, 10);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 || 12;
+            return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+        };
+
         const checkTime = () => {
             try {
-                const [startTimeStr, endTimeStr] = heroData.orderingTime.split(' - ');
-                if (!startTimeStr || !endTimeStr) {
-                    setIsOrderingAllowed(true);
-                    return;
-                }
+                const { openTime, closeTime } = timeData;
+                const [openHour, openMinute] = openTime.split(':').map(Number);
+                const [closeHour, closeMinute] = closeTime.split(':').map(Number);
                 
-                const parseTime = (timeStr: string): Date | null => {
-                    const match = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                    if (!match) return null;
-                    const date = new Date();
-                    let [, hoursStr, minutesStr, modifier] = match;
-                    let hours = parseInt(hoursStr, 10);
-                    const minutes = parseInt(minutesStr, 10);
-                    if (modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
-                    if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
-                    date.setHours(hours, minutes, 0, 0);
-                    return date;
-                };
+                const now = new Date();
+                const openDate = new Date(now);
+                openDate.setHours(openHour, openMinute, 0, 0);
+                
+                const closeDate = new Date(now);
+                closeDate.setHours(closeHour, closeMinute, 0, 0);
 
-                const startTime = parseTime(startTimeStr);
-                const endTime = parseTime(endTimeStr);
-                const currentTime = new Date();
-
-                if (startTime && endTime) {
-                    const isAllowed = currentTime >= startTime && currentTime <= endTime;
-                    setIsOrderingAllowed(isAllowed);
-                    if (!isAllowed) {
-                         setOrderingTimeMessage(`Our ordering hours are from ${heroData.orderingTime}.`);
-                    }
-                } else {
-                    setIsOrderingAllowed(true);
+                const isAllowed = now >= openDate && now <= closeDate;
+                setIsOrderingAllowed(isAllowed);
+                
+                if (!isAllowed) {
+                    const open12 = format12Hour(openTime);
+                    const close12 = format12Hour(closeTime);
+                    setOrderingTimeMessage(`Our ordering hours are from ${open12} to ${close12}.`);
                 }
             } catch (e) {
                 console.error("Error parsing ordering time:", e);
@@ -185,7 +182,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const interval = setInterval(checkTime, 60000);
         return () => clearInterval(interval);
     });
-  }, []);
+}, []);
 
   const addToCart = (item: MenuItem, quantityToAdd: number = 1): boolean => {
     if (!user) {
