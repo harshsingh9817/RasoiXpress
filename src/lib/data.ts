@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -19,6 +20,7 @@ import {
   deleteField,
   writeBatch,
   type Firestore,
+  Timestamp,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
@@ -184,6 +186,7 @@ export async function createTempOrder(userId: string, orderData: Omit<Order, 'id
 
     const docRef = await addDoc(tempOrdersCol, {
       ...cleanData,
+      createdAt: serverTimestamp(), // Add timestamp for expiration logic
     });
     
     return { ...cleanData, id: docRef.id } as Order;
@@ -192,13 +195,40 @@ export async function createTempOrder(userId: string, orderData: Omit<Order, 'id
 export async function getTempOrderById(userId: string, orderId: string): Promise<Order | null> {
     const docRef = doc(db, 'users', userId, 'temp_orders', orderId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
+    if (!docSnap.exists()) {
+        return null;
+    }
+    const data = docSnap.data();
+    // Convert Firestore Timestamp to JS Date if it exists
+    if (data.createdAt instanceof Timestamp) {
+        data.createdAt = data.createdAt.toDate();
+    }
+    return { id: docSnap.id, ...data } as Order;
 }
+
 
 export async function deleteTempOrder(userId: string, orderId: string): Promise<void> {
     const docRef = doc(db, 'users', userId, 'temp_orders', orderId);
     await deleteDoc(docRef);
 }
+
+export async function clearExpiredTempOrders(userId: string, minutes: number): Promise<void> {
+    const tempOrdersCol = collection(db, 'users', userId, 'temp_orders');
+    const expirationTime = new Date(Date.now() - minutes * 60 * 1000);
+    const q = query(tempOrdersCol, where('createdAt', '<=', expirationTime));
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log(`Cleaned up ${snapshot.size} expired temporary order(s).`);
+}
+
+
 
 export async function moveTempOrderToMain(userId: string, tempOrderId: string): Promise<string> {
     const tempOrder = await getTempOrderById(userId, tempOrderId);

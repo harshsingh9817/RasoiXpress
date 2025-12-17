@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback, useRef } from 'react';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings, CartItem, User } from '@/lib/types';
-import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getTempOrderById, deleteTempOrder, moveTempOrderToMain } from '@/lib/data';
+import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getTempOrderById, deleteTempOrder, moveTempOrderToMain, clearExpiredTempOrders } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import AddressFormDialog from '@/components/AddressFormDialog';
@@ -81,6 +82,7 @@ export default function CheckoutPage() {
     if (!user) return;
     setIsDataLoading(true);
     try {
+        await clearExpiredTempOrders(user.uid, 10);
         const settings = await getPaymentSettings();
         setPaymentSettings(settings);
 
