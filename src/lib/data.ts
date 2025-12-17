@@ -1,5 +1,6 @@
 
 
+
 import {
   getFirestore,
   collection,
@@ -176,45 +177,8 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     const ordersCol = collection(db, 'orders');
     const docRef = await addDoc(ordersCol, {
       ...orderData,
-      createdAt: serverTimestamp(),
     });
     
-    const userRef = doc(db, "users", orderData.userId);
-    try {
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
-            await updateDoc(userRef, { hasCompletedFirstOrder: true });
-        }
-    } catch (error) {
-        console.error("Failed to update first order status for user:", orderData.userId, error);
-    }
-  
-    // Now, sync to Supabase for the rider app
-    if (supabase) {
-      const orderForSupabase = {
-        ...orderData,
-        firebase_order_id: docRef.id,
-      };
-      
-      try {
-        const { data, error } = await supabase
-          .from('orders')
-          .insert([orderForSupabase])
-          .select()
-          .single();
-  
-        if (error) {
-          console.error(`Supabase insert error for order ${docRef.id}:`, error.message);
-        } else if (data) {
-          // If successful, update the Firestore doc with the Supabase UUID
-          await updateDoc(docRef, { supabase_order_uuid: data.id });
-          return { ...orderData, id: docRef.id, supabase_order_uuid: data.id } as Order;
-        }
-      } catch (e) {
-        console.error("Unexpected error syncing order to Supabase:", e);
-      }
-    }
-  
     return { ...orderData, id: docRef.id } as Order;
 }
 
@@ -281,7 +245,8 @@ export async function deleteOrder(orderId: string): Promise<void> {
 
 export async function getAllOrders(): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
-    const snapshot = await getDocs(query(ordersCol));
+    const q = query(ordersCol, where('status', '!=', 'Payment Pending'), orderBy('status'), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
     const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return allOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
@@ -289,15 +254,44 @@ export async function getAllOrders(): Promise<Order[]> {
 export async function getUserOrders(userId: string): Promise<Order[]> {
     if (!userId) return [];
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId));
+    const q = query(ordersCol, where('userId', '==', userId), where('status', '!=', 'Payment Pending'));
     const snapshot = await getDocs(q);
     const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export async function updateOrderPaymentDetails(orderId: string, paymentDetails: { razorpayPaymentId: string; razorpayOrderId: string; }): Promise<void> {
+export async function updateOrderPaymentDetails(orderId: string, paymentDetails: { razorpayPaymentId: string; razorpayOrderId: string; status: OrderStatus; }): Promise<void> {
     const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, paymentDetails);
+    await updateDoc(orderRef, { ...paymentDetails, createdAt: serverTimestamp() });
+
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) return;
+    
+    const orderData = orderSnap.data() as Order;
+
+    // Sync to Supabase for the rider app
+    if (supabase) {
+        const orderForSupabase = {
+            ...orderData,
+            firebase_order_id: orderId,
+            id: undefined, // Let supabase generate its own UUID
+        };
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .insert([orderForSupabase])
+                .select()
+                .single();
+
+            if (error) {
+                console.error(`Supabase insert error for order ${orderId}:`, error.message);
+            } else if (data) {
+                await updateDoc(orderRef, { supabase_order_uuid: data.id });
+            }
+        } catch (e) {
+            console.error("Unexpected error syncing order to Supabase:", e);
+        }
+    }
 }
 
 // --- Cart Management (Firestore) ---
@@ -358,7 +352,7 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, orderBy('date', 'desc'));
+    const q = query(ordersCol, where('status', '!=', 'Payment Pending'), orderBy('status'), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(allOrders);
@@ -368,7 +362,7 @@ export function listenToAllOrders(callback: (orders: Order[]) => void): () => vo
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
     if (!userId) return () => {};
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
+    const q = query(ordersCol, where('userId', '==', userId), where('status', '!=', 'Payment Pending'), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(userOrders);
@@ -851,3 +845,5 @@ export function listenToCategories(callback: (categories: Category[]) => void): 
         console.error("Error listening to categories:", error);
     });
 }
+
+    

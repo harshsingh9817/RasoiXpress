@@ -1,5 +1,6 @@
 
 
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -41,6 +42,7 @@ export interface CartItem extends MenuItem {
 }
 
 export type OrderStatus =
+  | 'Payment Pending'
   | 'Order Placed'
   | 'Confirmed'
   | 'Preparing'
@@ -90,6 +92,7 @@ export interface Order {
   shippingLng?: number;
   couponCode?: string | null;
   discountAmount?: number;
+  createdAt?: any;
 }
 
 export interface Address {
@@ -217,3 +220,5 @@ export interface RestaurantTime {
   openTime: string;
   closeTime: string;
 }
+
+    

@@ -67,39 +67,41 @@ export async function POST(req: Request) {
       const razorpayOrder = payload.payload.order.entity;
       const orderNotes = razorpayOrder.notes;
 
-      if (!orderNotes || !orderNotes.userId) {
-        console.error(`Webhook Error: Missing required order data in Razorpay notes for payment ${payment.id}.`);
-        return NextResponse.json({ status: 'Acknowledged, but order data was missing.' }, { status: 200 });
+      const firebaseOrderId = orderNotes?.firebaseOrderId;
+
+      if (!firebaseOrderId) {
+        console.error(`Webhook Error: Missing firebaseOrderId in Razorpay notes for payment ${payment.id}.`);
+        return NextResponse.json({ status: 'Acknowledged, but order ID was missing.' }, { status: 200 });
       }
 
-      // Reconstruct the order object from notes
-      const newOrderData = {
-          userId: orderNotes.userId,
-          userEmail: orderNotes.userEmail,
-          customerName: orderNotes.customerName,
-          date: orderNotes.date,
-          status: "Order Placed", // Initial status
-          total: parseFloat(orderNotes.grandTotal),
-          items: JSON.parse(orderNotes.items),
-          shippingAddress: orderNotes.shippingAddress,
-          shippingLat: parseFloat(orderNotes.shippingLat),
-          shippingLng: parseFloat(orderNotes.shippingLng),
-          paymentMethod: 'Razorpay',
-          customerPhone: orderNotes.customerPhone,
-          deliveryConfirmationCode: orderNotes.deliveryConfirmationCode,
-          deliveryFee: parseFloat(orderNotes.deliveryFee),
-          totalTax: parseFloat(orderNotes.totalTax),
-          couponCode: orderNotes.couponCode || null,
-          discountAmount: parseFloat(orderNotes.discountAmount || '0'),
-          razorpayPaymentId: payment.id,
-          razorpayOrderId: razorpayOrder.id,
-          createdAt: FieldValue.serverTimestamp(),
-      };
-      
-      const ordersCol = db.collection('orders');
-      await addDoc(ordersCol, newOrderData);
+      const orderRef = db.collection('orders').doc(firebaseOrderId);
+      const orderDoc = await orderRef.get();
 
-      console.log(`Webhook Success: New order created from payment ${payment.id}.`);
+      if (!orderDoc.exists) {
+        console.error(`Webhook Error: Order with ID ${firebaseOrderId} not found in Firestore.`);
+        return NextResponse.json({ status: 'Acknowledged, but order was not found.' }, { status: 200 });
+      }
+      
+      // Update the existing order document from 'Payment Pending' to 'Order Placed'
+      await orderRef.update({
+        status: 'Order Placed',
+        paymentMethod: 'Razorpay',
+        razorpayPaymentId: payment.id,
+        razorpayOrderId: razorpayOrder.id,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      
+      // Update user's first order status
+      const userId = orderDoc.data()?.userId;
+      if (userId) {
+          const userRef = db.collection('users').doc(userId);
+          const userDoc = await userRef.get();
+          if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
+              await userRef.update({ hasCompletedFirstOrder: true });
+          }
+      }
+
+      console.log(`Webhook Success: New order ${firebaseOrderId} confirmed from payment ${payment.id}.`);
       return NextResponse.json({ status: 'success' }, { status: 200 });
 
     } else {
@@ -112,3 +114,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
   }
 }
+
+    

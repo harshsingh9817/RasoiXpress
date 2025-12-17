@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent, useEffect, useCallback } from 'react';
+import { useState, type FormEvent, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings, CartItem, User } from '@/lib/types';
-import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile } from '@/lib/data';
+import { placeOrder, getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getOrderById, updateOrderPaymentDetails, deleteOrder as deleteOrderFromDb } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import AddressFormDialog from '@/components/AddressFormDialog';
@@ -59,8 +59,9 @@ export default function CheckoutPage() {
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
   
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [isServiceable, setIsServiceable] = useState(true); // Assuming all addresses are serviceable now
+  const [isServiceable, setIsServiceable] = useState(true); 
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const pendingOrderIdRef = useRef<string | null>(null);
 
 
   const subTotal = getCartSubtotal();
@@ -105,6 +106,42 @@ export default function CheckoutPage() {
     }
   }, [user, toast, selectedAddressId]);
   
+  const createPendingOrder = useCallback(async () => {
+    if (!user || cartItems.length === 0 || !selectedAddressId || pendingOrderIdRef.current) return;
+
+    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+    if (!selectedAddress) return;
+
+    const newOrderData: Omit<Order, 'id'> = {
+        userId: user.uid,
+        userEmail: user.email || 'N/A',
+        customerName: selectedAddress.fullName,
+        date: new Date().toISOString(),
+        status: 'Payment Pending',
+        total: grandTotal,
+        items: cartItems.map(item => ({ ...item })),
+        shippingAddress: `${selectedAddress.street}, ${selectedAddress.village || ''}, ${selectedAddress.city}, ${selectedAddress.pinCode}`.replace(/, ,/g, ','),
+        shippingLat: selectedAddress.lat,
+        shippingLng: selectedAddress.lng,
+        paymentMethod: 'Razorpay',
+        customerPhone: selectedAddress.phone,
+        deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
+        deliveryFee: deliveryFee,
+        totalTax: totalTax,
+        couponCode: appliedCoupon?.code,
+        discountAmount: discountAmount
+    };
+
+    try {
+        const pendingOrder = await placeOrder(newOrderData);
+        pendingOrderIdRef.current = pendingOrder.id;
+    } catch (error) {
+        console.error("Failed to create pending order", error);
+        toast({ title: "Checkout Error", description: "Could not initialize checkout. Please try again.", variant: "destructive" });
+    }
+}, [user, cartItems, selectedAddressId, grandTotal, deliveryFee, totalTax, appliedCoupon, addresses, discountAmount]);
+
+
   useEffect(() => {
     if (isAuthLoading) return;
     if (!isAuthenticated) { router.replace('/login'); return; }
@@ -113,7 +150,21 @@ export default function CheckoutPage() {
     loadPageData();
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, showSuccessScreen, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
   
-  // New simplified useEffect for delivery fee
+  useEffect(() => {
+    if (!isDataLoading && addresses.length > 0 && selectedAddressId) {
+        if (!pendingOrderIdRef.current) {
+            createPendingOrder();
+        }
+    }
+    // Cleanup function to delete pending order on unmount
+    return () => {
+      if (pendingOrderIdRef.current) {
+        deleteOrderFromDb(pendingOrderIdRef.current);
+        pendingOrderIdRef.current = null;
+      }
+    };
+  }, [isDataLoading, addresses, selectedAddressId, createPendingOrder]);
+
   useEffect(() => {
     if (!paymentSettings || !userProfile) {
         setDeliveryFee(0);
@@ -150,8 +201,8 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedAddressId) {
-        toast({ title: "Address Required", description: "Please select a delivery address.", variant: "destructive" });
+    if (!user || !selectedAddressId || !pendingOrderIdRef.current) {
+        toast({ title: "Address or Order Required", description: "Please select an address and ensure order is initialized.", variant: "destructive" });
         return;
     }
     
@@ -188,7 +239,8 @@ export default function CheckoutPage() {
                 shippingAddress: selectedAddress,
                 deliveryFee,
                 totalTax,
-                coupon: appliedCoupon
+                coupon: appliedCoupon,
+                firebaseOrderId: pendingOrderIdRef.current, // Pass the pending order ID
             }),
         });
 
@@ -207,19 +259,24 @@ export default function CheckoutPage() {
         order_id: razorpayOrder.id,
         handler: (response: any) => {
             setIsFinalizing(true);
-            // The webhook will handle order creation. We just need to wait and then redirect.
-            setTimeout(() => {
-                clearCart();
-                setFinalizedOrderId(response.razorpay_order_id);
-                setShowSuccessScreen(true);
-                setIsFinalizing(false);
-                
-                // Further timeout for the success screen itself
+            const orderIdToFinalize = pendingOrderIdRef.current;
+            pendingOrderIdRef.current = null; // Prevent deletion
+            
+            updateOrderPaymentDetails(orderIdToFinalize!, {
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                status: 'Order Placed',
+            }).then(() => {
                 setTimeout(() => {
-                    router.push(`/my-orders`);
-                }, 8000);
-
-            }, 3000); // Wait 3 seconds for webhook to process
+                    clearCart();
+                    setFinalizedOrderId(response.razorpay_order_id);
+                    setShowSuccessScreen(true);
+                    setIsFinalizing(false);
+                    setTimeout(() => {
+                        router.push(`/my-orders`);
+                    }, 8000);
+                }, 3000); 
+            });
         },
         modal: {
             ondismiss: () => {
@@ -461,3 +518,5 @@ export default function CheckoutPage() {
     </>
   );
 }
+
+    

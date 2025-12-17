@@ -36,7 +36,8 @@ export async function POST(req: Request) {
         shippingAddress,
         deliveryFee,
         totalTax,
-        coupon 
+        coupon,
+        firebaseOrderId // The ID of the 'Payment Pending' order
     }: { 
         amount: number, 
         user: User, 
@@ -44,34 +45,21 @@ export async function POST(req: Request) {
         shippingAddress: Address,
         deliveryFee: number,
         totalTax: number,
-        coupon: Coupon | null
+        coupon: Coupon | null,
+        firebaseOrderId: string,
     } = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'A valid amount is required.' }, { status: 400 });
     }
-    if (!user || !cartItems || !shippingAddress) {
+    if (!user || !cartItems || !shippingAddress || !firebaseOrderId) {
       return NextResponse.json({ error: 'Missing required order information.' }, { status: 400 });
     }
 
-    // Prepare order data to be stored in notes. This is a secure way to pass data
-    // to the webhook without relying on the client.
+    // Now, instead of all the details, we just need to pass the firebaseOrderId in the notes.
+    // The webhook will use this ID to find the existing Firestore document.
     const orderNotes = {
-        userId: user.uid,
-        userEmail: user.email || 'N/A',
-        customerName: shippingAddress.fullName,
-        date: new Date().toISOString(),
-        items: JSON.stringify(cartItems), // Stringify to fit in notes
-        shippingAddress: `${shippingAddress.street}, ${shippingAddress.village || ''}, ${shippingAddress.city}, ${shippingAddress.pinCode}`.replace(/, ,/g, ','),
-        shippingLat: String(shippingAddress.lat),
-        shippingLng: String(shippingAddress.lng),
-        customerPhone: shippingAddress.phone,
-        deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
-        deliveryFee: String(deliveryFee),
-        totalTax: String(totalTax),
-        couponCode: coupon?.code || '',
-        discountAmount: String(coupon ? (cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0) * (coupon.discountPercent / 100)) : 0),
-        grandTotal: String(amount),
+        firebaseOrderId: firebaseOrderId,
     };
 
 
@@ -103,3 +91,4 @@ export async function POST(req: Request) {
   }
 }
 
+    
