@@ -174,7 +174,7 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 export async function createTempOrder(userId: string, orderData: Omit<Order, 'id'>): Promise<Order> {
     const tempOrdersCol = collection(db, 'users', userId, 'temp_orders');
 
-    const cleanData = { ...orderData };
+    const cleanData: { [key: string]: any } = { ...orderData };
     if (cleanData.couponCode === undefined) {
         cleanData.couponCode = null;
     }
@@ -208,8 +208,8 @@ export async function moveTempOrderToMain(userId: string, tempOrderId: string): 
 
     const ordersCol = collection(db, 'orders');
     
-    const finalOrderData = { ...tempOrder };
-    delete (finalOrderData as any).id; // Remove the temporary ID
+    const finalOrderData: { [key: string]: any } = { ...tempOrder };
+    delete finalOrderData.id; // Remove the temporary ID
 
     const newOrderRef = await addDoc(ordersCol, {
         ...finalOrderData,
@@ -679,7 +679,9 @@ export async function getUserProfile(userId: string): Promise<DocumentData | nul
 }
 
 export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
-    if (!auth.currentUser || auth.currentUser.uid !== userId) throw new Error("Unauthorized.");
+    if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        return;
+    }
     
     if(data.displayName && data.displayName !== auth.currentUser.displayName) {
         await auth.currentUser.updateProfile({ displayName: data.displayName });
