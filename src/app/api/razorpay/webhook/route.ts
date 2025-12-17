@@ -17,9 +17,8 @@ export async function POST(req: Request) {
   const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
   if (!RAZORPAY_WEBHOOK_SECRET || RAZORPAY_WEBHOOK_SECRET.startsWith('REPLACE_WITH_')) {
-    const errorMessage = "Razorpay Webhook Secret is not configured correctly on the server.";
-    console.error("Webhook Error:", errorMessage);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    console.error("Webhook Error: RAZORPAY_WEBHOOK_SECRET is not configured correctly on the server. The webhook cannot be verified.");
+    return NextResponse.json({ error: "Webhook secret not configured on server." }, { status: 500 });
   }
 
   try {
@@ -27,7 +26,7 @@ export async function POST(req: Request) {
     const signature = req.headers.get('x-razorpay-signature');
 
     if (!signature) {
-      console.error("Webhook Error: No Razorpay signature found in headers.");
+      console.error("Webhook Error: No 'x-razorpay-signature' header found in the request.");
       return NextResponse.json({ error: "No signature provided" }, { status: 400 });
     }
 
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
       .digest('hex');
 
     if (expectedSignature !== signature) {
-      console.error("Webhook Error: Invalid Razorpay signature.");
+      console.error("Webhook Error: Invalid Razorpay signature. This is likely due to a mismatch between the webhook secret in your Razorpay dashboard and the RAZORPAY_WEBHOOK_SECRET environment variable in your project.");
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
     
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
     if (!getApps().length) {
       const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
       if (!serviceAccountKey) {
-        console.error("Firebase Admin SDK service account key is not set. Webhook cannot function.");
+        console.error("Webhook Error: Firebase Admin SDK service account key (FIREBASE_SERVICE_ACCOUNT_KEY) is not set. Webhook cannot access the database.");
         return NextResponse.json({ error: 'Firebase Admin not configured on server.' }, { status: 500 });
       }
       const serviceAccount = JSON.parse(Buffer.from(serviceAccountKey, 'base64').toString('utf8'));
@@ -71,34 +70,33 @@ export async function POST(req: Request) {
       const userId = orderNotes?.userId;
 
       if (!tempOrderId || !userId) {
-        console.error(`Webhook Error: Missing firebaseOrderId or userId in Razorpay notes for payment ${payment.id}.`);
-        return NextResponse.json({ status: 'Acknowledged, but order/user ID was missing.' }, { status: 200 });
+        console.error(`Webhook Error: Missing 'firebaseOrderId' or 'userId' in Razorpay notes for payment ${payment.id}. Cannot process order.`);
+        return NextResponse.json({ status: 'Acknowledged, but order/user ID was missing in notes.' }, { status: 200 });
       }
       
       const tempOrderRef = db.collection('users').doc(userId).collection('temp_orders').doc(tempOrderId);
       const tempOrderSnap = await tempOrderRef.get();
 
       if (!tempOrderSnap.exists) {
-         console.error(`Webhook Error: Temporary order ${tempOrderId} not found for user ${userId}.`);
+         console.error(`Webhook Error: Temporary order document ${tempOrderId} was not found for user ${userId}. This could happen if the order expired or was already processed.`);
          return NextResponse.json({ status: 'Acknowledged, but temp order was not found.' }, { status: 200 });
       }
 
       const tempOrderData = tempOrderSnap.data();
 
       if (!tempOrderData) {
-        console.error(`Webhook Error: Temporary order ${tempOrderId} has no data.`);
+        console.error(`Webhook Error: Temporary order document ${tempOrderId} exists but has no data.`);
         return NextResponse.json({ status: 'Acknowledged, but temp order data was empty.' }, { status: 200 });
       }
 
-      // Create new main order
-      const mainOrderRef = db.collection('orders').doc(); // Generate new ID for main order
+      // Create new main order from the temporary order data
+      const mainOrderRef = db.collection('orders').doc(); // Generate a new ID for the main order
       await mainOrderRef.set({
         ...tempOrderData,
         status: 'Order Placed',
-        paymentMethod: 'Razorpay',
         razorpayPaymentId: payment.id,
         razorpayOrderId: razorpayOrder.id,
-        createdAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(), // Use the server's timestamp for the official creation time
       });
 
       // Delete the temporary order
@@ -111,16 +109,16 @@ export async function POST(req: Request) {
           await userRef.update({ hasCompletedFirstOrder: true });
       }
 
-      console.log(`Webhook Success: New order ${mainOrderRef.id} confirmed from payment ${payment.id}.`);
+      console.log(`Webhook Success: New order ${mainOrderRef.id} confirmed from payment ${payment.id}. Temporary order ${tempOrderId} was processed and deleted.`);
       return NextResponse.json({ status: 'success' }, { status: 200 });
 
     } else {
-      console.log(`Webhook Info: Received unhandled event type: ${payload.event}`);
+      console.log(`Webhook Info: Received unhandled event type: ${payload.event}. No action taken.`);
       return NextResponse.json({ status: 'ignored' }, { status: 200 });
     }
 
   } catch (error: any) {
-    console.error('Razorpay Webhook Processing Error:', error);
+    console.error('Razorpay Webhook - Unhandled Processing Error:', error);
     return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
   }
 }
