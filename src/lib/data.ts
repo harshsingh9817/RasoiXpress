@@ -84,15 +84,13 @@ const initialMenuItems: Omit<MenuItem, 'id'>[] = [];
 const defaultHeroData: HeroData = {
     media: [],
     slideInterval: 5,
-    orderingTime: "7:30 AM - 9:00 PM",
 };
 
 const defaultPaymentSettings: PaymentSettings = {
     isRazorpayEnabled: true,
     isDeliveryFeeEnabled: true,
-    deliveryRadiusKm: 5,
+    fixedDeliveryFee: 25,
     orderExpirationMinutes: 5,
-    mapApiUrl: "",
     merchantName: "Rasoi Xpress",
 };
 

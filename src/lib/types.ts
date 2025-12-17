@@ -147,9 +147,8 @@ export interface HeroData {
 export interface PaymentSettings {
   isRazorpayEnabled: boolean;
   isDeliveryFeeEnabled: boolean;
-  deliveryRadiusKm?: number;
+  fixedDeliveryFee?: number;
   orderExpirationMinutes?: number;
-  mapApiUrl: string;
   merchantName?: string;
 }
 

@@ -59,10 +59,8 @@ export default function CheckoutPage() {
   const [isDeleteAddressDialogOpen, setIsDeleteAddressDialogOpen] = useState(false);
   
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [distance, setDistance] = useState<number | null>(null);
-  const [isServiceable, setIsServiceable] = useState(true);
+  const [isServiceable, setIsServiceable] = useState(true); // Assuming all addresses are serviceable now
   const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
 
   const subTotal = getCartSubtotal();
@@ -114,74 +112,25 @@ export default function CheckoutPage() {
     if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, showSuccessScreen, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
-
+  
+  // New simplified useEffect for delivery fee
   useEffect(() => {
-    if (!selectedAddressId) {
-        setDistance(null);
+    if (!paymentSettings || !userProfile) {
         setDeliveryFee(0);
-        setIsServiceable(true);
         return;
     }
 
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    
-    if (selectedAddress) {
-        setIsCalculatingDistance(true);
-        fetch('/api/distance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.pinCode}` }),
-        })
-        .then(res => {
-            if (!res.ok) {
-                throw new Error('Failed to calculate distance.');
-            }
-            return res.json();
-        })
-        .then(data => {
-            const dist = data.distance;
-            setDistance(dist);
-            
-            const maxDistance = paymentSettings?.deliveryRadiusKm || 5;
+    const isFirstOrder = userProfile.hasCompletedFirstOrder === false;
+    const feeIsEnabled = paymentSettings.isDeliveryFeeEnabled;
+    const isOrderAboveThreshold = subTotal >= 300;
 
-            if (dist > maxDistance) {
-                setIsServiceable(false);
-                setDeliveryFee(0);
-                return;
-            }
-
-            setIsServiceable(true);
-            
-            if (paymentSettings?.isDeliveryFeeEnabled === false) {
-                setDeliveryFee(0);
-                return;
-            }
-
-            const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
-            if (isFirstOrder) {
-                setDeliveryFee(0);
-                return;
-            }
-
-            if (subTotal > 0 && subTotal < 300) {
-                const fee = Math.round(dist * 25);
-                setDeliveryFee(fee);
-            } else {
-                setDeliveryFee(0);
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            toast({ title: 'Distance Error', description: 'Could not calculate delivery distance.', variant: 'destructive'});
-            setIsServiceable(false);
-            setDistance(null);
-            setDeliveryFee(0);
-        })
-        .finally(() => {
-            setIsCalculatingDistance(false);
-        });
+    if (!feeIsEnabled || isFirstOrder || isOrderAboveThreshold) {
+        setDeliveryFee(0);
+    } else {
+        setDeliveryFee(paymentSettings.fixedDeliveryFee || 25);
     }
-  }, [selectedAddressId, addresses, subTotal, userProfile, paymentSettings, toast]);
+
+  }, [subTotal, userProfile, paymentSettings]);
 
 
   const loadRazorpayScript = () => {
@@ -375,7 +324,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isProcessingForm = isProcessingPayment || isCalculatingDistance;
+  const isProcessingForm = isProcessingPayment;
   const isFirstOrder = userProfile?.hasCompletedFirstOrder === false;
 
   return (
@@ -436,15 +385,6 @@ export default function CheckoutPage() {
          <Card>
             <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-                 {!isServiceable && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitleElement>Out of Delivery Area</AlertTitleElement>
-                      <AlertDescription>
-                        This location is too far. Please select another address or add one within {paymentSettings?.deliveryRadiusKm || 5}km.
-                      </AlertDescription>
-                    </Alert>
-                )}
                  {isServiceable && !paymentSettings?.isDeliveryFeeEnabled && (
                     <Alert>
                         <Gift className="h-4 w-4" />
@@ -475,21 +415,18 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm">
                         <span>Delivery Fee:</span>
                         <span className="flex items-center">
-                             {isCalculatingDistance ? <Loader2 className="h-4 w-4 animate-spin ml-2"/> : (
-                                isServiceable ? (
-                                    deliveryFee > 0 ? (
-                                        `Rs.${deliveryFee.toFixed(2)}`
-                                    ) : (
-                                        <span className="font-semibold text-green-600">FREE</span>
-                                    )
+                            {isServiceable ? (
+                                deliveryFee > 0 ? (
+                                    `Rs.${deliveryFee.toFixed(2)}`
                                 ) : (
-                                    'Not available'
+                                    <span className="font-semibold text-green-600">FREE</span>
                                 )
+                            ) : (
+                                'Not available'
                             )}
                         </span>
                     </div>
-                     {distance !== null && <p className="text-xs text-muted-foreground text-right">Distance: {distance.toFixed(2)} km</p>}
-
+                     
                     <Separator />
                     <div className="flex justify-between font-bold text-primary text-xl"><span>Total:</span><span>Rs.{grandTotal.toFixed(2)}</span></div>
                 </div>

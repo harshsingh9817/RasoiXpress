@@ -38,9 +38,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 const settingsSchema = z.object({
   isDeliveryFeeEnabled: z.boolean().optional(),
-  deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
+  fixedDeliveryFee: z.coerce.number().min(0, "Fee must be a positive number.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
-  mapApiUrl: z.string().min(1, "API Key is required."),
   merchantName: z.string().min(3, "Merchant name is required.").max(50, "Merchant name is too long."),
   openTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Enter a valid 24-hour time (e.g., 09:00)."),
   closeTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Enter a valid 24-hour time (e.g., 22:00)."),
@@ -58,9 +57,8 @@ export default function PaymentSettingsPage() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       isDeliveryFeeEnabled: true,
-      deliveryRadiusKm: 5,
+      fixedDeliveryFee: 25,
       orderExpirationMinutes: 5,
-      mapApiUrl: "",
       merchantName: "Rasoi Xpress",
       openTime: "10:00",
       closeTime: "22:00",
@@ -80,9 +78,8 @@ export default function PaymentSettingsPage() {
         ]);
         form.reset({
           isDeliveryFeeEnabled: paymentData.isDeliveryFeeEnabled ?? true,
-          deliveryRadiusKm: paymentData.deliveryRadiusKm || 5,
+          fixedDeliveryFee: paymentData.fixedDeliveryFee || 25,
           orderExpirationMinutes: paymentData.orderExpirationMinutes || 5,
-          mapApiUrl: paymentData.mapApiUrl || "",
           merchantName: paymentData.merchantName || "Rasoi Xpress",
           openTime: timeData.openTime || "10:00",
           closeTime: timeData.closeTime || "22:00",
@@ -97,9 +94,8 @@ export default function PaymentSettingsPage() {
     try {
       const paymentSettingsToUpdate = {
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
-        deliveryRadiusKm: data.deliveryRadiusKm,
+        fixedDeliveryFee: data.fixedDeliveryFee,
         orderExpirationMinutes: data.orderExpirationMinutes,
-        mapApiUrl: data.mapApiUrl,
         merchantName: data.merchantName,
         isRazorpayEnabled: true,
       };
@@ -227,7 +223,7 @@ export default function PaymentSettingsPage() {
                       <div className="space-y-0.5">
                           <FormLabel className="text-base flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Enable Delivery Fees</FormLabel>
                           <FormDescription>
-                            Turn this on to charge delivery fees based on distance for orders under the free delivery threshold.
+                            Turn this on to charge a fixed delivery fee on orders under the free delivery threshold.
                           </FormDescription>
                       </div>
                       <FormControl>
@@ -241,15 +237,15 @@ export default function PaymentSettingsPage() {
                 />
                  <FormField
                   control={form.control}
-                  name="deliveryRadiusKm"
+                  name="fixedDeliveryFee"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center"><Radius className="mr-2 h-4 w-4"/>Delivery Radius (in km)</FormLabel>
+                      <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Fixed Delivery Fee (in Rs)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="1" placeholder="5" {...field} value={field.value ?? ''} />
+                        <Input type="number" step="1" placeholder="25" {...field} value={field.value ?? ''} />
                       </FormControl>
                        <FormDescription>
-                          Set the maximum distance from the restaurant that you will deliver to.
+                          Set the fixed fee for delivery. This is waived for first-time orders and orders above Rs.300.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -275,22 +271,13 @@ export default function PaymentSettingsPage() {
               
               <Separator />
 
-              <FormField
-                control={form.control}
-                name="mapApiUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/> Mappls API Key</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Enter your Mappls API key..." {...field} value={field.value ?? ''} rows={3} />
-                    </FormControl>
-                      <FormDescription>
-                          This key is required for location-based services like address autofill and delivery distance calculation. Get it from your Mappls dashboard.
-                      </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Alert>
+                <KeyRound className="h-4 w-4" />
+                <AlertTitle>Mappls & Razorpay API Keys</AlertTitle>
+                <AlertDescription>
+                    Your API keys in the `.env` file are used for location services and payment processing.
+                </AlertDescription>
+              </Alert>
 
             </CardContent>
              <CardFooter>
@@ -309,14 +296,6 @@ export default function PaymentSettingsPage() {
           </Card>
         </form>
       </Form>
-      
-      <Alert>
-        <KeyRound className="h-4 w-4" />
-        <AlertTitle>Razorpay API Keys</AlertTitle>
-        <AlertDescription>
-            Your Razorpay API keys in the `.env` file are used to power the payment gateway.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 }
