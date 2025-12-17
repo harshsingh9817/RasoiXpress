@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         deliveryFee,
         totalTax,
         coupon,
-        firebaseOrderId // The ID of the 'Payment Pending' order
+        firebaseOrderId // The ID of the temporary order
     }: { 
         amount: number, 
         user: User, 
@@ -55,11 +55,10 @@ export async function POST(req: Request) {
     if (!user || !cartItems || !shippingAddress || !firebaseOrderId) {
       return NextResponse.json({ error: 'Missing required order information.' }, { status: 400 });
     }
-
-    // Now, instead of all the details, we just need to pass the firebaseOrderId in the notes.
-    // The webhook will use this ID to find the existing Firestore document.
+    
     const orderNotes = {
         firebaseOrderId: firebaseOrderId,
+        userId: user.uid,
     };
 
 
@@ -90,5 +89,3 @@ export async function POST(req: Request) {
     return errorResponse;
   }
 }
-
-    

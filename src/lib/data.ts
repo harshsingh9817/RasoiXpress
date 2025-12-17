@@ -1,5 +1,4 @@
 
-
 import {
   getFirestore,
   collection,
@@ -172,8 +171,8 @@ export async function getRestaurants(): Promise<Restaurant[]> { return []; }
 export async function getRestaurantById(id: string): Promise<Restaurant | undefined> { return undefined; }
 
 // --- Order Management (Firebase & Supabase) ---
-export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    const ordersCol = collection(db, 'orders');
+export async function createTempOrder(userId: string, orderData: Omit<Order, 'id'>): Promise<Order> {
+    const tempOrdersCol = collection(db, 'users', userId, 'temp_orders');
 
     const cleanData = { ...orderData };
     if (cleanData.couponCode === undefined) {
@@ -183,11 +182,78 @@ export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
         cleanData.discountAmount = null;
     }
 
-    const docRef = await addDoc(ordersCol, {
+    const docRef = await addDoc(tempOrdersCol, {
       ...cleanData,
     });
     
     return { ...cleanData, id: docRef.id } as Order;
+}
+
+export async function getTempOrderById(userId: string, orderId: string): Promise<Order | null> {
+    const docRef = doc(db, 'users', userId, 'temp_orders', orderId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
+}
+
+export async function deleteTempOrder(userId: string, orderId: string): Promise<void> {
+    const docRef = doc(db, 'users', userId, 'temp_orders', orderId);
+    await deleteDoc(docRef);
+}
+
+export async function moveTempOrderToMain(userId: string, tempOrderId: string): Promise<string> {
+    const tempOrder = await getTempOrderById(userId, tempOrderId);
+    if (!tempOrder) {
+        throw new Error("Temporary order not found.");
+    }
+
+    const ordersCol = collection(db, 'orders');
+    
+    const finalOrderData = { ...tempOrder };
+    delete (finalOrderData as any).id; // Remove the temporary ID
+
+    const newOrderRef = await addDoc(ordersCol, {
+        ...finalOrderData,
+        createdAt: serverTimestamp(),
+    });
+    
+    // After successfully adding the order, update the user's first order status flag.
+    const userRef = doc(db, "users", userId);
+    try {
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
+            await updateDoc(userRef, { hasCompletedFirstOrder: true });
+        }
+    } catch (error) {
+        console.error("Failed to update first order status for user:", userId, error);
+    }
+    
+    // Now delete the temporary order
+    await deleteTempOrder(userId, tempOrderId);
+
+    // Sync to Supabase for the rider app
+    if (supabase) {
+        const orderForSupabase = {
+            ...finalOrderData,
+            firebase_order_id: newOrderRef.id,
+        };
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .insert([orderForSupabase])
+                .select()
+                .single();
+
+            if (error) {
+                console.error(`Supabase insert error for order ${newOrderRef.id}:`, error.message);
+            } else if (data) {
+                await updateDoc(newOrderRef, { supabase_order_uuid: data.id });
+            }
+        } catch (e) {
+            console.error("Unexpected error syncing order to Supabase:", e);
+        }
+    }
+    
+    return newOrderRef.id;
 }
 
 
@@ -253,8 +319,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
 
 export async function getAllOrders(): Promise<Order[]> {
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('status', '!=', 'Payment Pending'), orderBy('status'), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(query(ordersCol));
     const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return allOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
@@ -262,45 +327,12 @@ export async function getAllOrders(): Promise<Order[]> {
 export async function getUserOrders(userId: string): Promise<Order[]> {
     if (!userId) return [];
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId), where('status', '!=', 'Payment Pending'));
+    const q = query(ordersCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
     const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export async function updateOrderPaymentDetails(orderId: string, paymentDetails: { razorpayPaymentId: string; razorpayOrderId: string; status: OrderStatus; }): Promise<void> {
-    const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, { ...paymentDetails, createdAt: serverTimestamp() });
-
-    const orderSnap = await getDoc(orderRef);
-    if (!orderSnap.exists()) return;
-    
-    const orderData = orderSnap.data() as Order;
-
-    // Sync to Supabase for the rider app
-    if (supabase) {
-        const orderForSupabase = {
-            ...orderData,
-            firebase_order_id: orderId,
-            id: undefined, // Let supabase generate its own UUID
-        };
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .insert([orderForSupabase])
-                .select()
-                .single();
-
-            if (error) {
-                console.error(`Supabase insert error for order ${orderId}:`, error.message);
-            } else if (data) {
-                await updateDoc(orderRef, { supabase_order_uuid: data.id });
-            }
-        } catch (e) {
-            console.error("Unexpected error syncing order to Supabase:", e);
-        }
-    }
-}
 
 // --- Cart Management (Firestore) ---
 export function listenToUserCart(userId: string, callback: (items: CartItem[]) => void): () => void {
@@ -360,7 +392,7 @@ export function listenToMenuItems(callback: (items: MenuItem[]) => void, isAdmin
 
 export function listenToAllOrders(callback: (orders: Order[]) => void): () => void {
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('status', '!=', 'Payment Pending'), orderBy('status'), orderBy('date', 'desc'));
+    const q = query(ordersCol, orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(allOrders);
@@ -370,7 +402,7 @@ export function listenToAllOrders(callback: (orders: Order[]) => void): () => vo
 export function listenToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
     if (!userId) return () => {};
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where('userId', '==', userId), where('status', '!=', 'Payment Pending'), orderBy('date', 'desc'));
+    const q = query(ordersCol, where('userId', '==', userId), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(userOrders);

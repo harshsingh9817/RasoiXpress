@@ -21,7 +21,7 @@ import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle, Loader2 } 
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { placeOrder } from '@/lib/data';
+import { createTempOrder } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/lib/types';
 
@@ -84,9 +84,9 @@ const CartSheet = () => {
             discountAmount: getDiscountAmount() || null,
         };
 
-        const pendingOrder = await placeOrder(temporaryOrderData);
+        const tempOrder = await createTempOrder(user.uid, temporaryOrderData);
         setIsCartOpen(false); // Close the cart sheet
-        router.push(`/checkout/${pendingOrder.id}`);
+        router.push(`/checkout?orderId=${tempOrder.id}`);
 
     } catch (error) {
         console.error("Failed to create pending order:", error);

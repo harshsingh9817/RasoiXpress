@@ -67,41 +67,51 @@ export async function POST(req: Request) {
       const razorpayOrder = payload.payload.order.entity;
       const orderNotes = razorpayOrder.notes;
 
-      const firebaseOrderId = orderNotes?.firebaseOrderId;
+      const tempOrderId = orderNotes?.firebaseOrderId;
+      const userId = orderNotes?.userId;
 
-      if (!firebaseOrderId) {
-        console.error(`Webhook Error: Missing firebaseOrderId in Razorpay notes for payment ${payment.id}.`);
-        return NextResponse.json({ status: 'Acknowledged, but order ID was missing.' }, { status: 200 });
-      }
-
-      const orderRef = db.collection('orders').doc(firebaseOrderId);
-      const orderDoc = await orderRef.get();
-
-      if (!orderDoc.exists) {
-        console.error(`Webhook Error: Order with ID ${firebaseOrderId} not found in Firestore.`);
-        return NextResponse.json({ status: 'Acknowledged, but order was not found.' }, { status: 200 });
+      if (!tempOrderId || !userId) {
+        console.error(`Webhook Error: Missing firebaseOrderId or userId in Razorpay notes for payment ${payment.id}.`);
+        return NextResponse.json({ status: 'Acknowledged, but order/user ID was missing.' }, { status: 200 });
       }
       
-      // Update the existing order document from 'Payment Pending' to 'Order Placed'
-      await orderRef.update({
+      const tempOrderRef = db.collection('users').doc(userId).collection('temp_orders').doc(tempOrderId);
+      const tempOrderSnap = await tempOrderRef.get();
+
+      if (!tempOrderSnap.exists) {
+         console.error(`Webhook Error: Temporary order ${tempOrderId} not found for user ${userId}.`);
+         return NextResponse.json({ status: 'Acknowledged, but temp order was not found.' }, { status: 200 });
+      }
+
+      const tempOrderData = tempOrderSnap.data();
+
+      if (!tempOrderData) {
+        console.error(`Webhook Error: Temporary order ${tempOrderId} has no data.`);
+        return NextResponse.json({ status: 'Acknowledged, but temp order data was empty.' }, { status: 200 });
+      }
+
+      // Create new main order
+      const mainOrderRef = db.collection('orders').doc(); // Generate new ID for main order
+      await mainOrderRef.set({
+        ...tempOrderData,
         status: 'Order Placed',
         paymentMethod: 'Razorpay',
         razorpayPaymentId: payment.id,
         razorpayOrderId: razorpayOrder.id,
         createdAt: FieldValue.serverTimestamp(),
       });
-      
+
+      // Delete the temporary order
+      await tempOrderRef.delete();
+
       // Update user's first order status
-      const userId = orderDoc.data()?.userId;
-      if (userId) {
-          const userRef = db.collection('users').doc(userId);
-          const userDoc = await userRef.get();
-          if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
-              await userRef.update({ hasCompletedFirstOrder: true });
-          }
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+      if (userDoc.exists && userDoc.data()?.hasCompletedFirstOrder === false) {
+          await userRef.update({ hasCompletedFirstOrder: true });
       }
 
-      console.log(`Webhook Success: New order ${firebaseOrderId} confirmed from payment ${payment.id}.`);
+      console.log(`Webhook Success: New order ${mainOrderRef.id} confirmed from payment ${payment.id}.`);
       return NextResponse.json({ status: 'success' }, { status: 200 });
 
     } else {
@@ -114,5 +124,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
   }
 }
-
-    
