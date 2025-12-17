@@ -13,6 +13,35 @@ export async function OPTIONS() {
   return res;
 }
 
+// Function to safely initialize Firebase Admin SDK
+async function initializeFirebaseAdmin() {
+    const { initializeApp, getApps, cert } = await import("firebase-admin/app");
+    const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
+
+    if (getApps().length > 0) {
+        const app = getApps()[0];
+        const db = getFirestore(app);
+        return { app, db, FieldValue };
+    }
+
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+        throw new Error("Webhook Error: Firebase Admin SDK service account key (FIREBASE_SERVICE_ACCOUNT_KEY) is not set. Webhook cannot access the database.");
+    }
+    
+    let serviceAccount;
+    try {
+        serviceAccount = JSON.parse(Buffer.from(serviceAccountKey, 'base64').toString('utf8'));
+    } catch (e: any) {
+        throw new Error(`Webhook Error: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Please ensure it is a valid, Base64-encoded JSON string. Details: ${e.message}`);
+    }
+
+    const app = initializeApp({ credential: cert(serviceAccount) });
+    const db = getFirestore(app);
+    return { app, db, FieldValue };
+}
+
+
 export async function POST(req: Request) {
   const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -40,24 +69,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
     
-    // --- DYNAMICALLY Initialize Firebase Admin SDK inside the function ---
-    const { initializeApp, getApps, cert } = await import("firebase-admin/app");
-    const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
-
-    let app: App;
-    if (!getApps().length) {
-      const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-      if (!serviceAccountKey) {
-        console.error("Webhook Error: Firebase Admin SDK service account key (FIREBASE_SERVICE_ACCOUNT_KEY) is not set. Webhook cannot access the database.");
-        return NextResponse.json({ error: 'Firebase Admin not configured on server.' }, { status: 500 });
-      }
-      const serviceAccount = JSON.parse(Buffer.from(serviceAccountKey, 'base64').toString('utf8'));
-      app = initializeApp({ credential: cert(serviceAccount) });
-    } else {
-      app = getApps()[0];
+    // --- Safe Database Interaction ---
+    let db: Firestore, FieldValue: any;
+    try {
+        const admin = await initializeFirebaseAdmin();
+        db = admin.db;
+        FieldValue = admin.FieldValue;
+    } catch (initError: any) {
+        console.error("CRITICAL WEBHOOK ERROR: Failed to initialize Firebase Admin.", initError.message);
+        return NextResponse.json({ error: 'Server configuration error prevented processing.' }, { status: 500 });
     }
-    const db: Firestore = getFirestore(app);
-    // --- End Firebase Admin Initialization ---
+
 
     const payload = JSON.parse(body);
 
@@ -118,7 +140,7 @@ export async function POST(req: Request) {
     }
 
   } catch (error: any) {
-    console.error('Razorpay Webhook - Unhandled Processing Error:', error);
-    return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
+    console.error('Razorpay Webhook - UNHANDLED GLOBAL ERROR:', error.message, error.stack);
+    return NextResponse.json({ error: 'Failed to process webhook due to an unexpected server error.' }, { status: 500 });
   }
 }
