@@ -128,8 +128,8 @@ export default function CheckoutPage() {
         deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
         deliveryFee: deliveryFee,
         totalTax: totalTax,
-        couponCode: appliedCoupon?.code,
-        discountAmount: discountAmount
+        couponCode: appliedCoupon?.code || null,
+        discountAmount: discountAmount || null,
     };
 
     try {
@@ -173,9 +173,8 @@ export default function CheckoutPage() {
 
     const isFirstOrder = userProfile.hasCompletedFirstOrder === false;
     const feeIsEnabled = paymentSettings.isDeliveryFeeEnabled;
-    const isOrderAboveThreshold = subTotal >= 300;
 
-    if (!feeIsEnabled || isFirstOrder || isOrderAboveThreshold) {
+    if (!feeIsEnabled || isFirstOrder || subTotal >= 300) {
         setDeliveryFee(0);
     } else {
         setDeliveryFee(paymentSettings.fixedDeliveryFee || 25);
@@ -442,7 +441,7 @@ export default function CheckoutPage() {
          <Card>
             <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-                 {isServiceable && !paymentSettings?.isDeliveryFeeEnabled && (
+                 {isServiceable && paymentSettings?.isDeliveryFeeEnabled === false && (
                     <Alert>
                         <Gift className="h-4 w-4" />
                         <AlertTitleElement>Free Delivery Unlocked!</AlertTitleElement>
@@ -518,5 +517,3 @@ export default function CheckoutPage() {
     </>
   );
 }
-
-    

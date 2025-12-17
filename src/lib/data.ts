@@ -1,6 +1,5 @@
 
 
-
 import {
   getFirestore,
   collection,
@@ -175,11 +174,20 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 // --- Order Management (Firebase & Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
     const ordersCol = collection(db, 'orders');
+
+    const cleanData = { ...orderData };
+    if (cleanData.couponCode === undefined) {
+        cleanData.couponCode = null;
+    }
+    if (cleanData.discountAmount === undefined) {
+        cleanData.discountAmount = null;
+    }
+
     const docRef = await addDoc(ordersCol, {
-      ...orderData,
+      ...cleanData,
     });
     
-    return { ...orderData, id: docRef.id } as Order;
+    return { ...cleanData, id: docRef.id } as Order;
 }
 
 
@@ -845,5 +853,3 @@ export function listenToCategories(callback: (categories: Category[]) => void): 
         console.error("Error listening to categories:", error);
     });
 }
-
-    
