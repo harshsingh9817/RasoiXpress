@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, type FormEvent, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,8 @@ export default function CheckoutPage() {
   const { cartItems, getCartTotal, getCartSubtotal, getDiscountAmount, clearCart, getCartItemCount, isOrderingAllowed, setIsTimeGateDialogOpen, appliedCoupon } = useCart();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const orderId = params.orderId as string;
   const { toast } = useToast();
 
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -61,7 +63,6 @@ export default function CheckoutPage() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [isServiceable, setIsServiceable] = useState(true); 
   const [userProfile, setUserProfile] = useState<any | null>(null);
-  const pendingOrderIdRef = useRef<string | null>(null);
 
 
   const subTotal = getCartSubtotal();
@@ -106,42 +107,6 @@ export default function CheckoutPage() {
     }
   }, [user, toast, selectedAddressId]);
   
-  const createPendingOrder = useCallback(async () => {
-    if (!user || cartItems.length === 0 || !selectedAddressId || pendingOrderIdRef.current) return;
-
-    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
-    if (!selectedAddress) return;
-
-    const newOrderData: Omit<Order, 'id'> = {
-        userId: user.uid,
-        userEmail: user.email || 'N/A',
-        customerName: selectedAddress.fullName,
-        date: new Date().toISOString(),
-        status: 'Payment Pending',
-        total: grandTotal,
-        items: cartItems.map(item => ({ ...item })),
-        shippingAddress: `${selectedAddress.street}, ${selectedAddress.village || ''}, ${selectedAddress.city}, ${selectedAddress.pinCode}`.replace(/, ,/g, ','),
-        shippingLat: selectedAddress.lat,
-        shippingLng: selectedAddress.lng,
-        paymentMethod: 'Razorpay',
-        customerPhone: selectedAddress.phone,
-        deliveryConfirmationCode: Math.floor(1000 + Math.random() * 9000).toString(),
-        deliveryFee: deliveryFee,
-        totalTax: totalTax,
-        couponCode: appliedCoupon?.code || null,
-        discountAmount: discountAmount || null,
-    };
-
-    try {
-        const pendingOrder = await placeOrder(newOrderData);
-        pendingOrderIdRef.current = pendingOrder.id;
-    } catch (error) {
-        console.error("Failed to create pending order", error);
-        toast({ title: "Checkout Error", description: "Could not initialize checkout. Please try again.", variant: "destructive" });
-    }
-}, [user, cartItems, selectedAddressId, grandTotal, deliveryFee, totalTax, appliedCoupon, addresses, discountAmount]);
-
-
   useEffect(() => {
     if (isAuthLoading) return;
     if (!isAuthenticated) { router.replace('/login'); return; }
@@ -149,21 +114,24 @@ export default function CheckoutPage() {
     if (!isOrderingAllowed) { setIsTimeGateDialogOpen(true); router.replace('/'); return; }
     loadPageData();
   }, [isAuthenticated, isAuthLoading, user, getCartItemCount, router, showSuccessScreen, loadPageData, isOrderingAllowed, setIsTimeGateDialogOpen]);
-  
+
+  // Cleanup effect to delete the pending order if the user navigates away
   useEffect(() => {
-    if (!isDataLoading && addresses.length > 0 && selectedAddressId) {
-        if (!pendingOrderIdRef.current) {
-            createPendingOrder();
-        }
-    }
-    // Cleanup function to delete pending order on unmount
     return () => {
-      if (pendingOrderIdRef.current) {
-        deleteOrderFromDb(pendingOrderIdRef.current);
-        pendingOrderIdRef.current = null;
+      const deletePendingOrder = async () => {
+        const order = await getOrderById(orderId);
+        if (order && order.status === 'Payment Pending') {
+          await deleteOrderFromDb(orderId);
+        }
+      };
+      
+      // Only delete if we are not in the process of finalizing a successful payment
+      if (!isFinalizing && !showSuccessScreen) {
+        deletePendingOrder();
       }
     };
-  }, [isDataLoading, addresses, selectedAddressId, createPendingOrder]);
+  }, [orderId, isFinalizing, showSuccessScreen]);
+
 
   useEffect(() => {
     if (!paymentSettings || !userProfile) {
@@ -200,7 +168,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedAddressId || !pendingOrderIdRef.current) {
+    if (!user || !selectedAddressId || !orderId) {
         toast({ title: "Address or Order Required", description: "Please select an address and ensure order is initialized.", variant: "destructive" });
         return;
     }
@@ -239,7 +207,7 @@ export default function CheckoutPage() {
                 deliveryFee,
                 totalTax,
                 coupon: appliedCoupon,
-                firebaseOrderId: pendingOrderIdRef.current, // Pass the pending order ID
+                firebaseOrderId: orderId, // Pass the pending order ID
             }),
         });
 
@@ -258,10 +226,8 @@ export default function CheckoutPage() {
         order_id: razorpayOrder.id,
         handler: (response: any) => {
             setIsFinalizing(true);
-            const orderIdToFinalize = pendingOrderIdRef.current;
-            pendingOrderIdRef.current = null; // Prevent deletion
             
-            updateOrderPaymentDetails(orderIdToFinalize!, {
+            updateOrderPaymentDetails(orderId!, {
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpayOrderId: response.razorpay_order_id,
                 status: 'Order Placed',

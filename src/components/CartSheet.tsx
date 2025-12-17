@@ -17,10 +17,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import CartItemCard from './CartItemCard';
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, ArrowRight, ShoppingCart, XCircle, Loader2 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { placeOrder } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
+import type { Order } from '@/lib/types';
 
 const CartSheet = () => {
   const {
@@ -38,10 +41,12 @@ const CartSheet = () => {
     isOrderingAllowed,
     setIsTimeGateDialogOpen,
   } = useCart();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated, isAuthLoading, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const [couponCode, setCouponCode] = useState('');
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
   const handleApplyCoupon = (e: FormEvent) => {
     e.preventDefault();
@@ -51,20 +56,52 @@ const CartSheet = () => {
     }
   };
 
-  const handleProceedToCheckout = () => {
+  const handleProceedToCheckout = async () => {
     if (!isOrderingAllowed) {
         setIsTimeGateDialogOpen(true);
         return;
     }
-    setIsCartOpen(false); // Close the cart sheet
-    router.push('/checkout');
+    if (!user) {
+        toast({ title: "Please log in", description: "You need to be logged in to checkout.", variant: "destructive" });
+        return;
+    }
+
+    setIsCreatingOrder(true);
+    try {
+        const temporaryOrderData: Omit<Order, 'id'> = {
+            userId: user.uid,
+            userEmail: user.email || 'N/A',
+            customerName: user.displayName || 'Guest', // Placeholder name
+            date: new Date().toISOString(),
+            status: 'Payment Pending',
+            total: getCartTotal(),
+            items: cartItems.map(item => ({ ...item })),
+            shippingAddress: '', // Will be updated at checkout
+            paymentMethod: 'Razorpay', // Default, can be changed
+            deliveryFee: 0, // Will be calculated at checkout
+            totalTax: 0, // Will be calculated at checkout
+            couponCode: appliedCoupon?.code || null,
+            discountAmount: getDiscountAmount() || null,
+        };
+
+        const pendingOrder = await placeOrder(temporaryOrderData);
+        setIsCartOpen(false); // Close the cart sheet
+        router.push(`/checkout/${pendingOrder.id}`);
+
+    } catch (error) {
+        console.error("Failed to create pending order:", error);
+        toast({ title: "Checkout Error", description: "Could not initialize checkout. Please try again.", variant: "destructive" });
+    } finally {
+        setIsCreatingOrder(false);
+    }
   };
+
 
   const subtotal = getCartSubtotal();
   const discountAmount = getDiscountAmount();
   const total = getCartTotal();
   const itemCount = getCartItemCount();
-  const showFAB = pathname !== '/checkout';
+  const showFAB = !pathname.startsWith('/checkout');
   
   if (isAuthLoading || !isAuthenticated) {
     return null;
@@ -181,9 +218,10 @@ const CartSheet = () => {
                     className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                     aria-label="Proceed to checkout"
                     onClick={handleProceedToCheckout}
+                    disabled={isCreatingOrder}
                   >
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Proceed to Checkout
+                    {isCreatingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                    {isCreatingOrder ? 'Initializing...' : 'Proceed to Checkout'}
                   </Button>
                 </div>
               </SheetFooter>
