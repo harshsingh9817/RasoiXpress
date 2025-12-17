@@ -214,3 +214,8 @@ export interface listenToCategories {
     name: string;
     imageUrl: string;
 }
+
+export interface RestaurantTime {
+  openTime: string;
+  closeTime: string;
+}

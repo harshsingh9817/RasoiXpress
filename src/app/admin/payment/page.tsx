@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { getPaymentSettings, updatePaymentSettings } from "@/lib/data";
+import { getPaymentSettings, updatePaymentSettings, getRestaurantTime, updateRestaurantTime } from "@/lib/data";
+import type { RestaurantTime } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, Building } from "lucide-react";
+import { CreditCard, Save, KeyRound, MapPin, DollarSign, Radius, Timer, Building, Clock } from "lucide-react";
 import AnimatedPlateSpinner from "@/components/icons/AnimatedPlateSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -35,15 +36,17 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const paymentSettingsSchema = z.object({
+const settingsSchema = z.object({
   isDeliveryFeeEnabled: z.boolean().optional(),
   deliveryRadiusKm: z.coerce.number().min(1, "Radius must be at least 1km.").optional(),
   orderExpirationMinutes: z.coerce.number().min(1, "Expiration must be at least 1 minute.").optional(),
   mapApiUrl: z.string().min(1, "API Key is required."),
   merchantName: z.string().min(3, "Merchant name is required.").max(50, "Merchant name is too long."),
+  openTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Enter a valid 24-hour time (e.g., 09:00)."),
+  closeTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Enter a valid 24-hour time (e.g., 22:00)."),
 });
 
-type PaymentSettingsFormValues = z.infer<typeof paymentSettingsSchema>;
+type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export default function PaymentSettingsPage() {
   const { isAdmin, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -51,14 +54,16 @@ export default function PaymentSettingsPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<PaymentSettingsFormValues>({
-    resolver: zodResolver(paymentSettingsSchema),
+  const form = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
     defaultValues: {
       isDeliveryFeeEnabled: true,
       deliveryRadiusKm: 5,
       orderExpirationMinutes: 5,
       mapApiUrl: "",
       merchantName: "Rasoi Xpress",
+      openTime: "10:00",
+      closeTime: "22:00",
     },
   });
 
@@ -69,36 +74,52 @@ export default function PaymentSettingsPage() {
     }
     if (isAuthenticated && isAdmin) {
       const loadSettings = async () => {
-        const data = await getPaymentSettings();
+        const [paymentData, timeData] = await Promise.all([
+          getPaymentSettings(),
+          getRestaurantTime(),
+        ]);
         form.reset({
-          isDeliveryFeeEnabled: data.isDeliveryFeeEnabled ?? true,
-          deliveryRadiusKm: data.deliveryRadiusKm || 5,
-          orderExpirationMinutes: data.orderExpirationMinutes || 5,
-          mapApiUrl: data.mapApiUrl || "",
-          merchantName: data.merchantName || "Rasoi Xpress",
+          isDeliveryFeeEnabled: paymentData.isDeliveryFeeEnabled ?? true,
+          deliveryRadiusKm: paymentData.deliveryRadiusKm || 5,
+          orderExpirationMinutes: paymentData.orderExpirationMinutes || 5,
+          mapApiUrl: paymentData.mapApiUrl || "",
+          merchantName: paymentData.merchantName || "Rasoi Xpress",
+          openTime: timeData.openTime || "10:00",
+          closeTime: timeData.closeTime || "22:00",
         });
       }
       loadSettings();
     }
   }, [isAdmin, isAuthLoading, isAuthenticated, router, form]);
 
-  const onSubmit = async (data: PaymentSettingsFormValues) => {
+  const onSubmit = async (data: SettingsFormValues) => {
     setIsSubmitting(true);
     try {
-      await updatePaymentSettings({
+      const paymentSettingsToUpdate = {
         isDeliveryFeeEnabled: data.isDeliveryFeeEnabled,
         deliveryRadiusKm: data.deliveryRadiusKm,
         orderExpirationMinutes: data.orderExpirationMinutes,
         mapApiUrl: data.mapApiUrl,
         merchantName: data.merchantName,
-        isRazorpayEnabled: true, // Always true
-      });
+        isRazorpayEnabled: true,
+      };
+      
+      const restaurantTimeToUpdate: RestaurantTime = {
+        openTime: data.openTime,
+        closeTime: data.closeTime,
+      };
+
+      await Promise.all([
+        updatePaymentSettings(paymentSettingsToUpdate),
+        updateRestaurantTime(restaurantTimeToUpdate),
+      ]);
+
       toast({
         title: "Settings Updated",
         description: "Your settings have been successfully updated.",
       });
     } catch (error) {
-      console.error("Failed to save payment settings", error);
+      console.error("Failed to save settings", error);
       toast({
         title: "Update Failed",
         description: "An error occurred while saving settings.",
@@ -127,13 +148,47 @@ export default function PaymentSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-headline flex items-center">
-                <CreditCard className="mr-3 h-6 w-6 text-primary" /> Payment & Integration Settings
+                <CreditCard className="mr-3 h-6 w-6 text-primary" /> General & Integration Settings
               </CardTitle>
               <CardDescription>
-                Manage Razorpay, delivery fees, and third-party service integrations.
+                Manage business hours, payments, delivery, and third-party service integrations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+               <div className="space-y-4">
+                 <h3 className="font-medium text-lg">Restaurant Hours</h3>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="openTime"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4"/>Open Time</FormLabel>
+                            <FormControl>
+                                <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="closeTime"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4"/>Close Time</FormLabel>
+                            <FormControl>
+                                <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                 </div>
+               </div>
+
+               <Separator />
+               
                <div className="space-y-4">
                  <h3 className="font-medium text-lg">Payment Method</h3>
                   <Alert variant="default" className="border-primary/50 bg-primary/5">

@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { supabase } from './supabase';
-import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, Category, CartItem } from './types';
+import type { Restaurant, MenuItem, Order, Address, Review, HeroData, PaymentSettings, AnalyticsData, DailyChartData, AdminMessage, UserRef, SupportTicket, Coupon, Category, CartItem, RestaurantTime } from './types';
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getFirestore as getSecondaryFirestore } from 'firebase/firestore';
@@ -94,6 +94,11 @@ const defaultPaymentSettings: PaymentSettings = {
     orderExpirationMinutes: 5,
     mapApiUrl: "",
     merchantName: "Rasoi Xpress",
+};
+
+const defaultRestaurantTime: RestaurantTime = {
+    openTime: '10:00',
+    closeTime: '22:00',
 };
 
 async function initializeCollection(collectionName: string, initialData: any[]) {
@@ -170,13 +175,51 @@ export async function getRestaurantById(id: string): Promise<Restaurant | undefi
 
 // --- Order Management (Firebase & Supabase) ---
 export async function placeOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    // This function is now deprecated as order creation is handled by the webhook.
-    // It's kept here to avoid breaking the checkout page if it's called, but it shouldn't be.
-    console.warn("placeOrder is deprecated and should not be called from the client.");
-    // In a real scenario, you might throw an error or just return a temporary object.
-    // We will return a partial order to satisfy the type.
-    return { id: 'temp-id', ...orderData } as Order;
+    const ordersCol = collection(db, 'orders');
+    const docRef = await addDoc(ordersCol, {
+      ...orderData,
+      createdAt: serverTimestamp(),
+    });
+    
+    const userRef = doc(db, "users", orderData.userId);
+    try {
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
+            await updateDoc(userRef, { hasCompletedFirstOrder: true });
+        }
+    } catch (error) {
+        console.error("Failed to update first order status for user:", orderData.userId, error);
+    }
+  
+    // Now, sync to Supabase for the rider app
+    if (supabase) {
+      const orderForSupabase = {
+        ...orderData,
+        firebase_order_id: docRef.id,
+      };
+      
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .insert([orderForSupabase])
+          .select()
+          .single();
+  
+        if (error) {
+          console.error(`Supabase insert error for order ${docRef.id}:`, error.message);
+        } else if (data) {
+          // If successful, update the Firestore doc with the Supabase UUID
+          await updateDoc(docRef, { supabase_order_uuid: data.id });
+          return { ...orderData, id: docRef.id, supabase_order_uuid: data.id } as Order;
+        }
+      } catch (e) {
+        console.error("Unexpected error syncing order to Supabase:", e);
+      }
+    }
+  
+    return { ...orderData, id: docRef.id } as Order;
 }
+
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
     const docRef = doc(db, 'orders', orderId);
@@ -252,6 +295,11 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     const snapshot = await getDocs(q);
     const userOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
     return userOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function updateOrderPaymentDetails(orderId: string, paymentDetails: { razorpayPaymentId: string; razorpayOrderId: string; }): Promise<void> {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, paymentDetails);
 }
 
 // --- Cart Management (Firestore) ---
@@ -501,6 +549,22 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
 
 export async function updatePaymentSettings(data: Partial<PaymentSettings>): Promise<void> {
     const docRef = doc(db, 'globals', 'paymentSettings');
+    await setDoc(docRef, data, { merge: true });
+}
+
+// --- Restaurant Time Management ---
+export async function getRestaurantTime(): Promise<RestaurantTime> {
+    const docRef = doc(db, 'globals', 'restaurantTime');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+        await setDoc(docRef, defaultRestaurantTime);
+        return defaultRestaurantTime;
+    }
+    return docSnap.data() as RestaurantTime;
+}
+
+export async function updateRestaurantTime(data: RestaurantTime): Promise<void> {
+    const docRef = doc(db, 'globals', 'restaurantTime');
     await setDoc(docRef, data, { merge: true });
 }
 
