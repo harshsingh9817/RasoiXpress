@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, CheckCircle, ShieldCheck, QrCode, ArrowLeft, Loader2, PackageCheck, Phone, MapPin, AlertCircle, Gift, Tag } from 'lucide-react';
 import type { Order, Address as AddressType, PaymentSettings, CartItem, User } from '@/lib/types';
-import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getTempOrderById, deleteTempOrder, moveTempOrderToMain, clearExpiredTempOrders } from '@/lib/data';
+import { getAddresses, getPaymentSettings, deleteAddress, setDefaultAddress, updateAddress, getUserProfile, getTempOrderById, deleteTempOrder, clearExpiredTempOrders } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedPlateSpinner from '@/components/icons/AnimatedPlateSpinner';
 import AddressFormDialog from '@/components/AddressFormDialog';
@@ -125,7 +125,19 @@ export default function CheckoutPage() {
 
   // Cleanup effect to delete the pending order if the user navigates away
   useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+        if (!user || !tempOrderId || isFinalizing || showSuccessScreen) return;
+        
+        const order = await getTempOrderById(user.uid, tempOrderId);
+        if (order) {
+            // This is a best-effort attempt. Modern browsers may not guarantee this runs.
+            await deleteTempOrder(user.uid, tempOrderId);
+        }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       const deletePendingOrder = async () => {
         if (!user || !tempOrderId) return;
         const order = await getTempOrderById(user.uid, tempOrderId);
@@ -134,7 +146,6 @@ export default function CheckoutPage() {
         }
       };
       
-      // Only delete if we are not in the process of finalizing a successful payment
       if (!isFinalizing && !showSuccessScreen) {
         deletePendingOrder();
       }
@@ -210,13 +221,13 @@ export default function CheckoutPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 amount: grandTotal, 
-                user,
+                user, // Pass the whole user object
                 cartItems,
                 shippingAddress: selectedAddress,
                 deliveryFee,
                 totalTax,
                 coupon: appliedCoupon,
-                firebaseOrderId: tempOrderId, // Pass the pending order ID
+                firebaseOrderId: tempOrderId, // Pass the temporary order ID
             }),
         });
 
@@ -487,3 +498,5 @@ export default function CheckoutPage() {
     </>
   );
 }
+
+    

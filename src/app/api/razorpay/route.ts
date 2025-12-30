@@ -32,40 +32,36 @@ export async function POST(req: Request) {
     const { 
         amount, 
         user, 
-        cartItems, 
-        shippingAddress,
-        deliveryFee,
-        totalTax,
-        coupon,
         firebaseOrderId // The ID of the temporary order
     }: { 
         amount: number, 
         user: User, 
+        firebaseOrderId: string,
+        // The rest are not needed for Razorpay order creation, only for notes
         cartItems: CartItem[], 
         shippingAddress: Address,
         deliveryFee: number,
         totalTax: number,
         coupon: Coupon | null,
-        firebaseOrderId: string,
     } = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'A valid amount is required.' }, { status: 400 });
     }
-    if (!user || !cartItems || !shippingAddress || !firebaseOrderId) {
+    if (!user || !firebaseOrderId) {
       return NextResponse.json({ error: 'Missing required order information.' }, { status: 400 });
     }
     
+    // Notes are critical for the webhook to identify the order and user.
     const orderNotes = {
         firebaseOrderId: firebaseOrderId,
         userId: user.uid,
     };
 
-
     const options = {
       amount: Math.round(amount * 100), // amount in the smallest currency unit (paise)
       currency: "INR",
-      receipt: `receipt_order_${Date.now()}`,
+      receipt: `receipt_order_${firebaseOrderId}`, // Use a unique ID like the temp order ID
       notes: orderNotes
     };
 
@@ -89,3 +85,5 @@ export async function POST(req: Request) {
     return errorResponse;
   }
 }
+
+    

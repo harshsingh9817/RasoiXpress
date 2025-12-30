@@ -1,6 +1,5 @@
 
 
-
 export interface Restaurant {
   id: string;
   name: string;
@@ -65,7 +64,6 @@ export interface Review {
 export interface Order {
   id: string;
   userId: string;
-  supabase_order_uuid?: string;
   userEmail: string; 
   customerName: string; 
   date: string;
@@ -79,20 +77,20 @@ export interface Order {
   customerPhone?: string;
   deliveryConfirmationCode?: string;
   deliveryFee: number;
-  taxRate?: number; 
-  totalTax: number; 
+  totalTax: number;
+  razorpayPaymentId?: string;
+  razorpayOrderId?: string;
+  shippingLat?: number;
+  shippingLng?: number;
+  couponCode?: string | null;
+  discountAmount?: number | null;
+  createdAt?: any;
+  // Fields related to Supabase and rider app
+  supabase_order_uuid?: string;
   deliveryRiderId?: string;
   deliveryRiderName?: string;
   deliveryRiderPhone?: string;
   deliveryRiderVehicle?: string;
-  razorpayPaymentId?: string;
-  razorpayOrderId?: string;
-  isAvailableForPickup?: boolean;
-  shippingLat?: number;
-  shippingLng?: number;
-  couponCode?: string | null;
-  discountAmount?: number;
-  createdAt?: any;
 }
 
 export interface Address {

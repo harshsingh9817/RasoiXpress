@@ -31,6 +31,7 @@ async function initializeFirebaseAdmin() {
     
     let serviceAccount;
     try {
+        // The service account key is expected to be a Base64 encoded JSON string
         serviceAccount = JSON.parse(Buffer.from(serviceAccountKey, 'base64').toString('utf8'));
     } catch (e: any) {
         throw new Error(`Webhook Error: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Please ensure it is a valid, Base64-encoded JSON string. Details: ${e.message}`);
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
       const razorpayOrder = payload.payload.order.entity;
       const orderNotes = razorpayOrder.notes;
 
+      // Extract userId and tempOrderId from the notes
       const tempOrderId = orderNotes?.firebaseOrderId;
       const userId = orderNotes?.userId;
 
@@ -113,21 +115,25 @@ export async function POST(req: Request) {
 
       // Create new main order from the temporary order data
       const mainOrderRef = db.collection('orders').doc(); // Generate a new ID for the main order
-      await mainOrderRef.set({
+      
+      const finalOrderData = {
         ...tempOrderData,
         status: 'Order Placed',
         razorpayPaymentId: payment.id,
         razorpayOrderId: razorpayOrder.id,
         createdAt: FieldValue.serverTimestamp(), // Use the server's timestamp for the official creation time
-      });
+      };
 
-      // Delete the temporary order
+      // Step 1: Create the final order
+      await mainOrderRef.set(finalOrderData);
+
+      // Step 2: After successful creation, delete the temporary order
       await tempOrderRef.delete();
 
-      // Update user's first order status
+      // Step 3: Update user's first order status
       const userRef = db.collection('users').doc(userId);
       const userDoc = await userRef.get();
-      if (userDoc.exists && userDoc.data()?.hasCompletedFirstOrder === false) {
+      if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
           await userRef.update({ hasCompletedFirstOrder: true });
       }
 
@@ -144,3 +150,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to process webhook due to an unexpected server error.' }, { status: 500 });
   }
 }
+
+    

@@ -228,65 +228,6 @@ export async function clearExpiredTempOrders(userId: string, minutes: number): P
     console.log(`Cleaned up ${snapshot.size} expired temporary order(s).`);
 }
 
-
-
-export async function moveTempOrderToMain(userId: string, tempOrderId: string): Promise<string> {
-    const tempOrder = await getTempOrderById(userId, tempOrderId);
-    if (!tempOrder) {
-        throw new Error("Temporary order not found.");
-    }
-
-    const ordersCol = collection(db, 'orders');
-    
-    const finalOrderData: { [key: string]: any } = { ...tempOrder };
-    delete finalOrderData.id; // Remove the temporary ID
-
-    const newOrderRef = await addDoc(ordersCol, {
-        ...finalOrderData,
-        createdAt: serverTimestamp(),
-    });
-    
-    // After successfully adding the order, update the user's first order status flag.
-    const userRef = doc(db, "users", userId);
-    try {
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists() && userDoc.data()?.hasCompletedFirstOrder === false) {
-            await updateDoc(userRef, { hasCompletedFirstOrder: true });
-        }
-    } catch (error) {
-        console.error("Failed to update first order status for user:", userId, error);
-    }
-    
-    // Now delete the temporary order
-    await deleteTempOrder(userId, tempOrderId);
-
-    // Sync to Supabase for the rider app
-    if (supabase) {
-        const orderForSupabase = {
-            ...finalOrderData,
-            firebase_order_id: newOrderRef.id,
-        };
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .insert([orderForSupabase])
-                .select()
-                .single();
-
-            if (error) {
-                console.error(`Supabase insert error for order ${newOrderRef.id}:`, error.message);
-            } else if (data) {
-                await updateDoc(newOrderRef, { supabase_order_uuid: data.id });
-            }
-        } catch (e) {
-            console.error("Unexpected error syncing order to Supabase:", e);
-        }
-    }
-    
-    return newOrderRef.id;
-}
-
-
 export async function getOrderById(orderId: string): Promise<Order | null> {
     const docRef = doc(db, 'orders', orderId);
     const docSnap = await getDoc(docRef);
@@ -710,7 +651,8 @@ export async function getUserProfile(userId: string): Promise<DocumentData | nul
 
 export async function updateUserProfileData(userId: string, data: { displayName?: string, mobileNumber?: string }): Promise<void> {
     if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        return;
+      console.warn("Attempted to update profile for a user that is not logged in.");
+      return;
     }
     
     if(data.displayName && data.displayName !== auth.currentUser.displayName) {
@@ -917,3 +859,5 @@ export function listenToCategories(callback: (categories: Category[]) => void): 
         console.error("Error listening to categories:", error);
     });
 }
+
+    
